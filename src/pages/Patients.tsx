@@ -63,6 +63,19 @@ const Patients: React.FC = () => {
         }
     };
 
+    // FORCE DATA LOAD if patients is empty (User Feedback Fix)
+    React.useEffect(() => {
+        if (patients.length === 0) {
+            console.log("Patients list empty, forcing refresh...");
+            api.getPatients()
+                .then(pts => {
+                    console.log(`Fetched ${pts.length} patients`);
+                    setPatients(pts);
+                })
+                .catch(err => console.error("Error auto-fetching patients", err));
+        }
+    }, []); // Run once on mount
+
     // Computed
     const filteredPatients = useMemo(() => {
         return patients.filter(p =>
