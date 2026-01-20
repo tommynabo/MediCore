@@ -2,11 +2,18 @@
 const fs = require('fs');
 const path = require('path');
 
-const UPLOAD_DIR = path.join(__dirname, '../uploads/templates');
+// Adapt path for Vercel (Read-only OS, except /tmp)
+const UPLOAD_DIR = process.env.VERCEL || process.env.NODE_ENV === 'production'
+    ? '/tmp/uploads/templates'
+    : path.join(__dirname, '../uploads/templates');
 
-// Ensure directory exists
-if (!fs.existsSync(UPLOAD_DIR)) {
-    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+// Ensure directory exists (Safe check)
+try {
+    if (!fs.existsSync(UPLOAD_DIR)) {
+        fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+    }
+} catch (e) {
+    console.warn("⚠️ Warning: Could not create upload directory on startup:", e.message);
 }
 
 /**
