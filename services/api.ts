@@ -196,7 +196,7 @@ export const api = {
             const res = await fetch(`${API_URL}/ai/query`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify({ prompt, patientId })
+                body: JSON.stringify({ message: prompt, context: { patientId } })
             });
             return res.json();
         }

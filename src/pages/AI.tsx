@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { MessageSquare, Activity, Send } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { queryClinicalLayer } from '../services/aiService'; // Import might need adjustment if services moved
 
 const AI: React.FC = () => {
-    const { patients, appointments, invoices } = useAppContext();
+    const { api } = useAppContext();
     const [aiInput, setAiInput] = useState('');
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -19,16 +18,14 @@ const AI: React.FC = () => {
         setIsProcessing(true);
 
         try {
-            // Prepare context data for the AI service
-            // Note: Passing huge arrays might hit limits, consider optimizing or using a specialized backend endpoint
-            const contextData = {
-                patients,
-                appointments,
-                invoices
-            };
+            // Using backend API Agent (Omniscient Mode)
+            const response = await api.ai.query(userMsg);
 
-            const response = await queryClinicalLayer(userMsg, contextData);
-            setChatHistory(prev => [...prev, { role: 'assistant', content: response }]);
+            // Backend returns { type: 'text' | 'error', content: '...' } or just content
+            // Need to handle response structure
+            const content = response.content || response.answer || JSON.stringify(response);
+
+            setChatHistory(prev => [...prev, { role: 'assistant', content: content }]);
         } catch (error) {
             setChatHistory(prev => [...prev, { role: 'assistant', content: "Lo siento, hubo un error al procesar tu consulta." }]);
         } finally {
