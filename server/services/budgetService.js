@@ -1,119 +1,172 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+// server/services/budgetService.js
 
-const createBudget = async (prisma, patientId, items = []) => {
-    // Calculate total
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
+const createBudget = async (supabase, patientId, items = []) => {
+    const totalAmount = items.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
 
-    const budget = await prisma.budget.create({
-        data: {
+    // 1. Create Budget
+    const { data: budget, error: budgetError } = await supabase
+        .from('Budget')
+        .insert([{
             patientId,
             status: 'DRAFT',
             totalAmount,
-            items: {
-                create: items.map(item => ({
-                    name: item.name,
-                    price: item.price,
-                    quantity: item.quantity || 1,
-                    tooth: item.tooth,
-                    face: item.face,
-                    treatmentId: item.treatmentId
-                }))
-            }
-        },
-        include: { items: true }
-    });
-    return budget;
+            date: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+    if (budgetError) throw new Error("Error creating budget: " + budgetError.message);
+
+    // 2. Create Items
+    if (items.length > 0) {
+        const lineItems = items.map(item => ({
+            budgetId: budget.id,
+            name: item.name,
+            price: Number(item.price),
+            quantity: Number(item.quantity) || 1,
+            tooth: item.tooth ? String(item.tooth) : null,
+            face: item.face || null,
+            treatmentId: item.treatmentId || null
+        }));
+
+        const { error: itemsError } = await supabase
+            .from('BudgetLineItem')
+            .insert(lineItems);
+
+        if (itemsError) console.error("Error adding budget items:", itemsError);
+    }
+
+    // Return full structure
+    const { data: fullBudget } = await supabase
+        .from('Budget')
+        .select('*, items:BudgetLineItem(*)')
+        .eq('id', budget.id)
+        .single();
+
+    return fullBudget;
 };
 
-const getBudgetsByPatient = async (prisma, patientId) => {
-    return await prisma.budget.findMany({
-        where: { patientId },
-        include: { items: true },
-        orderBy: { createdAt: 'desc' }
-    });
+const getBudgetsByPatient = async (supabase, patientId) => {
+    const { data, error } = await supabase
+        .from('Budget')
+        .select('*, items:BudgetLineItem(*)')
+        .eq('patientId', patientId)
+        .order('createdAt', { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data;
 };
 
-const updateBudgetStatus = async (prisma, budgetId, status) => {
-    return await prisma.budget.update({
-        where: { id: budgetId },
-        data: { status }
-    });
+const updateBudgetStatus = async (supabase, budgetId, status) => {
+    const { data, error } = await supabase
+        .from('Budget')
+        .update({ status, updatedAt: new Date().toISOString() })
+        .eq('id', budgetId)
+        .select()
+        .single();
+
+    if (error) throw new Error(error.message);
+    return data;
 };
 
-const addItemToDraftBudget = async (prisma, patientId, item) => {
-    // Find most recent DRAFT budget or create one
-    let budget = await prisma.budget.findFirst({
-        where: { patientId, status: 'DRAFT' },
-        orderBy: { createdAt: 'desc' }
-    });
+const addItemToDraftBudget = async (supabase, patientId, item) => {
+    // Find most recent DRAFT budget
+    let { data: budget } = await supabase
+        .from('Budget')
+        .select('*')
+        .eq('patientId', patientId)
+        .eq('status', 'DRAFT')
+        .order('createdAt', { ascending: false })
+        .limit(1)
+        .single();
 
+    // Create if not exists
     if (!budget) {
-        budget = await prisma.budget.create({
-            data: {
+        const { data: newBudget, error: createError } = await supabase
+            .from('Budget')
+            .insert([{
                 patientId,
                 status: 'DRAFT',
-                totalAmount: 0
-            }
-        });
+                totalAmount: 0,
+                date: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (createError) throw new Error("Error creating draft budget: " + createError.message);
+        budget = newBudget;
     }
 
     // Add Item
-    const lineItem = await prisma.budgetLineItem.create({
-        data: {
+    const { data: lineItem, error: itemError } = await supabase
+        .from('BudgetLineItem')
+        .insert([{
             budgetId: budget.id,
             name: item.name,
-            price: item.price,
-            quantity: item.quantity || 1,
-            tooth: item.tooth || null,
+            price: Number(item.price),
+            quantity: Number(item.quantity) || 1,
+            tooth: item.tooth ? String(item.tooth) : null,
             face: item.face || null,
             treatmentId: item.treatmentId || null
-        }
-    });
+        }])
+        .select()
+        .single();
+
+    if (itemError) throw new Error("Error adding item: " + itemError.message);
 
     // Update Total
-    const newTotal = budget.totalAmount + (lineItem.price * lineItem.quantity);
-    await prisma.budget.update({
-        where: { id: budget.id },
-        data: { totalAmount: newTotal }
-    });
+    const newTotal = Number(budget.totalAmount) + (Number(lineItem.price) * Number(lineItem.quantity));
+    await supabase.from('Budget').update({ totalAmount: newTotal, updatedAt: new Date().toISOString() }).eq('id', budget.id);
 
-    return await prisma.budget.findUnique({
-        where: { id: budget.id },
-        include: { items: true }
-    });
+    return await supabase
+        .from('Budget')
+        .select('*, items:BudgetLineItem(*)')
+        .eq('id', budget.id)
+        .single();
 };
 
-const convertBudgetToInvoice = async (prisma, budgetId) => {
-    const budget = await prisma.budget.findUnique({
-        where: { id: budgetId },
-        include: { items: true }
-    });
+const convertBudgetToInvoice = async (supabase, budgetId) => {
+    // 1. Get Budget
+    const { data: budget, error: budgetError } = await supabase
+        .from('Budget')
+        .select('*, items:BudgetLineItem(*)')
+        .eq('id', budgetId)
+        .single();
 
-    if (!budget) throw new Error("Budget not found");
+    if (budgetError || !budget) throw new Error("Budget not found");
 
-    // Create Invoice
-    const invoice = await prisma.invoice.create({
-        data: {
-            invoiceNumber: `INV-${Date.now()}`, // Simple generator
-            patientId: budget.patientId,
-            amount: budget.totalAmount,
-            status: 'PENDING',
-            items: {
-                create: budget.items.map(item => ({
-                    name: item.name,
-                    price: item.price,
-                    serviceId: item.treatmentId
-                }))
-            }
-        }
-    });
+    // 2. Create Invoice
+    const invoiceData = {
+        invoiceNumber: `INV-${Date.now()}`,
+        patientId: budget.patientId,
+        amount: budget.totalAmount,
+        status: 'PENDING',
+        date: new Date().toISOString()
+    };
 
-    // Mark Budget as Converted
-    await prisma.budget.update({
-        where: { id: budgetId },
-        data: { status: 'CONVERTED' }
-    });
+    const { data: invoice, error: invoiceError } = await supabase
+        .from('Invoice')
+        .insert([invoiceData])
+        .select()
+        .single();
+
+    if (invoiceError) throw new Error("Error creating invoice: " + invoiceError.message);
+
+    // 3. Create Invoice Items
+    if (budget.items && budget.items.length > 0) {
+        const invoiceItems = budget.items.map(item => ({
+            invoiceId: invoice.id,
+            name: item.name,
+            price: item.price,
+            serviceId: item.treatmentId || null
+        }));
+        await supabase.from('InvoiceItem').insert(invoiceItems);
+    }
+
+    // 4. Update Budget Status
+    await supabase.from('Budget').update({ status: 'CONVERTED' }).eq('id', budgetId);
 
     return invoice;
 };

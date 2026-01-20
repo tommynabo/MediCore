@@ -93,37 +93,54 @@ app.get('/api/liquidations', async (req, res) => {
 });
 
 // --- BUDGETS ---
+// --- BUDGETS ---
 app.get('/api/patients/:patientId/budgets', async (req, res) => {
     try {
-        const budgets = await budgetService.getBudgetsByPatient(prisma, req.params.patientId);
+        let supabase;
+        try { supabase = getSupabase(); } catch (configError) { return res.status(500).json({ error: configError.message }); }
+
+        const budgets = await budgetService.getBudgetsByPatient(supabase, req.params.patientId);
         res.json(budgets);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/patients/:patientId/budgets', async (req, res) => {
     try {
-        const budget = await budgetService.createBudget(prisma, req.params.patientId, req.body.items);
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const budget = await budgetService.createBudget(supabase, req.params.patientId, req.body.items);
         res.json(budget);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/budgets/:id/status', async (req, res) => {
     try {
-        const budget = await budgetService.updateBudgetStatus(prisma, req.params.id, req.body.status);
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const budget = await budgetService.updateBudgetStatus(supabase, req.params.id, req.body.status);
         res.json(budget);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/patients/:patientId/budgets/draft/items', async (req, res) => {
     try {
-        const budget = await budgetService.addItemToDraftBudget(prisma, req.params.patientId, req.body);
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const budget = await budgetService.addItemToDraftBudget(supabase, req.params.patientId, req.body);
         res.json(budget);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+
 app.post('/api/budgets/:id/convert', async (req, res) => {
     try {
-        const invoice = await budgetService.convertBudgetToInvoice(prisma, req.params.id);
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const invoice = await budgetService.convertBudgetToInvoice(supabase, req.params.id);
         res.json(invoice);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -133,6 +150,54 @@ app.post('/api/finance/financing', async (req, res) => {
         const plan = await financeService.createFinancingPlan(prisma, req.body);
         res.json(plan);
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- CLINICAL RECORDS (Module 4 Extension) ---
+app.post('/api/clinical-records', async (req, res) => {
+    try {
+        const { patientId, treatment, observation, specialization } = req.body;
+
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { data, error } = await supabase
+            .from('ClinicalRecord')
+            .insert([{
+                patientId,
+                date: new Date().toISOString(),
+                specialization: specialization || 'General',
+                clinicalData: { treatment, observation },
+                isEncrypted: false
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error("❌ Error Saving Clinical Record:", error);
+            return res.status(500).json({ error: error.message });
+        }
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/patients/:patientId/clinical-records', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { data, error } = await supabase
+            .from('ClinicalRecord')
+            .select('*')
+            .eq('patientId', req.params.patientId)
+            .order('date', { ascending: false });
+
+        if (error) return res.status(500).json({ error: error.message });
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // --- PATIENT MANAGEMENT ---

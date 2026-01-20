@@ -156,6 +156,23 @@ export const api = {
         return res.json();
     },
 
+    // Clinical Records
+    clinicalRecords: {
+        create: async (record: any) => {
+            const res = await fetch(`${API_URL}/clinical-records`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(record)
+            });
+            if (!res.ok) throw new Error("Error creating record");
+            return res.json();
+        },
+        getByPatient: async (patientId: string) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/clinical-records`, { headers: getHeaders() });
+            return res.json();
+        }
+    },
+
     // Module 1: Finance
     getLiquidations: async (doctorId?: string, month?: string): Promise<{ records: Liquidation[], totalToPay: number }> => {
         const params = new URLSearchParams();
