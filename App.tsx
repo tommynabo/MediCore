@@ -513,25 +513,37 @@ const App: React.FC = () => {
     if (selectedPatient) fetchPatientData(selectedPatient.id);
   }, [selectedPatient]);
 
-  const handleBooking = (patient: Patient, treatment: string) => {
+  const handleBooking = async (patient: Patient, treatment: string) => {
     if (!activeSlot || !patient || !treatment) {
       alert("⚠️ Error: Debe seleccionar un paciente y un tratamiento obligatoriamente.");
       return;
     }
-    const newAppt: Appointment = {
-      id: crypto.randomUUID(),
-      doctorId: selectedDoctorId,
-      patientId: patient.id,
-      date: '2024-05-20',
-      dayIdx: activeSlot.dayIdx,
-      time: activeSlot.time,
-      treatment
-    };
-    setAppointments([...appointments, newAppt]);
-    setIsAppointmentModalOpen(false);
-    setActiveSlot(null);
-    setApptSearch('');
-    setApptTreatmentSearch('');
+
+    try {
+      const appointmentData = {
+        doctorId: selectedDoctorId,
+        patientId: patient.id,
+        date: '2024-05-20', // Note: This seems hardcoded in original, ideally should come from activeSlot or date picker
+        dayIdx: activeSlot.dayIdx,
+        time: activeSlot.time,
+        treatment,
+        status: 'Scheduled'
+      };
+
+      // Persist to Backend
+      const savedAppt = await api.createAppointment(appointmentData);
+
+      // Update UI with saved data
+      setAppointments(prev => [...prev, savedAppt]);
+      setIsAppointmentModalOpen(false);
+      setActiveSlot(null);
+      setApptSearch('');
+      setApptTreatmentSearch('');
+      alert("✅ Cita guardada correctamente en la nube.");
+    } catch (e) {
+      console.error("Error booking:", e);
+      alert("❌ Error al guardar la cita. Inténtalo de nuevo.");
+    }
   };
 
   const handleCreateInvoice = async (p: Patient, serviceId: string, paymentMethod: 'cash' | 'card') => {

@@ -161,34 +161,48 @@ export const api = {
             body: JSON.stringify(planData)
         });
         return res.json();
+        body: JSON.stringify(planData)
+    });
+return res.json();
     },
+
+// Appointments
+createAppointment: async (appointmentData: any) => {
+    const res = await fetch(`${API_URL}/appointments`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify(appointmentData)
+    });
+    if (!res.ok) throw new Error('Error saving appointment');
+    return res.json();
+},
 
     getPatientAlerts: async (patientId: string) => {
         const res = await fetch(`${API_URL}/patients/${patientId}/alerts`, { headers: getHeaders() });
         return res.json();
     },
 
-    // Module 4: AI
-    ai: {
-        query: async (prompt: string, patientId?: string) => {
-            const res = await fetch(`${API_URL}/ai/query`, {
-                method: 'POST',
-                headers: getHeaders(),
-                body: JSON.stringify({ prompt, patientId })
-            });
-            return res.json();
-        }
-    },
-
-    // Module 5: Inventory
-    checkStock: async (currentStock: any[]) => {
-        const res = await fetch(`${API_URL}/inventory/check`, {
+        // Module 4: AI
+        ai: {
+    query: async (prompt: string, patientId?: string) => {
+        const res = await fetch(`${API_URL}/ai/query`, {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify({ currentStock })
+            body: JSON.stringify({ prompt, patientId })
         });
         return res.json();
-    },
+    }
+},
+
+// Module 5: Inventory
+checkStock: async (currentStock: any[]) => {
+    const res = await fetch(`${API_URL}/inventory/check`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ currentStock })
+    });
+    return res.json();
+},
 
     // Module 6: Invoicing (FacturaDirecta Integration)
     generateInvoice: async (data: { patient: any, items: any[], paymentMethod: 'cash' | 'card', type?: 'ordinary' | 'rectificative' }) => {
@@ -200,26 +214,26 @@ export const api = {
         return res.json();
     },
 
-    getInvoices: async () => {
-        const res = await fetch(`${API_URL}/finance/invoices`, { headers: getHeaders() });
-        return res.json();
-    },
+        getInvoices: async () => {
+            const res = await fetch(`${API_URL}/finance/invoices`, { headers: getHeaders() });
+            return res.json();
+        },
 
-    downloadBatchZip: async (invoices: any[], date: string) => {
-        const res = await fetch(`${API_URL}/finance/invoices/export/batch`, {
-            method: 'POST',
-            headers: getHeaders(),
-            body: JSON.stringify({ invoices, date })
-        });
-        if (!res.ok) throw new Error("Error downloading ZIP");
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Facturas_${date}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-    }
+            downloadBatchZip: async (invoices: any[], date: string) => {
+                const res = await fetch(`${API_URL}/finance/invoices/export/batch`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ invoices, date })
+                });
+                if (!res.ok) throw new Error("Error downloading ZIP");
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Facturas_${date}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }
 };

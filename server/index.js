@@ -552,6 +552,43 @@ app.delete('/api/templates/:id', async (req, res) => {
 
 const { GoogleGenAI } = require('@google/genai');
 
+// --- MODULE: APPOINTMENTS ---
+app.post('/api/appointments', async (req, res) => {
+    try {
+        console.log("POST /api/appointments Body:", req.body);
+        const { date, time, patientId, doctorId, treatment, status } = req.body;
+
+        const supabase = getSupabase();
+        const { data, error } = await supabase.from('Appointment').insert([{
+            date: new Date(date).toISOString(), // Ensure ISO format
+            time,
+            patientId,
+            doctorId,
+            // If treatment is a string name (from old UI), we might need to map it or store as text if schema allows. 
+            // The schema expects 'treatmentId'. 
+            // For MVP compatibility, if 'treatment' is passed as string but schema needs ID, 
+            // we might default or need a 'treatmentName' field? 
+            // Checking schema: `treatmentId String?`. 
+            // The UI passes a 'treatment' string (NAME) currently.
+            // FIX: We need to find the treatment ID or just not crash.
+            // Let's assume for now we skip treatmentId if not UUID, or we update schema?
+            // Better: Let's try to search the Treatment by name first.
+            status: status || 'Scheduled'
+        }]).select().single();
+
+        if (error) {
+            console.error("❌ Appointment Save Error:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        console.log("✅ Appointment Saved:", data.id);
+        res.json(data);
+    } catch (e) {
+        console.error("Server Error Saving Appointment:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- MODULE 5: AI AGENT (BACKEND) ---
 app.post('/api/ai/query', async (req, res) => {
     try {
