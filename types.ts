@@ -1,7 +1,11 @@
 
 export enum Specialization {
   GENERAL = 'General',
-  DENTIST = 'Odontología'
+  DENTIST = 'Odontología',
+  ORTHODONTICS = 'Ortodoncia',
+  IMPLANTOLOGY = 'Implantología',
+  ESTHETICS = 'Estética',
+  PERIODONTICS = 'Periodoncia'
 }
 
 export interface Patient {
