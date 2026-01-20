@@ -297,18 +297,31 @@ app.post('/api/inventory/check', async (req, res) => {
 
 const { createClient } = require('@supabase/supabase-js');
 
-// Initialize Supabase Client (Bypasses Connection Poolers)
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Lazy Supabase Initializer to prevent startup crashes
+const getSupabase = () => {
+    if (!process.env.SUPABASE_URL) throw new Error("Falta Vercel Env Var: SUPABASE_URL");
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Falta Vercel Env Var: SUPABASE_SERVICE_ROLE_KEY");
 
-// ... existing code ...
+    return createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+};
 
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
         console.log(`🔐 Login Attempt (Supabase Native): ${email}`);
+
+        // Initialize Supabase safely
+        let supabase;
+        try {
+            supabase = getSupabase();
+        } catch (configError) {
+            console.error("❌ Supabase Configuration Error:", configError.message);
+            // Send the specific error so it appears in the frontend alert
+            return res.status(500).json({ error: configError.message });
+        }
 
         // Query Supabase directly (HTTP/REST), bypassing Prisma/TCP Port 5432
         const { data: user, error } = await supabase
