@@ -42,7 +42,7 @@ const AI: React.FC = () => {
                     </div>
                     <div>
                         <h3 className="text-sm font-black uppercase tracking-widest">ChatControlMed AI</h3>
-                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Cognitive Assistant</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Asistente Cognitivo</p>
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-10 space-y-6 custom-scrollbar bg-slate-50/30">

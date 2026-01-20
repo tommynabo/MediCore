@@ -3,8 +3,39 @@ import { Star, TrendingUp, TrendingDown, Users, DollarSign, Activity, Calendar }
 import { useAppContext } from '../context/AppContext';
 
 const Dashboard: React.FC = () => {
-    const { patients, appointments, invoices } = useAppContext();
+    const { patients, appointments, invoices, currentUserRole, currentUser } = useAppContext();
 
+    // RECEPTION VIEW - "Global Center"
+    if (currentUserRole === 'RECEPTION') {
+        return (
+            <div className="h-full flex flex-col items-center justify-center bg-slate-50 animate-in fade-in zoom-in duration-500">
+                <div className="bg-white p-12 rounded-[3rem] shadow-2xl border border-slate-100 text-center max-w-2xl w-full">
+                    <div className="w-24 h-24 bg-blue-600 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-blue-600/30 mx-auto mb-8">
+                        <Activity size={48} strokeWidth={3} />
+                    </div>
+                    <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">ControlMed</h1>
+                    <p className="text-blue-600 font-bold uppercase tracking-widest text-sm mb-8">Global Center</p>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                            <p className="text-3xl font-black text-slate-900">{patients.length}</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase">Pacientes Activos</p>
+                        </div>
+                        <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                            <p className="text-3xl font-black text-slate-900">{appointments.filter(a => a.date === new Date().toISOString().split('T')[0]).length}</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase">Citas Hoy</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 p-4 bg-blue-50 text-blue-800 rounded-xl text-sm font-medium">
+                        👋 Hola, {currentUser?.name || "Recepción"}. Panel listo para gestión.
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // DOCTOR / ADMIN VIEW
     // Mock Stats for the dashboard
     const stats = [
         { label: 'Pacientes Totales', value: patients.length, change: '+12%', icon: Users, color: 'bg-blue-500' },
@@ -16,7 +47,7 @@ const Dashboard: React.FC = () => {
         <div className="p-10 h-full overflow-y-auto custom-scrollbar animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="max-w-6xl mx-auto space-y-12">
                 <div>
-                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Buenos días, Dr. Martin</h2>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">Buenos días, {currentUser?.name || "Doctor"}</h2>
                     <p className="text-slate-500 font-medium">Aquí tienes el resumen de tu clínica hoy.</p>
                 </div>
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
     Users, Activity, Calendar, Settings,
-    PieChart, Brain, Package, LogOut, Search, Bell, Menu
+    PieChart, Brain, Package, LogOut, Search, Bell, Menu, ChevronRight
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
@@ -21,10 +21,9 @@ const Layout: React.FC = () => {
         { id: 'dashboard', label: 'Dashboard', icon: PieChart, path: '/' },
         { id: 'patients', label: 'Pacientes', icon: Users, path: '/pacientes' },
         { id: 'agenda', label: 'Agenda', icon: Calendar, path: '/agenda' },
-        { id: 'billing', label: 'Facturación', icon: Activity, path: '/billing' }, // Using Activity for now
-        { id: 'stock', label: 'Inventario', icon: Package, path: '/inventory' },
+        { id: 'billing', label: 'Facturación', icon: Activity, path: '/billing' },
         { id: 'ai', label: 'Asistente IA', icon: Brain, path: '/ai' },
-        { id: 'payroll', label: 'Nóminas', icon: Users, path: '/payroll' }, // Using Users for payroll
+        { id: 'payroll', label: 'Nóminas', icon: Users, path: '/payroll' },
         { id: 'settings', label: 'Configuración', icon: Settings, path: '/settings' },
     ];
 
@@ -33,42 +32,67 @@ const Layout: React.FC = () => {
             {/* Sidebar */}
             <aside
                 className={`${isSidebarOpen ? 'w-64' : 'w-20'} 
-        bg-slate-900 text-slate-300 transition-all duration-300 ease-in-out relative z-20 flex flex-col`}
+        bg-slate-900 text-slate-300 transition-all duration-300 ease-in-out relative z-20 flex flex-col border-r border-slate-800`}
             >
-                <div className="p-6 flex items-center justify-between">
+                {/* Logo Section - Always centered icon if collapsed */}
+                <div className={`p-6 flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'} h-20`}>
                     <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-8 h-8 bg-blue-600 rounded-xl flex-shrink-0 flex items-center justify-center text-white">
-                            <Activity size={18} />
+                        <div className="w-8 h-8 bg-blue-600 rounded-xl flex-shrink-0 flex items-center justify-center text-white shadow-lg shadow-blue-900/50">
+                            <Activity size={20} strokeWidth={3} />
                         </div>
                         {isSidebarOpen && (
-                            <h1 className="text-lg font-black tracking-tighter text-white">ControlMed</h1>
+                            <h1 className="text-lg font-black tracking-tighter text-white whitespace-nowrap animate-in fade-in duration-300">ControlMed</h1>
                         )}
                     </div>
-                    <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-slate-500 hover:text-white">
-                        <Menu size={18} />
-                    </button>
+                    {isSidebarOpen && (
+                        <button onClick={() => setIsSidebarOpen(false)} className="text-slate-500 hover:text-white transition-colors">
+                            <Menu size={18} />
+                        </button>
+                    )}
                 </div>
 
-                <nav className="flex-1 px-4 space-y-2 mt-4">
+                {/* Collapse Toggle when closed - floating or part of header? User asked for logo on top.
+                    If closed, we show logo centered. The toggle button can be at the bottom or separate.
+                    Let's allow toggling back open via a button at the top if closed.
+                 */}
+                {!isSidebarOpen && (
+                    <button
+                        onClick={() => setIsSidebarOpen(true)}
+                        className="absolute top-6 right-[-12px] w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center z-50 shadow-lg hover:scale-110 transition-transform"
+                    >
+                        <ChevronRight size={14} />
+                    </button>
+                )}
+
+
+                <nav className="flex-1 px-4 space-y-2 mt-4 overflow-y-auto custom-scrollbar">
                     {navItems.map((item) => {
                         // Basic Role Based Access Control (RBAC) Filtering
                         if (role === 'RECEPTION' && ['payroll', 'ai'].includes(item.id)) return null;
-                        if (role === 'DOCTOR' && ['payroll', 'stock'].includes(item.id)) return null;
+                        if (role === 'DOCTOR' && ['payroll'].includes(item.id)) return null;
 
                         return (
                             <NavLink
                                 key={item.id}
                                 to={item.path}
                                 className={({ isActive }) => `
-                  flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
+                  flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative
                   ${isActive
-                                        ? 'bg-blue-600/10 text-blue-500 shadow-lg shadow-blue-500/20'
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20'
                                         : 'hover:bg-slate-800 hover:text-white'
                                     }
+                  ${!isSidebarOpen && 'justify-center'}
                 `}
                             >
-                                <item.icon size={20} className="group-hover:scale-110 transition-transform" />
+                                <item.icon size={20} className={`transition-transform ${isSidebarOpen ? 'group-hover:scale-110' : ''}`} />
                                 {isSidebarOpen && <span className="text-xs font-bold uppercase tracking-wide">{item.label}</span>}
+
+                                {/* Tooltip for collapsed state */}
+                                {!isSidebarOpen && (
+                                    <div className="absolute left-full ml-4 bg-slate-900 text-white text-xs font-bold px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 shadow-xl">
+                                        {item.label}
+                                    </div>
+                                )}
                             </NavLink>
                         );
                     })}
