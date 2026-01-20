@@ -295,17 +295,43 @@ app.post('/api/inventory/check', async (req, res) => {
 
 // --- USER AUTH & SEEDING (MODULE 3) ---
 
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase Client (Bypasses Connection Poolers)
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// ... existing code ...
+
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     try {
-        const user = await prisma.user.findUnique({ where: { email } });
-        // Simple plain-text password check for MVP/Demo
-        if (!user || user.password !== password) {
+        console.log(`🔐 Login Attempt (Supabase Native): ${email}`);
+
+        // Query Supabase directly (HTTP/REST), bypassing Prisma/TCP Port 5432
+        const { data: user, error } = await supabase
+            .from('User')
+            .select('*')
+            .eq('email', email)
+            .single();
+
+        if (error || !user) {
+            console.warn("❌ User not found or DB Error:", error?.message);
             return res.status(401).json({ error: 'Credenciales inválidas' });
         }
-        // Return full user info including role
+
+        // Simple plain-text password check for MVP/Demo
+        if (user.password !== password) {
+            console.warn("❌ Incorrect Password");
+            return res.status(401).json({ error: 'Credenciales inválidas' });
+        }
+
+        console.log(`✅ Login Success: ${user.name} (${user.role})`);
         res.json(user);
     } catch (e) {
+        console.error("🔥 Critical Login Error:", e);
         res.status(500).json({ error: e.message });
     }
 });
