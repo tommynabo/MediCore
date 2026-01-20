@@ -19,12 +19,18 @@ const prisma = new PrismaClient({
 });
 
 // Global Error Handler for Prisma Connection
+// Global Error Handler for Prisma Connection
 prisma.$connect()
-    .then(() => console.log('✅ Base de datos conectada correctamente (SQLite Local)'))
+    .then(() => {
+        const dbUrl = process.env.DATABASE_URL || 'Unknown';
+        const maskedUrl = dbUrl.replace(/:([^:@]+)@/, ':****@');
+        console.log(`✅ Base de datos conectada correctamente [${process.env.NODE_ENV || 'DEV'}]`);
+        console.log(`📡 URL: ${maskedUrl}`);
+    })
     .catch((e) => {
-        console.error('❌ Error fatal de conexión a base de datos:');
-        console.error(e);
-        console.log('💡 Sugerencia: Asegúrate de que no haya otros procesos usando el puerto o el archivo de base de datos.');
+        console.error('❌ Error fatal de conexión a base de datos (PostgreSQL/Supabase):');
+        console.error(e.message);
+        // Do not log the full error object to avoid leaking secrets if any
     });
 const app = express();
 
