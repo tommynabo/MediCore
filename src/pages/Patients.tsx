@@ -132,14 +132,7 @@ const Patients: React.FC = () => {
                         />
                         <button className="absolute right-4 top-4 p-2 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900"><Filter size={16} /></button>
                     </div>
-                    <button
-                        onClick={() => api.getPatients().then(setPatients)}
-                        className="bg-white text-slate-500 px-6 rounded-2xl border border-slate-200 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center gap-2 font-bold text-xs uppercase"
-                        title="Forzar Recarga"
-                    >
-                        <TrendingUp size={18} className="rotate-0 hover:rotate-180 transition-transform duration-700" />
-                        <span className="hidden xl:inline">Recargar</span>
-                    </button>
+
                 </div>
                 <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                     {filteredPatients.map(patient => (

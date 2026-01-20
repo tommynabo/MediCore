@@ -136,6 +136,35 @@ app.post('/api/finance/financing', async (req, res) => {
 });
 
 // --- PATIENT MANAGEMENT ---
+app.get('/api/patients', async (req, res) => {
+    try {
+        console.log("GET /api/patients - Fetching all patients...");
+
+        let supabase;
+        try {
+            supabase = getSupabase();
+        } catch (configError) {
+            return res.status(500).json({ error: configError.message });
+        }
+
+        const { data, error } = await supabase
+            .from('Patient')
+            .select('*')
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error("❌ Supabase Fetch Error (Patients):", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        console.log(`✅ Loaded ${data.length} patients.`);
+        res.json(data);
+    } catch (e) {
+        console.error("Error Fetching Patients:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/patients', async (req, res) => {
     try {
         console.log("POST /api/patients Body:", req.body);

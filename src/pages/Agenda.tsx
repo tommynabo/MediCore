@@ -23,7 +23,7 @@ const Agenda: React.FC = () => {
 
     // Search States
     const [apptSearch, setApptSearch] = useState('');
-    const [apptTreatmentSearch, setApptTreatmentSearch] = useState('');
+    const [bookingTreatment, setBookingTreatment] = useState('');
 
     // Helpers
     const getWeekRange = (d: Date) => {
@@ -62,22 +62,9 @@ const Agenda: React.FC = () => {
         return appointments.filter(a => {
             // Filter by Doctor if not 'all'
             if (selectedDoctorId !== 'all' && a.doctorId !== selectedDoctorId) return false;
-
-            // Search Logic
-            const updatedApptSearch = apptSearch.toLowerCase();
-            const updatedTreatmentSearch = apptTreatmentSearch.toLowerCase();
-
-            if (updatedApptSearch || updatedTreatmentSearch) {
-                const patientName = patients.find(p => p.id === a.patientId)?.name.toLowerCase() || '';
-                const treatment = a.treatment?.toLowerCase() || '';
-
-                if (updatedApptSearch && !patientName.includes(updatedApptSearch)) return false;
-                if (updatedTreatmentSearch && !treatment.includes(updatedTreatmentSearch)) return false;
-            }
-
             return true;
         });
-    }, [appointments, selectedDoctorId, apptSearch, apptTreatmentSearch, patients]);
+    }, [appointments, selectedDoctorId]);
 
     // Handle Booking
     const handleBooking = async () => {
@@ -105,7 +92,7 @@ const Agenda: React.FC = () => {
             patientId: patient.id,
             date: dateToSave.toISOString().split('T')[0],
             time: activeSlot.time,
-            treatment: 'Consulta General',
+            treatment: bookingTreatment || 'Consulta General',
             status: 'PENDING'
         };
 
@@ -115,6 +102,7 @@ const Agenda: React.FC = () => {
             setIsAppointmentModalOpen(false);
             setActiveSlot(null);
             setApptSearch('');
+            setBookingTreatment('');
             alert("✅ Cita guardada correctamente.");
         } catch (e) {
             console.error(e);
@@ -304,20 +292,47 @@ const Agenda: React.FC = () => {
                             {activeSlot?.time} - {viewMode === 'daily' ? currentDate.toLocaleDateString() : 'Día ' + activeSlot?.dayIdx}
                         </p>
 
-                        {/* Search Patient */}
+                        {/* Patient Search in Modal */}
                         <div>
                             <label className="text-xs font-bold uppercase text-slate-400">Paciente</label>
                             <input
                                 className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold"
-                                placeholder="Buscar paciente..."
+                                placeholder="Buscar paciente (Nombre)"
                                 value={apptSearch}
                                 onChange={(e) => setApptSearch(e.target.value)}
                             />
-                            {patients.filter(p => p.name.toLowerCase().includes(apptSearch.toLowerCase()) && apptSearch.length > 1).slice(0, 3).map(p => (
-                                <div key={p.id} onClick={() => setApptSearch(p.name)} className="p-2 hover:bg-slate-50 cursor-pointer text-xs font-bold text-slate-600">
-                                    {p.name}
+                            {/* Suggestions */}
+                            {apptSearch.length > 0 && (
+                                <div className="mt-2 bg-white border border-slate-100 rounded-xl shadow-lg max-h-40 overflow-y-auto">
+                                    {patients
+                                        .filter(p => p.name.toLowerCase().includes(apptSearch.toLowerCase()))
+                                        .map(p => (
+                                            <div
+                                                key={p.id}
+                                                onClick={() => setApptSearch(p.name)}
+                                                className="p-3 hover:bg-slate-50 cursor-pointer text-xs font-bold text-slate-600 border-b border-slate-50 last:border-0"
+                                            >
+                                                {p.name}
+                                            </div>
+                                        ))
+                                    }
                                 </div>
-                            ))}
+                            )}
+                        </div>
+
+                        {/* Treatment Selection */}
+                        <div>
+                            <label className="text-xs font-bold uppercase text-slate-400">Tratamiento</label>
+                            <select
+                                className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
+                                value={bookingTreatment}
+                                onChange={(e) => setBookingTreatment(e.target.value)}
+                            >
+                                <option value="">Seleccionar Tratamiento...</option>
+                                {Object.values(DENTAL_SERVICES).flat().map((t, i) => (
+                                    <option key={i} value={t}>{t}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div className="flex gap-4 pt-4">
