@@ -9,7 +9,7 @@
     "dev:server": "cd server && npm run dev",
     "build": "vite build",
     "preview": "vite preview",
-    "postinstall": "prisma generate --schema=./server/prisma/schema.prisma"
+    "postinstall": "npx prisma generate --schema=./server/prisma/schema.prisma"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
