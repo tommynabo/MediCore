@@ -1,7 +1,7 @@
 
 import { Liquidation, TreatmentPlan } from '../types';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = '/api';
 
 // Helper to get headers (Mock Auth)
 const getHeaders = () => {
