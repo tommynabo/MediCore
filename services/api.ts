@@ -1,0 +1,217 @@
+
+import { Liquidation, TreatmentPlan } from '../types';
+
+const API_URL = 'http://localhost:3001/api';
+
+// Helper to get headers (Mock Auth)
+const getHeaders = () => {
+    const role = localStorage.getItem('user_role') || 'DOCTOR';
+    return {
+        'Content-Type': 'application/json',
+        'x-user-role': role,
+        'x-user-id': 'mock-current-user-id'
+    };
+};
+
+export const api = {
+    // Budget & Finance
+    budget: {
+        getAll: async (patientId: string) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/budgets`, { headers: getHeaders() });
+            return res.json();
+        },
+        create: async (patientId: string, items: any[]) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/budgets`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ items })
+            });
+            return res.json();
+        },
+        addItemToDraft: async (patientId: string, item: any) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/budgets/draft/items`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(item)
+            });
+            return res.json();
+        },
+        updateStatus: async (budgetId: string, status: string) => {
+            const res = await fetch(`${API_URL}/budgets/${budgetId}/status`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify({ status })
+            });
+            return res.json();
+        },
+        convertToInvoice: async (budgetId: string) => {
+            const res = await fetch(`${API_URL}/budgets/${budgetId}/convert`, {
+                method: 'POST',
+                headers: getHeaders()
+            });
+            return res.json();
+        },
+        createFinancing: async (data: any) => {
+            const res = await fetch(`${API_URL}/finance/financing`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(data)
+            });
+            return res.json();
+        }
+    },
+    // Auth
+    login: async (email, password) => {
+        try {
+            const res = await fetch(`${API_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+            if (res.status === 401) throw new Error("Credenciales inválidas (Usuario o contraseña incorrectos)");
+            if (!res.ok) throw new Error(data.error || "Error de conexión con el servidor");
+            return data;
+        } catch (e) {
+            console.error("Login Error:", e);
+            throw e;
+        }
+    },
+
+    // Core: Patients
+    createPatient: async (patientData: any) => {
+        const res = await fetch(`${API_URL}/patients`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(patientData)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Error creando paciente en el servidor');
+        }
+        return res.json();
+    },
+
+    // Odontogram
+    getOdontogram: async (patientId: string) => {
+        const res = await fetch(`${API_URL}/patients/${patientId}/odontogram`, { headers: getHeaders() });
+        return res.json();
+    },
+    saveOdontogram: async (patientId: string, teethState: string) => {
+        const res = await fetch(`${API_URL}/patients/${patientId}/odontogram`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ teethState })
+        });
+        return res.json();
+    },
+    saveSnapshot: async (patientId: string, imageUrl: string, description: string) => {
+        const res = await fetch(`${API_URL}/patients/${patientId}/snapshots`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ imageUrl, description })
+        });
+        return res.json();
+    },
+    getSnapshots: async (patientId: string) => {
+        const res = await fetch(`${API_URL}/patients/${patientId}/snapshots`, { headers: getHeaders() });
+        return res.json();
+    },
+    updateSnapshot: async (id: string, description: string) => {
+        const res = await fetch(`${API_URL}/snapshots/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify({ description })
+        });
+        return res.json();
+    },
+
+    // Module 1: Finance
+    getLiquidations: async (doctorId?: string, month?: string): Promise<{ records: Liquidation[], totalToPay: number }> => {
+        const params = new URLSearchParams();
+        if (doctorId) params.append('doctorId', doctorId);
+        if (month) params.append('month', month);
+
+        const res = await fetch(`${API_URL}/liquidations?${params}`, { headers: getHeaders() });
+        if (!res.ok) throw new Error('Failed to fetch liquidations');
+        return res.json();
+    },
+
+    completeTreatment: async (appointmentId: string) => {
+        const res = await fetch(`${API_URL}/treatments/${appointmentId}/complete`, {
+            method: 'POST',
+            headers: getHeaders()
+        });
+        return res.json();
+    },
+
+    // Module 2: Ortho
+    createPlan: async (planData: Partial<TreatmentPlan> & { patientId: string }) => {
+        const res = await fetch(`${API_URL}/plans`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(planData)
+        });
+        return res.json();
+    },
+
+    getPatientAlerts: async (patientId: string) => {
+        const res = await fetch(`${API_URL}/patients/${patientId}/alerts`, { headers: getHeaders() });
+        return res.json();
+    },
+
+    // Module 4: AI
+    ai: {
+        query: async (message: string, context?: any) => {
+            const res = await fetch(`${API_URL}/ai/query`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ message, context })
+            });
+            return res.json();
+        }
+    },
+
+    // Module 5: Inventory
+    checkStock: async (currentStock: any[]) => {
+        const res = await fetch(`${API_URL}/inventory/check`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ currentStock })
+        });
+        return res.json();
+    },
+
+    // Module 6: Invoicing (FacturaDirecta Integration)
+    generateInvoice: async (data: { patient: any, items: any[], paymentMethod: 'cash' | 'card', type?: 'ordinary' | 'rectificative' }) => {
+        const res = await fetch(`${API_URL}/finance/invoice`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+        return res.json();
+    },
+
+    getInvoices: async () => {
+        const res = await fetch(`${API_URL}/finance/invoices`, { headers: getHeaders() });
+        return res.json();
+    },
+
+    downloadBatchZip: async (invoices: any[], date: string) => {
+        const res = await fetch(`${API_URL}/finance/invoices/export/batch`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ invoices, date })
+        });
+        if (!res.ok) throw new Error("Error downloading ZIP");
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Facturas_${date}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+};

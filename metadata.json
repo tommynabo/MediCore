@@ -1,0 +1,7 @@
+{
+  "name": "MediCore MVP - AI-First Medical CRM",
+  "description": "A secure, scalable, and GDPR-compliant medical CRM featuring dynamic clinical records, Veri*Factu-ready billing, and an OpenAI-powered cognitive layer for clinical insights.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

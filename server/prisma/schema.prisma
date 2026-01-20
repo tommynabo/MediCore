@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// --- MODULE 3: RBAC ---
+enum Role {
+  ADMIN     // Full Access
+  RECEPTION // Agenda, Patients, Billing (No Global Stats, No Liquidations)
+  DOCTOR    // Own Agenda, Own Patients, Own Production (No Global Billing)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(DOCTOR)
+  doctorId  String?  // Link if user is a doctor
+  doctor    Doctor?  @relation(fields: [doctorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+// --- CORE ---
+model Patient {
+  id             String           @id @default(uuid())
+  name           String
+  dni            String           @unique
+  birthDate      DateTime
+  email          String
+  insurance      String?
+  assignedDoctorId String?
+  doctor         Doctor?          @relation(fields: [assignedDoctorId], references: [id])
+  clinicalHistory ClinicalRecord[]
+  invoices       Invoice[]
+  appointments   Appointment[]
+  treatmentPlans TreatmentPlan[]
+  budgets        Budget[]
+  odontogram     Odontogram?
+  snapshots      DentalSnapshot[]
+  balance        Float            @default(0.0) // Saldo a favor/contra
+  createdAt      DateTime         @default(now())
+}
+
+model Doctor {
+  id                   String        @id @default(uuid())
+  name                 String
+  specialization       String
+  commissionPercentage Float         @default(0.0) // Module 1: Base Commission (e.g., 0.30)
+  users                User[]
+  patients             Patient[]
+  appointments         Appointment[]
+  liquidations         Liquidation[]
+}
+
+// --- MODULE 1: FINANCIAL & LIQUIDATION ---
+model Treatment {
+  id             String   @id @default(uuid())
+  name           String
+  price          Float
+  labCost        Float    @default(0.0) // Coste de Laboratorio
+  insurancePrices String? // JSON String for caching insurance prices
+  appointments   Appointment[]
+  items          InvoiceItem[]
+  budgetItems    BudgetLineItem[]
+  consumables    String?  // JSON String: e.g. [{"itemId": "uuid", "qty": 1}]
+}
+
+model Appointment {
+  id          String    @id @default(uuid())
+  date        DateTime
+  time        String
+  status      String    @default("Scheduled") // Scheduled, Canceled, Completed, NoShow
+  patientId   String
+  patient     Patient   @relation(fields: [patientId], references: [id])
+  doctorId    String
+  doctor      Doctor    @relation(fields: [doctorId], references: [id])
+  treatmentId String?
+  treatment   Treatment? @relation(fields: [treatmentId], references: [id])
+  
+  // Liquidation trigger
+  liquidation Liquidation?
+}
+
+model Liquidation {
+  id              String      @id @default(uuid())
+  doctorId        String
+  doctor          Doctor      @relation(fields: [doctorId], references: [id])
+  appointmentId   String      @unique // One liquidation per completed appointment
+  appointment     Appointment @relation(fields: [appointmentId], references: [id])
+  
+  grossAmount     Float       // Treatment Price
+  labCost         Float       // Lab Cost deducted
+  commissionRate  Float       // Applied %
+  finalAmount     Float       // (Gross - Lab) * Rate
+  
+  status          String      @default("PENDING") // PENDING, PAID
+  doctorInvoiceUrl String?    // URL of PDF invoice sent by doctor
+  paidDate        DateTime?
+  createdAt       DateTime    @default(now())
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  invoiceNumber  String        @unique
+  patientId      String
+  patient        Patient       @relation(fields: [patientId], references: [id])
+  amount         Float
+  date           DateTime      @default(now())
+  status         String
+  paymentMethod  String?       // "Credit Card", "Cash", "Transfer", "Balance"
+  url            String?       // Direct PDF Link
+  items          InvoiceItem[]
+}
+
+model InvoiceItem {
+  id        String    @id @default(uuid())
+  invoiceId String
+  invoice   Invoice   @relation(fields: [invoiceId], references: [id])
+  serviceId String?
+  service   Treatment? @relation(fields: [serviceId], references: [id])
+  name      String
+  price     Float
+}
+
+// --- MODULE 2: ORTHODONTICS & RECURRING PAYMENTS ---
+model TreatmentPlan {
+  id          String        @id @default(uuid())
+  patientId   String
+  patient     Patient       @relation(fields: [patientId], references: [id])
+  name        String        // e.g. "Ortodoncia Invisaling"
+  totalCost   Float
+  startDate   DateTime
+  duration    Int           // Months
+  installments Installment[]
+  status      String        @default("ACTIVE") // ACTIVE, COMPLETED, CANCELLED
+}
+
+model Installment {
+  id              String        @id @default(uuid())
+  planId          String
+  plan            TreatmentPlan @relation(fields: [planId], references: [id])
+  dueDate         DateTime
+  amount          Float
+  status          String        @default("PENDING") // PENDING, PAID, OVERDUE
+  paidDate        DateTime?
+  description     String        // e.g. "Cuota 1/18"
+}
+
+// --- MODULE 4: BUDGETS ---
+model Budget {
+  id             String           @id @default(uuid())
+  patientId      String
+  patient        Patient          @relation(fields: [patientId], references: [id])
+  date           DateTime         @default(now())
+  status         String           @default("DRAFT") // DRAFT, ACCEPTED, REJECTED, CONVERTED
+  totalAmount    Float            @default(0.0)
+  items          BudgetLineItem[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model BudgetLineItem {
+  id          String   @id @default(uuid())
+  budgetId    String
+  budget      Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  treatmentId String?
+  treatment   Treatment? @relation(fields: [treatmentId], references: [id])
+  name        String
+  price       Float
+  quantity    Int      @default(1)
+  tooth       String?  // Tooth number e.g. "26"
+  face        String?  // e.g. "Oclusal"
+}
+
+// --- CLINICAL ---
+model ClinicalRecord {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  date        DateTime @default(now())
+  text        String
+  authorId    String?  // Could link to Doctor/User
+}
+
+model InventoryItem {
+  id       String @id @default(uuid())
+  name     String
+  category String
+  quantity Int
+  minStock Int
+  unit     String
+}
+
+model DocumentTemplate {
+  id        String   @id @default(uuid())
+  title     String
+  category  String   @default("General") // "Consentimiento", "Información", "Recetas"
+  content   String   // For HTML/Text templates OR Base64 for small files. For large files, store path.
+  type      String   // "pdf", "docx", "html"
+  size      String   // e.g. "1.2 MB"
+  createdAt DateTime @default(now())
+}
+
+model Odontogram {
+  id        String   @id @default(uuid())
+  patientId String   @unique
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  teethState String  // JSON String: { "18": { status: "caries", faces: [] }, ... }
+  updatedAt  DateTime @updatedAt
+}
+
+model DentalSnapshot {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [id])
+  date      DateTime @default(now())
+  imageUrl  String   // Base64 or URL
+  description String?
+}
