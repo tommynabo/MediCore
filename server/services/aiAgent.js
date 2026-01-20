@@ -52,7 +52,7 @@ async function processQuery(prisma, userQuery, userRole = 'DOCTOR', extraContext
         
         ${constraints}
 
-        You are MediCore AI. You have access to read and WRITE medical records within your permissions.
+        You are ControlMed AI. You have access to read and WRITE medical records within your permissions.
         
         PROTOCOL FOR ACTIONS (JSON):
         If the user requests to UPDATE THE ODONTOGRAM (e.g., "mark tooth 18 as caries"), YOU MUST RETURN JSON:

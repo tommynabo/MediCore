@@ -141,7 +141,7 @@ const Login: React.FC<{ onLogin: (user: any) => void }> = ({ onLogin }) => {
           <Activity className="text-white w-10 h-10" />
         </div>
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">MediCore</h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">ControlMed</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
@@ -854,14 +854,14 @@ const App: React.FC = () => {
             <div className="w-12 h-12 bg-blue-600 rounded-[1.25rem] flex items-center justify-center shadow-xl shadow-blue-600/30">
               <Activity className="text-white w-7 h-7" />
             </div>
-            <h1 className="text-2xl font-black tracking-tighter">MediCore</h1>
+            <h1 className="text-2xl font-black tracking-tighter">ControlMed</h1>
           </div>
           <div className="space-y-2 flex-1">
             {[
               { id: 'patients', label: 'Pacientes', icon: Users },
               { id: 'agenda', label: 'Agenda', icon: Calendar },
               { id: 'billing', label: 'Caja & Facturas', icon: CreditCard },
-              { id: 'ai', label: 'ChatMediCore AI', icon: MessageSquare },
+              { id: 'ai', label: 'ChatControlMed AI', icon: MessageSquare },
               ...(currentUserRole !== 'RECEPTION' ? [{ id: 'payroll', label: 'Nóminas', icon: DollarSign }] : []),
               { id: 'settings', label: 'Configuración', icon: Settings },
             ].map(item => (
@@ -912,7 +912,7 @@ const App: React.FC = () => {
                 <div className="w-24 h-24 bg-blue-50 rounded-3xl flex items-center justify-center mb-4">
                   <Activity size={48} className="text-blue-600" />
                 </div>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Bienvenido a MediCore</h1>
+                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Bienvenido a ControlMed</h1>
                 <p className="text-blue-600 font-bold">Seleccione un módulo en el menú lateral para comenzar.</p>
               </div>
             )}
@@ -1896,7 +1896,7 @@ const App: React.FC = () => {
                   <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col bg-white rounded-[3rem] shadow-2xl border border-slate-200 overflow-hidden">
                     <div className="p-8 border-b border-slate-100 flex items-center bg-slate-900 text-white gap-4">
                       <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg"><MessageSquare size={24} /></div>
-                      <div><h3 className="text-sm font-black uppercase tracking-widest">ChatMediCore AI</h3><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Cognitive Assistant</p></div>
+                      <div><h3 className="text-sm font-black uppercase tracking-widest">ChatControlMed AI</h3><p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Cognitive Assistant</p></div>
                     </div>
                     <div className="flex-1 overflow-y-auto p-10 space-y-6 custom-scrollbar bg-slate-50/30">
                       {chatHistory.length === 0 && <div className="h-full flex flex-col items-center justify-center opacity-10 text-slate-900"><Activity size={80} className="mb-6" /><p className="text-xs font-black uppercase tracking-[0.5em]">MediBot Esperando Consulta</p></div>}
@@ -2239,7 +2239,7 @@ const App: React.FC = () => {
                     </select>
                   </div>
                 </div>
-                <button onClick={handleCreatePatient} className="w-full bg-blue-600 text-white py-5 rounded-[2rem] text-xs font-black uppercase tracking-widest shadow-xl">Crear Paciente en MediCore</button>
+                <button onClick={handleCreatePatient} className="w-full bg-blue-600 text-white py-5 rounded-[2rem] text-xs font-black uppercase tracking-widest shadow-xl">Crear Paciente en ControlMed</button>
               </div>
             </div>
           )
