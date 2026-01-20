@@ -861,7 +861,7 @@ const App: React.FC = () => {
               { id: 'patients', label: 'Pacientes', icon: Users },
               { id: 'agenda', label: 'Agenda', icon: Calendar },
               { id: 'billing', label: 'Caja & Facturas', icon: CreditCard },
-              { id: 'ai', label: 'ChatControlMed AI', icon: MessageSquare },
+              { id: 'ai', label: 'Chat', icon: MessageSquare },
               ...(currentUserRole !== 'RECEPTION' ? [{ id: 'payroll', label: 'Nóminas', icon: DollarSign }] : []),
               { id: 'settings', label: 'Configuración', icon: Settings },
             ].map(item => (
