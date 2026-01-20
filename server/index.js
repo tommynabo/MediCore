@@ -147,17 +147,37 @@ app.post('/api/patients', async (req, res) => {
             validDate = new Date(birthDate);
         }
 
-        const patient = await prisma.patient.create({
-            data: {
+        // Initialize Supabase safely
+        let supabase;
+        try {
+            supabase = getSupabase();
+        } catch (configError) {
+            return res.status(500).json({ error: configError.message });
+        }
+
+        // Direct Insert via Supabase Client (Bypasses Prisma Schema Validation)
+        const { data, error } = await supabase
+            .from('Patient')
+            .insert([{
                 name,
                 dni,
                 email,
-                birthDate: validDate,
+                birthDate: validDate.toISOString(), // Supabase expects ISO String
                 insurance,
                 assignedDoctorId
-            }
-        });
-        res.json(patient);
+                // balance: Default in DB is 0.0, so we can omit it or send 0
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error("❌ Supabase Insert Error:", error);
+            // Return precise error to UI
+            return res.status(500).json({ error: `DB Error: ${error.message} (${error.code || 'Unknown'})` });
+        }
+
+        console.log("✅ Patient Created (Supabase):", data.id);
+        res.json(data);
     } catch (e) {
         console.error("Error Saving Patient:", e);
         res.status(500).json({ error: e.message || "Error interno al guardar paciente" });
