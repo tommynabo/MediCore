@@ -141,7 +141,7 @@ const Login: React.FC<{ onLogin: (user: any) => void }> = ({ onLogin }) => {
           <Activity className="text-white w-10 h-10" />
         </div>
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">MediCore <span className="text-blue-500">Cloud</span></h1>
+          <h1 className="text-3xl font-black text-slate-900 tracking-tighter">MediCore</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 text-left">
@@ -854,7 +854,7 @@ const App: React.FC = () => {
             <div className="w-12 h-12 bg-blue-600 rounded-[1.25rem] flex items-center justify-center shadow-xl shadow-blue-600/30">
               <Activity className="text-white w-7 h-7" />
             </div>
-            <h1 className="text-2xl font-black tracking-tighter">MediCore <span className="text-blue-500 font-medium">Cloud</span></h1>
+            <h1 className="text-2xl font-black tracking-tighter">MediCore</h1>
           </div>
           <div className="space-y-2 flex-1">
             {[
@@ -912,7 +912,7 @@ const App: React.FC = () => {
                 <div className="w-24 h-24 bg-blue-50 rounded-3xl flex items-center justify-center mb-4">
                   <Activity size={48} className="text-blue-600" />
                 </div>
-                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Bienvenido a MediCore Cloud</h1>
+                <h1 className="text-4xl font-bold text-slate-900 tracking-tight">Bienvenido a MediCore</h1>
                 <p className="text-blue-600 font-bold">Seleccione un módulo en el menú lateral para comenzar.</p>
               </div>
             )}

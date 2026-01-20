@@ -68,10 +68,18 @@ export const api = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
-            const data = await res.json();
-            if (res.status === 401) throw new Error("Credenciales inválidas (Usuario o contraseña incorrectos)");
-            if (!res.ok) throw new Error(data.error || "Error de conexión con el servidor");
-            return data;
+
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                const data = await res.json();
+                if (res.status === 401) throw new Error("Credenciales inválidas (Usuario o contraseña incorrectos)");
+                if (!res.ok) throw new Error(data.error || "Error de conexión con el servidor");
+                return data;
+            } else {
+                const text = await res.text();
+                console.error("Non-JSON Response from Server:", text);
+                throw new Error("El servidor devolvió una respuesta inesperada (posible error 500 o 404). Revisa la consola.");
+            }
         } catch (e) {
             console.error("Login Error:", e);
             throw e;
