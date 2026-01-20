@@ -9,14 +9,21 @@
     "dev:server": "cd server && npm run dev",
     "build": "vite build",
     "preview": "vite preview",
-    "postinstall": "cd server && npm install && npm run prisma:generate"
+    "postinstall": "prisma generate --schema=./server/prisma/schema.prisma"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
+    "@prisma/client": "^7.2.0",
     "@supabase/supabase-js": "^2.90.1",
     "@types/html2canvas": "^1.0.0",
+    "archiver": "^7.0.1",
+    "axios": "^1.13.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.562.0",
+    "openai": "^6.16.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
