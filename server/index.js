@@ -318,27 +318,27 @@ app.post('/api/auth/login', async (req, res) => {
         try {
             supabase = getSupabase();
         } catch (configError) {
-            console.error("❌ Supabase Configuration Error:", configError.message);
-            // Send the specific error so it appears in the frontend alert
             return res.status(500).json({ error: configError.message });
         }
 
-        // Query Supabase directly (HTTP/REST), bypassing Prisma/TCP Port 5432
         const { data: user, error } = await supabase
             .from('User')
             .select('*')
             .eq('email', email)
             .single();
 
-        if (error || !user) {
-            console.warn("❌ User not found or DB Error:", error?.message);
-            return res.status(401).json({ error: 'Credenciales inválidas' });
+        if (error) {
+            console.error("❌ DB Query Error:", error);
+            // DEBUG: Return full error to UI for diagnosis
+            return res.status(500).json({ error: `DB Error: ${error.message} (${error.code || 'NoCode'})` });
         }
 
-        // Simple plain-text password check for MVP/Demo
+        if (!user) {
+            return res.status(401).json({ error: 'Usuario no encontrado en base de datos' });
+        }
+
         if (user.password !== password) {
-            console.warn("❌ Incorrect Password");
-            return res.status(401).json({ error: 'Credenciales inválidas' });
+            return res.status(401).json({ error: 'Contraseña incorrecta' });
         }
 
         console.log(`✅ Login Success: ${user.name} (${user.role})`);
@@ -346,6 +346,28 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (e) {
         console.error("🔥 Critical Login Error:", e);
         res.status(500).json({ error: e.message });
+    }
+});
+
+// --- DEBUG ENDPOINT (Temporary) ---
+app.get('/api/debug/db-check', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase.from('User').select('*');
+        res.json({
+            status: "Online",
+            env: {
+                url: process.env.SUPABASE_URL ? 'Configured' : 'Missing',
+                key: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'Configured' : 'Missing'
+            },
+            queryResult: {
+                error,
+                count: data?.length,
+                usersFound: data?.map(u => u.email)
+            }
+        });
+    } catch (e) {
+        res.json({ fatalError: e.message });
     }
 });
 
