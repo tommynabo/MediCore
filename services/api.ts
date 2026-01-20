@@ -170,11 +170,11 @@ export const api = {
 
     // Module 4: AI
     ai: {
-        query: async (message: string, context?: any) => {
+        query: async (prompt: string, patientId?: string) => {
             const res = await fetch(`${API_URL}/ai/query`, {
                 method: 'POST',
                 headers: getHeaders(),
-                body: JSON.stringify({ message, context })
+                body: JSON.stringify({ prompt, patientId })
             });
             return res.json();
         }

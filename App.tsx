@@ -610,14 +610,8 @@ const App: React.FC = () => {
     setAiInput('');
     setIsProcessing(true);
     try {
-      // Prepare Context
-      const context = {
-        patient: selectedPatient ? { name: selectedPatient.name, age: 30 } : null,
-        odontogram: selectedPatient ? odontogramState : null
-      };
-
-      // Module 4: Backend Agent
-      const res = await api.ai.query(aiInput, context);
+      // Module 4: Backend Agent (Full Context)
+      const res = await api.ai.query(aiInput, selectedPatient?.id);
 
       // Parse Response
       // Parse Response
