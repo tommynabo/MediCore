@@ -1,9 +1,15 @@
 
 const OpenAI = require('openai');
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+// Lazy Init to prevent crash if Key is missing on startup
+let openai;
+function getOpenAI() {
+    if (!openai) {
+        if (!process.env.OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY");
+        openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+    return openai;
+}
 
 async function processQuery(prisma, userQuery, userRole = 'DOCTOR', extraContext = {}) {
     try {
@@ -154,7 +160,8 @@ async function processQuery(prisma, userQuery, userRole = 'DOCTOR', extraContext
         ];
 
         // 3. Call OpenAI
-        const response = await openai.chat.completions.create({
+        const aiClient = getOpenAI();
+        const response = await aiClient.chat.completions.create({
             model: "gpt-4o", // Using the provided key for GPT-4 capabilities
             messages: [
                 { role: "system", content: context },
@@ -278,7 +285,8 @@ async function handleCreateBudgetDraft(prisma, { patientName, items }) {
 
 async function handleFormatClinicalHistory({ rawText }) {
     try {
-        const completion = await openai.chat.completions.create({
+        const aiClient = getOpenAI();
+        const completion = await aiClient.chat.completions.create({
             model: "gpt-4o",
             messages: [
                 { role: "system", content: "Acting as an expert medical scribe, structure the following raw comments into sections: 'Motivo Consulta', 'Tratamiento Realizado', 'Plan / Próxima Visita'. Fix grammar and typos. Use professional medical Spanish. Return JSON." },
