@@ -8,7 +8,8 @@
     "dev:client": "vite",
     "dev:server": "cd server && npm run dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "cd server && npm install && npm run prisma:generate"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",

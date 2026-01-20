@@ -43,6 +43,10 @@ const authMiddleware = (req, res, next) => {
 
 app.use(authMiddleware);
 
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date(), env: process.env.NODE_ENV });
+});
+
 // --- MODULE 1: FINANCIAL ENGINE ---
 app.post('/api/treatments/:appointmentId/complete', async (req, res) => {
     try {
