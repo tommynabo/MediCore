@@ -96,7 +96,12 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const refreshPatients = async () => {
-        // api call placeholder
+        try {
+            const pts = await api.getPatients();
+            setPatients(pts);
+        } catch (e) {
+            console.error("Error refreshing patients", e);
+        }
     };
 
     const addPatient = (p: Patient) => setPatients(prev => [p, ...prev]);

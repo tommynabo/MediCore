@@ -69,12 +69,76 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Example Chart or Activity Feed could go here */}
+                {/* REAL CHARTS & ACTIVITY */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm h-64 flex items-center justify-center">
-                        <p className="text-slate-300 font-black uppercase tracking-widest">Gráfico de Actividad (Próximamente)</p>
+                    {/* ACTIVITY CHART (CSS BARS) */}
+                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm min-h-[300px] flex flex-col">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-6 flex items-center gap-2">
+                            <Activity size={18} className="text-blue-500" /> Actividad Semanal
+                        </h3>
+                        <div className="flex-1 flex items-end justify-between gap-2 mt-4">
+                            {Array.from({ length: 7 }).map((_, i) => {
+                                const d = new Date();
+                                d.setDate(d.getDate() - (6 - i));
+                                const dateStr = d.toISOString().split('T')[0];
+                                const count = appointments.filter(a => a.date === dateStr).length;
+                                const max = 15; // Scale factor
+                                const height = Math.min(100, Math.max(10, (count / max) * 100));
+
+                                return (
+                                    <div key={i} className="flex-1 flex flex-col items-center gap-2 group cursor-pointer">
+                                        <div className="w-full bg-slate-50 rounded-t-xl relative overflow-hidden h-32 flex items-end">
+                                            <div
+                                                className="w-full bg-blue-500 group-hover:bg-blue-600 transition-all duration-500 rounded-t-xl"
+                                                style={{ height: `${height}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase">{d.toLocaleDateString('es-ES', { weekday: 'short' })}</span>
+                                        <div className="opacity-0 group-hover:opacity-100 absolute mb-10 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded-lg transition-opacity">
+                                            {count} Citas
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
-                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm h-64 flex items-center justify-center">
-                        <p className="text-slate-300 font-black uppercase tracking-widest">Próximas Citas (Próximamente)</p>
+
+                    {/* UPCOMING APPOINTMENTS */}
+                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm min-h-[300px] overflow-hidden flex flex-col">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-6 flex items-center gap-2">
+                            <Calendar size={18} className="text-purple-500" /> Próximas Citas
+                        </h3>
+                        <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1">
+                            {appointments
+                                .filter(a => new Date(a.date) >= new Date())
+                                .sort((a, b) => new Date(a.date + 'T' + a.time).getTime() - new Date(b.date + 'T' + b.time).getTime())
+                                .slice(0, 5)
+                                .map(appt => {
+                                    const patient = patients.find(p => p.id === appt.patientId);
+                                    return (
+                                        <div key={appt.id} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-100 transition-all hover:shadow-md group">
+                                            <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex flex-col items-center justify-center font-bold text-xs uppercase">
+                                                <span>{new Date(appt.date).getDate()}</span>
+                                                <span className="text-[8px]">{new Date(appt.date).toLocaleDateString('es-ES', { month: 'short' })}</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-xs font-black text-slate-900">{patient?.name || 'Paciente Desconocido'}</p>
+                                                <p className="text-[10px] font-medium text-slate-500">{appt.treatment}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-xs font-black text-slate-900">{appt.time}</p>
+                                                <span className="text-[9px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 font-bold uppercase">{appt.status}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                            {appointments.filter(a => new Date(a.date) >= new Date()).length === 0 && (
+                                <div className="h-full flex flex-col items-center justify-center text-slate-300">
+                                    <p className="text-xs font-bold uppercase">No hay citas próximas</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

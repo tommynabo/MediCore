@@ -4,26 +4,25 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { DENTAL_SERVICES } from '../constants';
-import { Appointment, Doctor } from '../types';
+import { Appointment, Doctor } from '../../types';
 
 // Temporary constant move (should be in a constants file)
 const TIME_SLOTS = ["09:00", "10:00", "11:00", "12:00", "13:00", "16:00", "17:00", "18:00"];
 
 const Agenda: React.FC = () => {
     const {
-        appointments, addAppointment, patients, currentUser, role, api
+        appointments, addAppointment, patients, currentUser, currentUserRole, api
     } = useAppContext();
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
-    const [selectedDoctorId, setSelectedDoctorId] = useState<string>('dr-1'); // Default logic?
+    const [selectedDoctorId, setSelectedDoctorId] = useState<string>('all');
 
     const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
     const [activeSlot, setActiveSlot] = useState<{ time: string, dayIdx: number } | null>(null);
 
     // Search States
     const [apptSearch, setApptSearch] = useState('');
-    const [apptTreatmentSearch, setApptTreatmentSearch] = useState('');
 
     // Helpers
     const getWeekRange = (d: Date) => {
@@ -60,18 +59,17 @@ const Agenda: React.FC = () => {
 
     const filteredAppointments = useMemo(() => {
         return appointments.filter(a => {
-            // Basic filter logic mismatch from original? 
-            // Original logic might have complicated date checking. 
-            // For MVP Migration, let's assume 'date' string match or 'dayIdx' logic
-            return true; // Simplify for now, need logic from App.tsx
+            // Filter by Doctor if not 'all'
+            if (selectedDoctorId !== 'all' && a.doctorId !== selectedDoctorId) return false;
+            return true;
         });
-    }, [appointments]);
+    }, [appointments, selectedDoctorId]);
 
     // Handle Booking
     const handleBooking = async () => {
         if (!activeSlot || !apptSearch) return;
 
-        // Find Patient by name (Simple search)
+        // Find Patient
         const patient = patients.find(p => p.name.toLowerCase() === apptSearch.toLowerCase());
         if (!patient) {
             alert("Paciente no encontrado. Cree la ficha primero.");
@@ -89,11 +87,11 @@ const Agenda: React.FC = () => {
 
         const newAppt: any = {
             id: crypto.randomUUID(),
-            doctorId: selectedDoctorId,
+            doctorId: selectedDoctorId === 'all' ? 'dr-1' : selectedDoctorId, // Default to dr-1 if all
             patientId: patient.id,
             date: dateToSave.toISOString().split('T')[0],
             time: activeSlot.time,
-            treatment: 'Consulta General', // Default or add input
+            treatment: 'Consulta General',
             status: 'PENDING'
         };
 
@@ -103,7 +101,7 @@ const Agenda: React.FC = () => {
             setIsAppointmentModalOpen(false);
             setActiveSlot(null);
             setApptSearch('');
-            alert("✅ Cita guardada correctamente en el sistema.");
+            alert("✅ Cita guardada correctamente.");
         } catch (e) {
             console.error(e);
             alert("Error al guardar la cita.");
@@ -112,7 +110,7 @@ const Agenda: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+            <div className="flex flex-col xl:flex-row justify-between items-end xl:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                 <div>
                     <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Agenda Médica</h2>
                     <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">
@@ -120,15 +118,33 @@ const Agenda: React.FC = () => {
                     </p>
                 </div>
 
-                <div className="flex gap-4 items-center bg-slate-50 p-2 rounded-2xl">
-                    <div className="flex bg-white rounded-xl shadow-sm p-1">
-                        <button onClick={() => setViewMode('daily')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${viewMode === 'daily' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}>Día</button>
-                        <button onClick={() => setViewMode('weekly')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${viewMode === 'weekly' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}>Semana</button>
+                <div className="flex gap-4 items-center">
+                    {/* DOCTOR SELECTOR (ADMIN ONLY) */}
+                    {(currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') && (
+                        <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
+                            <select
+                                value={selectedDoctorId}
+                                onChange={(e) => setSelectedDoctorId(e.target.value)}
+                                className="bg-transparent text-xs font-bold uppercase text-slate-600 outline-none px-2 py-2 cursor-pointer"
+                            >
+                                <option value="all">Vista General (Todos)</option>
+                                <option value="dr-1">Dr. Martin (General)</option>
+                                <option value="dr-2">Dra. Garcia (Orto)</option>
+                                <option value="dr-3">Dr. Fernandez (Implantes)</option>
+                            </select>
+                        </div>
+                    )}
+
+                    <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-200">
+                        <div className="flex bg-white rounded-xl shadow-sm p-1">
+                            <button onClick={() => setViewMode('daily')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${viewMode === 'daily' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}>Día</button>
+                            <button onClick={() => setViewMode('weekly')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${viewMode === 'weekly' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}>Semana</button>
+                        </div>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={handlePrev} className="p-3 bg-white rounded-xl text-slate-400 hover:text-blue-600 hover:shadow-lg transition-all"><ChevronLeft size={18} /></button>
-                        <button onClick={() => setCurrentDate(new Date())} className="p-3 bg-white rounded-xl text-slate-900 font-black text-xs uppercase hover:shadow-md transition-all">Hoy</button>
-                        <button onClick={handleNext} className="p-3 bg-white rounded-xl text-slate-400 hover:text-blue-600 hover:shadow-lg transition-all"><ChevronRight size={18} /></button>
+                        <button onClick={handlePrev} className="p-3 bg-white rounded-xl text-slate-400 hover:text-blue-600 hover:shadow-lg transition-all border border-slate-200"><ChevronLeft size={18} /></button>
+                        <button onClick={() => setCurrentDate(new Date())} className="p-3 bg-white rounded-xl text-slate-900 font-black text-xs uppercase hover:shadow-md transition-all border border-slate-200">Hoy</button>
+                        <button onClick={handleNext} className="p-3 bg-white rounded-xl text-slate-400 hover:text-blue-600 hover:shadow-lg transition-all border border-slate-200"><ChevronRight size={18} /></button>
                     </div>
                 </div>
             </div>

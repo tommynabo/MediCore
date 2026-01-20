@@ -108,15 +108,25 @@ const Patients: React.FC = () => {
                         </button>
                     </div>
                 </div>
-                <div className="relative group">
-                    <Search className="absolute left-5 top-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-                    <input
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Buscar por nombre, DNI..."
-                        className="w-full bg-white border border-slate-200 p-5 pl-14 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
-                    />
-                    <button className="absolute right-4 top-4 p-2 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900"><Filter size={16} /></button>
+                <div className="flex gap-4 mb-6">
+                    <div className="relative group flex-1">
+                        <Search className="absolute left-5 top-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Buscar por nombre, DNI..."
+                            className="w-full bg-white border border-slate-200 p-5 pl-14 rounded-2xl text-sm font-bold shadow-sm outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                        />
+                        <button className="absolute right-4 top-4 p-2 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900"><Filter size={16} /></button>
+                    </div>
+                    <button
+                        onClick={() => api.getPatients().then(setPatients)}
+                        className="bg-white text-slate-500 px-6 rounded-2xl border border-slate-200 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm flex items-center gap-2 font-bold text-xs uppercase"
+                        title="Forzar Recarga"
+                    >
+                        <TrendingUp size={18} className="rotate-0 hover:rotate-180 transition-transform duration-700" />
+                        <span className="hidden xl:inline">Recargar</span>
+                    </button>
                 </div>
                 <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
                     {filteredPatients.map(patient => (

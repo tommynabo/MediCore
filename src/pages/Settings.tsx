@@ -4,17 +4,20 @@ import { useAppContext } from '../context/AppContext';
 import { DocumentTemplate } from '../../types';
 
 const Settings: React.FC = () => {
-    const { stock, setStock } = useAppContext();
+    const { stock, setStock, currentUserRole } = useAppContext();
     const [settingsTab, setSettingsTab] = useState<'templates' | 'stock'>('templates');
     const [templateSearch, setTemplateSearch] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // TEMPLATES DATA (MOCKED IN APP CONTEXT OR HERE, FOR NOW LOCAL)
+    // TEMPLATES DATA - Restored complete list
     const [templates, setTemplates] = useState<DocumentTemplate[]>([
-        { id: '32', title: 'MOD CONSENTIMIENTO.DOCX', category: 'General', date: '21/10/2025', size: '0.0086 MB', type: 'docx' },
-        { id: '31', title: 'MOD CONSENTIMIENTO INFORMADO INGLÉS', category: 'General', date: '23/05/2025', size: '0.0084 MB', type: 'docx' },
-        { id: '28', title: 'FORMULARIO CONSENTIMIENTO BIOMATERIALES', category: 'Cirugía Oral', date: '13/05/2025', size: '0.21 MB', type: 'pdf' },
-        { id: '7', title: 'CONSENTIMIENTO CIRUGÍA ORAL E IMPLANTOLOGÍA', category: 'Cirugía Oral', date: '13/05/2025', size: '0.21 MB', type: 'pdf' },
+        { id: '32', title: 'CONSENTIMIENTO INFORMADO GENERAL.DOCX', category: 'General', date: '21/10/2025', size: '0.0086 MB', type: 'docx' },
+        { id: '31', title: 'RGPD - PROTECCIÓN DE DATOS PACIENTE', category: 'Legal', date: '23/05/2025', size: '0.0084 MB', type: 'docx' },
+        { id: '28', title: 'CONSENTIMIENTO IMPLANTES DENTALES', category: 'Cirugía', date: '13/05/2025', size: '0.21 MB', type: 'pdf' },
+        { id: '7', title: 'CONSENTIMIENTO ENDODONCIA', category: 'General', date: '13/05/2025', size: '0.21 MB', type: 'pdf' },
+        { id: '5', title: 'INSTRUCCIONES POST-OPERATORIAS', category: 'Cirugía', date: '10/05/2025', size: '0.15 MB', type: 'pdf' },
+        { id: '4', title: 'FICHA DE PRIMERA VISITA', category: 'Administración', date: '01/05/2025', size: '0.05 MB', type: 'docx' },
+        { id: '3', title: 'PRESUPUESTO GENERAL TIPO', category: 'Administración', date: '01/05/2025', size: '0.05 MB', type: 'docx' },
     ]);
 
     const handleUploadTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,6 +33,16 @@ const Settings: React.FC = () => {
             };
             setTemplates(prev => [newDoc, ...prev]);
         }
+    };
+
+    const handleUpdateStock = (id: string, delta: number) => {
+        setStock(prev => prev.map(item => {
+            if (item.id === id) {
+                const newQty = Math.max(0, item.quantity + delta);
+                return { ...item, quantity: newQty };
+            }
+            return item;
+        }));
     };
 
     return (
@@ -121,7 +134,7 @@ const Settings: React.FC = () => {
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 tracking-widest border-b border-slate-100">
-                                    <tr><th className="p-6">Producto</th><th className="p-6">Categoría</th><th className="p-6 text-right">Stock</th><th className="p-6 text-right">Mínimo</th><th className="p-6 text-center">Estado</th></tr>
+                                    <tr><th className="p-6">Producto</th><th className="p-6">Categoría</th><th className="p-6 text-right">Stock</th><th className="p-6 text-right">Mínimo</th><th className="p-6 text-center">Estado</th><th className="p-6"></th></tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
                                     {stock.map(item => (
@@ -135,6 +148,14 @@ const Settings: React.FC = () => {
                                                     <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center justify-center gap-1 mx-auto w-fit"><AlertTriangle size={10} /> Bajo Stock</span>
                                                 ) : (
                                                     <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center justify-center gap-1 mx-auto w-fit"><CheckCircle2 size={10} /> OK</span>
+                                                )}
+                                            </td>
+                                            <td className="p-6 text-right">
+                                                {currentUserRole === 'ADMIN' && (
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button onClick={() => handleUpdateStock(item.id, -1)} className="p-1 hover:bg-slate-200 rounded"><Minus size={14} /></button>
+                                                        <button onClick={() => handleUpdateStock(item.id, 1)} className="p-1 hover:bg-slate-200 rounded"><Plus size={14} /></button>
+                                                    </div>
                                                 )}
                                             </td>
                                         </tr>
