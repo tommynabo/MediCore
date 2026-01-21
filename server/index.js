@@ -249,14 +249,36 @@ app.get('/api/patients', async (req, res) => {
 
 app.post('/api/patients', async (req, res) => {
     try {
-        console.log("POST /api/patients Body:", req.body);
-        const { name, dni, email, birthDate, insurance, assignedDoctorId } = req.body;
+        console.log("POST /api/patients Body:", JSON.stringify(req.body, null, 2)); // VERBOSE DEBUG
 
-        // Validate Date
-        let validDate = new Date();
-        if (birthDate && !isNaN(new Date(birthDate).getTime())) {
-            validDate = new Date(birthDate);
+        // Clone body to avoid mutating req.body directly if needed, though req.body is usually fine
+        const data = { ...req.body };
+
+        // --- CRITICAL FIX: Ensure ID exists ---
+        if (!data.id) {
+            console.log("⚠️ ID missing in payload (Server), generating UUID...");
+            data.id = crypto.randomUUID();
+        } else {
+            console.log("✅ ID present in payload:", data.id);
         }
+
+        // Validate
+        if (!data.name || !data.dni) {
+            console.error("❌ Missing name or dni");
+            return res.status(400).json({ error: "Name and DNI are required" });
+        }
+
+        // Explicitly insert the modified object 'data' NOT req.body
+        const { data: created, error } = await getSupabase().from('Patient').insert(data).select().single();
+
+        if (error) {
+            console.error("❌ Supabase Insert Error:", error);
+            throw error;
+        }
+
+        console.log("✅ Patient created:", created.id);
+        res.json(created);
+    } catch (e) {
 
         // Initialize Supabase safely
         let supabase;
