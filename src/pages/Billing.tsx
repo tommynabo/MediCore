@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Download, DollarSign, Calendar, User, FileText, Trash2 } from 'lucide-react';
+import {
+    Download, DollarSign, Calendar, User, FileText, Trash2,
+    Plus, BarChart3, QrCode, TrendingDown, TrendingUp, CreditCard
+} from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { api as apiService } from '../services/api'; // Direct import to avoid context issues
-import JSZip from 'jszip';
 import { Invoice, Expense } from '../../types';
 
 const Billing: React.FC = () => {
-    const { patients, invoices, setInvoices } = useAppContext();
-    const api = apiService; // Use direct imports
-    // The original line was: const { invoices, setInvoices, patients, expenses, setExpenses, currentUserRole, api } = useAppContext();
-    // Now 'api' is imported directly, and 'expenses', 'setExpenses', 'currentUserRole' are removed from context destructuring if they are not used elsewhere.
-    // For now, I'll keep the context destructuring minimal as per the instruction.
+    const { patients, invoices, setInvoices, expenses, setExpenses, currentUserRole } = useAppContext();
+    const api = apiService; // Use direct import
 
     const [billingTab, setBillingTab] = useState<'overview' | 'invoices' | 'expenses'>('overview');
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
