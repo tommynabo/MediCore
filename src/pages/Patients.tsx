@@ -89,7 +89,7 @@ const Patients: React.FC = () => {
                         console.log(`Fetched ${pts.length} patients`);
                         setPatients(pts);
                     } else {
-                        console.error("API Error: Expected array of patients, got:", pts);
+                        console.error("API Error: Expected array of patients, got:", JSON.stringify(pts, null, 2));
                     }
                 })
                 .catch(err => console.error("Error auto-fetching patients", err));

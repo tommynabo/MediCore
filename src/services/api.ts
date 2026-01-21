@@ -43,7 +43,10 @@ export const api = {
             headers,
             body: JSON.stringify(patient)
         });
-        if (!res.ok) throw new Error('Failed to create patient');
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Failed to create patient: ${res.statusText}`);
+        }
         return res.json();
     },
 
