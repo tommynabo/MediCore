@@ -676,17 +676,6 @@ app.post('/api/finance/invoice', async (req, res) => {
     }
 });
 
-app.get('/api/finance/invoices', async (req, res) => {
-    try {
-        const invoices = await prisma.invoice.findMany({
-            orderBy: { date: 'desc' }
-        });
-        res.json(invoices);
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
 app.post('/api/finance/invoices/export/batch', async (req, res) => {
     try {
         const { invoices, date } = req.body;

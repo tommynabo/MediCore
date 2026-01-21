@@ -23,6 +23,8 @@
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.562.0",
     "openai": "^6.16.0",
+    "pdf-parse": "^2.4.5",
+    "pdf-parse-new": "^2.0.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.12.0"

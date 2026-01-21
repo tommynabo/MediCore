@@ -169,53 +169,95 @@ const Billing: React.FC = () => {
                 )}
 
                 {billingTab === 'invoices' && (
-                    <div className="space-y-6">
-                        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
-                            <div className="flex items-center gap-4">
-                                <span className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Fecha:</span>
-                                <input
-                                    type="date"
-                                    value={exportDate}
-                                    onChange={e => setExportDate(e.target.value)}
-                                    className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-100"
-                                />
+                    <div className="space-y-8 animate-in fade-in duration-700">
+                        <div className="bg-white/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/20 shadow-2xl flex justify-between items-center relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                            <div className="flex items-center gap-6">
+                                <div className="bg-slate-100 p-4 rounded-2xl text-slate-500">
+                                    <FileText size={24} />
+                                </div>
+                                <div className="space-y-1">
+                                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">Periodo Fiscal</span>
+                                    <input
+                                        type="date"
+                                        value={exportDate}
+                                        onChange={e => setExportDate(e.target.value)}
+                                        className="bg-transparent border-none text-xl font-bold text-slate-900 outline-none p-0 focus:ring-0"
+                                    />
+                                </div>
                             </div>
                             <button
                                 onClick={() => handleDownloadZip(exportDate)}
                                 disabled={!exportDate}
-                                className="bg-blue-50 text-blue-600 px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-blue-100 transition-all flex items-center gap-2 disabled:opacity-50"
+                                className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-black hover:scale-105 transition-all flex items-center gap-3 disabled:opacity-50 shadow-xl disabled:shadow-none"
                             >
-                                <Download size={16} /> Descargar ZIP Gestoría
+                                <Download size={18} /> Descargar ZIP Gestoría
                             </button>
                         </div>
 
-                        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                            <table className="w-full text-left">
-                                <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-400 tracking-widest border-b border-slate-100">
-                                    <tr><th className="p-6">Factura</th><th className="p-6">Paciente</th><th className="p-6">Importe</th><th className="p-6">Método</th><th className="p-6">Estado</th><th className="p-6">Veri*Factu</th></tr>
+                        <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] border border-slate-100 overflow-hidden shadow-2xl">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-slate-50/50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                                    <tr>
+                                        <th className="p-8 pl-10">Factura</th>
+                                        <th className="p-8">Paciente</th>
+                                        <th className="p-8 text-right">Importe</th>
+                                        <th className="p-8 text-center">Método</th>
+                                        <th className="p-8 text-center">Estado</th>
+                                        <th className="p-8 text-right pr-10">Acciones</th>
+                                    </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-50">
-                                    {invoices.map(inv => (
-                                        <tr key={inv.id} className="text-xs font-bold text-slate-600 hover:bg-slate-50">
-                                            <td className="p-6">{inv.invoiceNumber}</td>
-                                            <td className="p-6">{patients.find(p => p.id === inv.patientId)?.name || 'Anónimo'}</td>
-                                            <td className="p-6 text-slate-900">{inv.amount.toFixed(2)}€</td>
-                                            <td className="p-6 uppercase">{inv.paymentMethod}</td>
-                                            <td className="p-6"><span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[9px] font-bold uppercase">Emitida</span></td>
-                                            <td className="p-6 flex gap-2">
-                                                {inv.url && (
-                                                    <button onClick={() => window.open(inv.url, '_blank')} className="text-slate-500 hover:text-slate-800 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors">
-                                                        <FileText size={16} /> PDF
-                                                    </button>
-                                                )}
-                                                {inv.qrUrl && (
-                                                    <button onClick={() => window.open(inv.qrUrl, '_blank')} className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-[10px] font-bold uppercase transition-colors">
-                                                        <QrCode size={16} /> Certificado
-                                                    </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                <tbody className="divide-y divide-slate-100">
+                                    {invoices.length === 0 ? (
+                                        <tr><td colSpan={6} className="p-16 text-center text-slate-400 font-bold uppercase tracking-widest opacity-50">No hay facturas emitidas</td></tr>
+                                    ) : (
+                                        invoices.map((inv, idx) => (
+                                            <tr key={inv.id} className="group hover:bg-blue-50/30 transition-colors duration-300">
+                                                <td className="p-8 pl-10">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 font-bold text-xs group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+                                                            #{idx + 1}
+                                                        </div>
+                                                        <span className="font-bold text-slate-900 text-sm tracking-tight">{inv.invoiceNumber}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-8">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-bold text-slate-700 text-sm">{patients.find(p => p.id === inv.patientId)?.name || 'Anónimo'}</span>
+                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{patients.find(p => p.id === inv.patientId)?.dni || '---'}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-8 text-right">
+                                                    <span className="font-black text-slate-900 text-lg">{inv.amount.toFixed(2)}€</span>
+                                                </td>
+                                                <td className="p-8 text-center">
+                                                    <span className="bg-slate-100 px-4 py-2 rounded-xl text-[10px] font-black uppercase text-slate-500 tracking-wider">
+                                                        {inv.paymentMethod}
+                                                    </span>
+                                                </td>
+                                                <td className="p-8 text-center">
+                                                    <div className="inline-flex items-center gap-2 bg-emerald-100/50 border border-emerald-100 px-4 py-2 rounded-xl">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                                        <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Emitida</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-8 pr-10 text-right">
+                                                    <div className="flex justify-end gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
+                                                        {inv.url && (
+                                                            <button onClick={() => window.open(inv.url, '_blank')} className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm hover:shadow-md">
+                                                                <FileText size={18} />
+                                                            </button>
+                                                        )}
+                                                        {inv.qrUrl && (
+                                                            <button onClick={() => window.open(inv.qrUrl, '_blank')} className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm hover:shadow-md">
+                                                                <QrCode size={18} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>

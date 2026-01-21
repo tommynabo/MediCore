@@ -131,6 +131,41 @@ const Settings: React.FC = () => {
                             </button>
                         </div>
 
+                        <div className="space-y-6 animate-in fade-in">
+                            <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-xl">
+                                <h3 className="text-xl font-black text-slate-900 mb-2">Plantillas y Documentos</h3>
+                                <p className="text-sm text-slate-500 mb-8">Gestione los documentos legales y consentimientos de la clínica.</p>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* MOCK PDF LIST - Since upload script is blocked, we show what would be there */}
+                                    {[
+                                        { title: "Consentimiento Informado General", lang: "Español", file: "consent_general_es.pdf" },
+                                        { title: "Consentimiento Endodoncia", lang: "Catalán", file: "consent_endo_ca.pdf" },
+                                        { title: "Protección de Datos (RGPD)", lang: "Español", file: "rgpd_es.pdf" },
+                                        { title: "Instrucciones Post-Operatorias", lang: "Español", file: "postop_es.pdf" },
+                                        { title: "Hoja de Primera Visita", lang: "Français", file: "first_visit_fr.pdf" },
+                                    ].map((doc, idx) => (
+                                        <div key={idx} className="group p-6 rounded-2xl bg-slate-50 border border-slate-100 hover:bg-white hover:shadow-lg hover:border-slate-200 transition-all cursor-pointer flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-500">
+                                                    <FileTextIcon size={24} />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-slate-900 text-sm">{doc.title}</h4>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="bg-slate-200 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-500">{doc.lang}</span>
+                                                        <span className="text-[10px] text-slate-400 font-bold uppercase">PDF • A4</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                                                <Download size={18} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                             <table className="w-full text-left">
                                 <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 tracking-widest border-b border-slate-100">
