@@ -11,7 +11,7 @@ const financeService = require('./services/financeService');
 const orthoService = require('./services/orthoService');
 const inventoryService = require('./services/inventoryService');
 const invoiceService = require('./services/invoiceService');
-// const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
+const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
 const budgetService = require('./services/budgetService');
 const templateService = require('./services/templateService');
 

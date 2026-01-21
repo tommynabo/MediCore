@@ -44,25 +44,17 @@ const Billing: React.FC = () => {
         setEmitError(null);
 
         try {
+            const patient = patients.find(p => p.id === selectedPatientId);
+            if (!patient) throw new Error("Paciente no encontrado");
+
             const payload = {
-                patient_id: selectedPatientId,
+                patient: patient, // Pass full patient object as expected by backend/service
                 items: invoiceItems,
-                payment_method: 'card',
+                paymentMethod: 'card',
                 type: 'invoice'
             };
 
-            const response = await fetch('http://localhost:8000/invoices/emit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Error al emitir factura');
-            }
-
-            const data = await response.json();
+            const data = await api.invoices.create(payload);
 
             // Success
             alert(`✅ Factura ${data.invoice_number} emitida con éxito!`);
@@ -289,19 +281,40 @@ const Billing: React.FC = () => {
                         </div>
 
                         <div className="p-8 space-y-6">
-                            {/* Patient Selection */}
+                            {/* Patient Selection (Improved with Search) */}
                             <div className="space-y-2">
                                 <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Paciente</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
-                                    value={selectedPatientId}
-                                    onChange={(e) => setSelectedPatientId(e.target.value)}
-                                >
-                                    <option value="">-- Seleccionar Paciente --</option>
-                                    {patients.map(p => (
-                                        <option key={p.id} value={p.id}>{p.name} - {p.dni || 'Sin DNI'}</option>
-                                    ))}
-                                </select>
+                                <div className="space-y-2">
+                                    <input
+                                        type="text"
+                                        placeholder="🔍 Buscar paciente por nombre o DNI..."
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                                        list="patient-list"
+                                        onChange={(e) => {
+                                            // Simple matcher: if input matches a name exactly, select ID
+                                            // But real user wants to select from list. Datalist is good for this.
+                                            const val = e.target.value;
+                                            const found = patients.find(p => p.name === val || p.dni === val || `${p.name} - ${p.dni}` === val);
+                                            if (found) setSelectedPatientId(found.id);
+                                        }}
+                                    />
+                                    <datalist id="patient-list">
+                                        {patients.map(p => (
+                                            <option key={p.id} value={`${p.name} - ${p.dni}`} />
+                                        ))}
+                                    </datalist>
+                                    {/* Fallback/Explicit select to confirm selection if input is ambiguous */}
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 outline-none"
+                                        value={selectedPatientId}
+                                        onChange={(e) => setSelectedPatientId(e.target.value)}
+                                    >
+                                        <option value="">-- Confirmar Paciente --</option>
+                                        {patients.map(p => (
+                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             {/* Items */}
