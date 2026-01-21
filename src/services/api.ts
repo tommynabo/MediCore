@@ -8,6 +8,24 @@ const headers = {
 };
 
 export const api = {
+    // Invoices (Moved to top for visibility/debugging)
+    invoices: {
+        getAll: async (): Promise<Invoice[]> => {
+            const res = await fetch(`${API_URL}/finance/invoices`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch invoices');
+            return res.json();
+        },
+        create: async (invoiceData: any): Promise<Invoice> => {
+            const res = await fetch(`${API_URL}/finance/invoice`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(invoiceData)
+            });
+            if (!res.ok) throw new Error('Failed to create invoice');
+            return res.json();
+        }
+    },
+
     // Patients
     getPatients: async (): Promise<Patient[]> => {
         const res = await fetch(`${API_URL}/patients`, { headers });
@@ -15,6 +33,10 @@ export const api = {
         return res.json();
     },
     createPatient: async (patient: Partial<Patient>): Promise<Patient> => {
+        // Client-side ID generation fallback (Robust)
+        if (!patient.id) {
+            patient.id = self.crypto?.randomUUID ? self.crypto.randomUUID() : `pat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
         const res = await fetch(`${API_URL}/patients`, {
             method: 'POST',
             headers,
@@ -103,23 +125,7 @@ export const api = {
         }
     },
 
-    // Invoices
-    invoices: {
-        getAll: async (): Promise<Invoice[]> => {
-            const res = await fetch(`${API_URL}/finance/invoices`, { headers });
-            if (!res.ok) throw new Error('Failed to fetch invoices');
-            return res.json();
-        },
-        create: async (invoiceData: any): Promise<Invoice> => {
-            const res = await fetch(`${API_URL}/finance/invoice`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(invoiceData)
-            });
-            if (!res.ok) throw new Error('Failed to create invoice');
-            return res.json();
-        }
-    },
+
 
     // AI Agent
     ai: {

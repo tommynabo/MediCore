@@ -63,6 +63,8 @@ const Billing: React.FC = () => {
             // Optionally refresh invoices from context/DB
 
         } catch (e: any) {
+            console.error("Emit Error", e); // Debug
+            console.log("API State:", api); // Debug
             setEmitError(e.message);
         } finally {
             setIsEmitting(false);
