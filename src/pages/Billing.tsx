@@ -15,6 +15,68 @@ const Billing: React.FC = () => {
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
     const [exportDate, setExportDate] = useState('');
 
+    // Invoice Creation State
+    const [selectedPatientId, setSelectedPatientId] = useState('');
+    const [invoiceItems, setInvoiceItems] = useState<{ name: string, price: number }[]>([{ name: 'Consulta General', price: 50.0 }]);
+    const [isEmitting, setIsEmitting] = useState(false);
+    const [emitError, setEmitError] = useState<string | null>(null);
+
+    const handleAddItem = () => {
+        setInvoiceItems([...invoiceItems, { name: '', price: 0 }]);
+    };
+
+    const handleRemoveItem = (index: number) => {
+        setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
+    };
+
+    const handleItemChange = (index: number, field: 'name' | 'price', value: string | number) => {
+        const newItems = [...invoiceItems];
+        if (field === 'price') newItems[index].price = parseFloat(value as string) || 0;
+        else newItems[index].name = value as string;
+        setInvoiceItems(newItems);
+    };
+
+    const handleEmitInvoice = async () => {
+        if (!selectedPatientId) return setEmitError("Selecciona un paciente");
+        if (invoiceItems.length === 0) return setEmitError("Añade al menos un concepto");
+
+        setIsEmitting(true);
+        setEmitError(null);
+
+        try {
+            const payload = {
+                patient_id: selectedPatientId,
+                items: invoiceItems,
+                payment_method: 'card',
+                type: 'invoice'
+            };
+
+            const response = await fetch('http://localhost:8000/invoices/emit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.detail || 'Error al emitir factura');
+            }
+
+            const data = await response.json();
+
+            // Success
+            alert(`✅ Factura ${data.invoice_number} emitida con éxito!`);
+            window.open(data.pdf_url, '_blank');
+            setIsInvoiceModalOpen(false);
+            // Optionally refresh invoices from context/DB
+
+        } catch (e: any) {
+            setEmitError(e.message);
+        } finally {
+            setIsEmitting(false);
+        }
+    };
+
     // Mock Data for Revenue History (Should be dynamic or from context)
     const REVENUE_HISTORY = [
         { day: 'Lun', amount: 1240 }, { day: 'Mar', amount: 1890 }, { day: 'Mie', amount: 1450 },
@@ -212,13 +274,104 @@ const Billing: React.FC = () => {
                 )}
             </div>
 
-            {/* INVOICE MODAL WOULD GO HERE (Can be extracted to a component) */}
+            {/* INVOICE MODAL */}
             {isInvoiceModalOpen && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-                    <div className="bg-white p-8 rounded-2xl max-w-lg w-full">
-                        <h3 className="text-xl font-bold mb-4">Nueva Factura</h3>
-                        <p className="text-sm mb-6 text-gray-500">Funcionalidad en desarrollo para modularidad.</p>
-                        <button onClick={() => setIsInvoiceModalOpen(false)} className="bg-slate-900 text-white px-4 py-2 rounded-lg">Cerrar</button>
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden animate-in zoom-in-50 duration-200">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div>
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Nueva Factura Oficial</h3>
+                                <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">Veri*Factu / FacturaDirecta</p>
+                            </div>
+                            <button onClick={() => setIsInvoiceModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="p-8 space-y-6">
+                            {/* Patient Selection */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Paciente</label>
+                                <select
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100"
+                                    value={selectedPatientId}
+                                    onChange={(e) => setSelectedPatientId(e.target.value)}
+                                >
+                                    <option value="">-- Seleccionar Paciente --</option>
+                                    {patients.map(p => (
+                                        <option key={p.id} value={p.id}>{p.name} - {p.dni || 'Sin DNI'}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            {/* Items */}
+                            <div className="space-y-4">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Conceptos</label>
+                                    <button onClick={handleAddItem} className="text-[10px] font-bold uppercase text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 px-3 py-1 rounded-lg">
+                                        + Añadir Línea
+                                    </button>
+                                </div>
+                                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {invoiceItems.map((item, idx) => (
+                                        <div key={idx} className="flex gap-2 items-center">
+                                            <input
+                                                type="text"
+                                                placeholder="Descripción del servicio"
+                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-300 transition-all"
+                                                value={item.name}
+                                                onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                                            />
+                                            <input
+                                                type="number"
+                                                placeholder="€"
+                                                className="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-300 transition-all text-right"
+                                                value={item.price}
+                                                onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
+                                            />
+                                            <button onClick={() => handleRemoveItem(idx)} className="text-slate-300 hover:text-rose-500 transition-colors p-2">
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="text-right border-t border-slate-100 pt-4">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-4">Total Factura</span>
+                                    <span className="text-2xl font-black text-slate-900">{invoiceItems.reduce((sum, i) => sum + i.price, 0).toFixed(2)}€</span>
+                                </div>
+                            </div>
+
+                            {/* Error Message */}
+                            {emitError && (
+                                <div className="bg-rose-50 text-rose-600 p-4 rounded-xl text-xs font-bold flex items-center gap-2">
+                                    ⚠️ {emitError}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                            <button
+                                onClick={() => setIsInvoiceModalOpen(false)}
+                                className="px-6 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors uppercase tracking-widest"
+                                disabled={isEmitting}
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={handleEmitInvoice}
+                                disabled={isEmitting}
+                                className="bg-slate-900 text-white px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isEmitting ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        Conectando Hacienda...
+                                    </>
+                                ) : (
+                                    <>✅ Emitir Factura</>
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
