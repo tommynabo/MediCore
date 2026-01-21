@@ -262,6 +262,12 @@ app.post('/api/patients', async (req, res) => {
             console.log("✅ ID present in payload:", data.id);
         }
 
+        // --- FIX: Ensure birthDate exists (DB constraint) ---
+        if (!data.birthDate) {
+            console.log("⚠️ birthDate missing, using current date");
+            data.birthDate = new Date().toISOString();
+        }
+
         // Validate
         if (!data.name || !data.dni) {
             console.error("❌ Missing name or dni");
