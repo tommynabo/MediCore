@@ -57,6 +57,10 @@ export const api = {
             });
             if (!res.ok) throw new Error('Failed to create clinical record');
             return res.json();
+        },
+        delete: async (id: string): Promise<void> => {
+            const res = await fetch(`${API_URL}/clinical-records/${id}`, { method: 'DELETE', headers });
+            if (!res.ok) throw new Error('Failed to delete clinical record');
         }
     },
 
@@ -92,6 +96,10 @@ export const api = {
             });
             if (!res.ok) throw new Error('Failed to convert budget');
             return res.json();
+        },
+        delete: async (id: string) => {
+            const res = await fetch(`${API_URL}/budgets/${id}`, { method: 'DELETE', headers });
+            if (!res.ok) throw new Error('Failed to delete budget');
         }
     },
 

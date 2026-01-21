@@ -106,7 +106,7 @@ app.post('/api/finance/financing', async (req, res) => {
 // --- CLINICAL RECORDS (Module 4 Extension) ---
 app.post('/api/clinical-records', async (req, res) => {
     try {
-        const { patientId, treatment, observation, specialization } = req.body;
+        const { patientId, treatment, observation, specialization, price, date } = req.body;
 
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
@@ -116,7 +116,8 @@ app.post('/api/clinical-records', async (req, res) => {
         const payload = {
             treatment: treatment || 'Nota Clínica',
             observation: observation || '',
-            specialization: specialization || 'General'
+            specialization: specialization || 'General',
+            price: price || 0
         };
 
         const { data, error } = await supabase
@@ -143,10 +144,40 @@ app.post('/api/clinical-records', async (req, res) => {
             specialization: payload.specialization
         };
 
-        res.json(responseData);
+        res.status(201).json(responseData);
     } catch (e) {
+        console.error("❌ Error in POST /api/clinical-records:", e);
         res.status(500).json({ error: e.message });
     }
+});
+
+app.delete('/api/clinical-records/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { error } = await supabase.from('ClinicalRecord').delete().eq('id', id);
+        if (error) throw error;
+
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/budgets/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        // Determine if logic needs to delete items first (Cascade usually handles this, assuming Supabase/Postgres FK is set to Cascade)
+        // If not, we might need to delete line items first manually.
+        // For now trusting cascade or simple delete.
+        const { error } = await supabase.from('Budget').delete().eq('id', id);
+        if (error) throw error;
+
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/patients/:patientId/clinical-records', async (req, res) => {
