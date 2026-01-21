@@ -120,7 +120,7 @@ const Patients: React.FC = () => {
         try {
             const prompt = `Genera una receta médica formal válida en España para el paciente ${selectedPatient?.name} (DNI: ${selectedPatient?.dni}) para el medicamento: ${medication}. Incluye posología estándar, fechas y formato de firma.`;
             const response = await api.ai.query(prompt, selectedPatient?.id);
-            setPrescriptionText(response.answer || response.message || "No se pudo generar la receta.");
+            setPrescriptionText(response.answer || response.message || response.content || "No se pudo generar la receta.");
         } catch (e) {
             console.error(e);
             setPrescriptionText("Error generando receta con IA.");

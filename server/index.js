@@ -160,14 +160,21 @@ app.post('/api/clinical-records', async (req, res) => {
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
 
+        // Schema Adaptation: valid columns are id, patientId, date, text
+        // We store structured data in 'text' as a stringified JSON
+        const payload = {
+            treatment: treatment || 'Nota Clínica',
+            observation: observation || '',
+            specialization: specialization || 'General'
+        };
+
         const { data, error } = await supabase
             .from('ClinicalRecord')
             .insert([{
                 patientId,
                 date: new Date().toISOString(),
-                specialization: specialization || 'General',
-                clinicalData: { treatment, observation },
-                isEncrypted: false
+                text: JSON.stringify(payload), // Serialize structure
+                authorId: 'system' // Optional
             }])
             .select()
             .single();
@@ -176,7 +183,15 @@ app.post('/api/clinical-records', async (req, res) => {
             console.error("❌ Error Saving Clinical Record:", error);
             return res.status(500).json({ error: error.message });
         }
-        res.json(data);
+
+        // Return object with parsed structure for frontend consistency
+        const responseData = {
+            ...data,
+            clinicalData: payload,
+            specialization: payload.specialization
+        };
+
+        res.json(responseData);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -194,7 +209,26 @@ app.get('/api/patients/:patientId/clinical-records', async (req, res) => {
             .order('date', { ascending: false });
 
         if (error) return res.status(500).json({ error: error.message });
-        res.json(data);
+
+        // Map 'text' back to 'clinicalData' for frontend
+        const mappedData = data.map(record => {
+            let parsed = {};
+            let isJson = false;
+            try {
+                if (record.text && (record.text.startsWith('{') || record.text.startsWith('['))) {
+                    parsed = JSON.parse(record.text);
+                    isJson = true;
+                }
+            } catch (e) { }
+
+            return {
+                ...record,
+                clinicalData: isJson ? parsed : { treatment: 'Nota', observation: record.text },
+                specialization: isJson && parsed.specialization ? parsed.specialization : 'General'
+            };
+        });
+
+        res.json(mappedData);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

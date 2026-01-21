@@ -38,15 +38,17 @@ const createBudget = async (supabase, patientId, items = []) => {
     }
 
     // 3. Add to Clinical History (Shadow Record)
+    const historyPayload = {
+        treatment: 'Nuevo Presupuesto',
+        observation: `Presupuesto creado con importe total: ${totalAmount}€ (${items.length} items)`,
+        specialization: 'General'
+    };
+
     await supabase.from('ClinicalRecord').insert([{
         patientId,
         date: new Date().toISOString(),
-        clinicalData: {
-            treatment: 'Nuevo Presupuesto',
-            observation: `Presupuesto creado con importe total: ${totalAmount}€ (${items.length} items)`,
-        },
-        specialization: 'General',
-        isEncrypted: false
+        text: JSON.stringify(historyPayload),
+        authorId: 'system'
     }]);
 
     // Return full structure
