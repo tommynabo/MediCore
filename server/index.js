@@ -516,14 +516,13 @@ app.post('/api/inventory/check', async (req, res) => {
 const { createClient } = require('@supabase/supabase-js');
 
 // Lazy Supabase Initializer to prevent startup crashes
+// Lazy Supabase Initializer to prevent startup crashes
 const getSupabase = () => {
-    if (!process.env.SUPABASE_URL) throw new Error("Falta Vercel Env Var: SUPABASE_URL");
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Falta Vercel Env Var: SUPABASE_SERVICE_ROLE_KEY");
+    // HARDCODED DEBUGGING - REMOVE BEFORE FINAL PROD IF POSSIBLE
+    const URL = "https://gnnacijqglcqonholpwt.supabase.co";
+    const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdubmFjaWpxZ2xjcW9uaG9scHd0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODQ3NjU0NCwiZXhwIjoyMDg0MDUyNTQ0fQ.6qexkezsBpOhvTch_eRsr8lF_mixdp9sfv0ScjUmxp4";
 
-    return createClient(
-        process.env.SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    return createClient(URL, KEY);
 };
 
 app.post('/api/auth/login', async (req, res) => {
