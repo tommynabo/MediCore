@@ -7,11 +7,11 @@ const { PrismaClient } = require('@prisma/client');
 
 // Services
 const financeService = require('./services/financeService');
-const budgetService = require('./services/budgetService');
 const orthoService = require('./services/orthoService');
 const inventoryService = require('./services/inventoryService');
 const invoiceService = require('./services/invoiceService');
-const aiAgent = require('./services/aiAgent');
+// const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
+const budgetService = require('./services/budgetService');
 const templateService = require('./services/templateService');
 
 const prisma = new PrismaClient({
@@ -702,6 +702,54 @@ app.delete('/api/templates/:id', async (req, res) => {
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// --- MODULE 8: BUDGETS ---
+app.get('/api/patients/:patientId/budgets', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+        const data = await budgetService.getBudgetsByPatient(supabase, req.params.patientId);
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/patients/:patientId/budgets', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+        const { items } = req.body;
+        const data = await budgetService.createBudget(supabase, req.params.patientId, items);
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/patients/:patientId/budgets/draft/items', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+        const data = await budgetService.addItemToDraftBudget(supabase, req.params.patientId, req.body);
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/budgets/:id/status', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+        const { status } = req.body;
+        const data = await budgetService.updateBudgetStatus(supabase, req.params.id, status);
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/budgets/:id/convert', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+        const data = await budgetService.convertBudgetToInvoice(supabase, req.params.id);
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 const PORT = process.env.PORT || 3000;

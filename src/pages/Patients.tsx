@@ -693,11 +693,10 @@ const Patients: React.FC = () => {
                                 onClick={async () => {
                                     if (!budgetForm.title) return alert("Indique título");
                                     try {
-                                        await api.budget.create({
-                                            patientId: selectedPatient?.id,
-                                            items: budgetForm.items,
-                                            // Backend might ignore title if not in schema but let's send it
-                                        });
+                                        await api.budget.create(
+                                            selectedPatient?.id,
+                                            budgetForm.items
+                                        );
 
                                         alert("Presupuesto Creado Correctamente");
                                         setIsBudgetModalOpen(false);
