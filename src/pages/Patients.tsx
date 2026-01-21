@@ -19,6 +19,18 @@ const Patients: React.FC = () => {
     // Navigation State
     const [patientTab, setPatientTab] = useState<string>('ficha');
 
+    // Local State for Budgets
+    const [budgets, setBudgets] = useState<any[]>([]);
+
+    // Fetch budgets when patient is selected or tab changes
+    React.useEffect(() => {
+        if (selectedPatient && patientTab === 'budget') {
+            api.budget.getByPatient(selectedPatient.id)
+                .then(setBudgets)
+                .catch(err => console.error("Failed to load budgets", err));
+        }
+    }, [selectedPatient, patientTab]);
+
     // Modal & Form States
     const [isNewPatientModalOpen, setIsNewPatientModalOpen] = useState(false);
     const [isEditingPatient, setIsEditingPatient] = useState(false);
@@ -118,7 +130,7 @@ const Patients: React.FC = () => {
     };
 
     const handleOdontogramAddTreatment = (toothId: number) => {
-        setTreatmentForm({ name: `Tratamiento Diente ${toothId}`, price: '', status: 'Pendiente' });
+        setTreatmentForm({ name: `Tratamiento Diente ${toothId}`, price: '50', status: 'Pendiente' });
         setIsNewTreatmentModalOpen(true);
     };
 
@@ -403,7 +415,36 @@ const Patients: React.FC = () => {
                                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">Presupuestos</h2>
                                     <button onClick={() => setIsBudgetModalOpen(true)} className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 hover:bg-slate-800 transition-colors shadow-lg"><Plus size={16} /> Nuevo Presupuesto</button>
                                 </div>
-                                <div className="p-10 text-center opacity-50 font-bold uppercase">No hay presupuestos registrados</div>
+                                <div className="space-y-4">
+                                    {budgets.length === 0 ? (
+                                        <div className="p-10 text-center opacity-50 font-bold uppercase">No hay presupuestos registrados</div>
+                                    ) : (
+                                        budgets.map((budget: any) => (
+                                            <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                                                <div className="flex justify-between items-start mb-4">
+                                                    <div>
+                                                        <h4 className="text-xl font-black text-slate-900">{budget.title || `Presupuesto #${budget.id.substring(0, 6)}`}</h4>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">{new Date(budget.createdAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${budget.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                        {budget.status || 'BORRADOR'}
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2 mb-4">
+                                                    {budget.items?.map((item: any, idx: number) => (
+                                                        <div key={idx} className="flex justify-between text-xs font-bold text-slate-600 border-b border-slate-50 pb-1">
+                                                            <span>{item.name}</span>
+                                                            <span>{item.price}€</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    <button className="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors">Convertir a Factura</button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -468,10 +509,29 @@ const Patients: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Detalles</label>
+                                <label className="text-[10px] font-black uppercase text-slate-400 flex justify-between items-center">
+                                    <span>Detalles</span>
+                                    <button
+                                        onClick={async () => {
+                                            if (!newEntryForm.observation) return;
+                                            setIsProcessing(true);
+                                            try {
+                                                const prompt = `Reescribe y estructura profesionalmente la siguiente nota clínica odontológica, organizándola por puntos clave (Motivo, Observación, Plan): "${newEntryForm.observation}"`;
+                                                const res = await api.ai.query(prompt, selectedPatient?.id);
+                                                if (res && res.answer) {
+                                                    setNewEntryForm(prev => ({ ...prev, observation: res.answer }));
+                                                }
+                                            } catch (e) { console.error(e); alert("Error AI"); }
+                                            setIsProcessing(false);
+                                        }}
+                                        className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-200 transition-colors flex items-center gap-1"
+                                    >
+                                        ✨ Mejorar redacción (AI)
+                                    </button>
+                                </label>
                                 <textarea
                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32"
-                                    placeholder="Observaciones..."
+                                    placeholder="Escribe las notas sin orden... la IA lo arreglará."
                                     value={newEntryForm.observation}
                                     onChange={e => setNewEntryForm({ ...newEntryForm, observation: e.target.value })}
                                 />
@@ -582,15 +642,49 @@ const Patients: React.FC = () => {
                                     onChange={e => setBudgetForm({ ...budgetForm, title: e.target.value })}
                                 />
                             </div>
-                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                                <p className="text-xs font-bold text-slate-500 mb-2">Items:</p>
+                            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
+                                <p className="text-xs font-bold text-slate-500 mb-2">Conceptos:</p>
                                 {budgetForm.items.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm font-black text-slate-900 border-b border-slate-200 pb-2 mb-2">
-                                        <span>{item.name}</span>
-                                        <span>{item.price}€</span>
+                                    <div key={idx} className="flex gap-2 items-center mb-2">
+                                        <input
+                                            className="flex-1 bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none"
+                                            value={item.name}
+                                            onChange={(e) => {
+                                                const newItems = [...budgetForm.items];
+                                                newItems[idx].name = e.target.value;
+                                                setBudgetForm({ ...budgetForm, items: newItems });
+                                            }}
+                                            placeholder="Concepto"
+                                        />
+                                        <input
+                                            type="number"
+                                            className="w-20 bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none"
+                                            value={item.price}
+                                            onChange={(e) => {
+                                                const newItems = [...budgetForm.items];
+                                                newItems[idx].price = parseFloat(e.target.value) || 0;
+                                                setBudgetForm({ ...budgetForm, items: newItems });
+                                            }}
+                                            placeholder="€"
+                                        />
+                                        <button
+                                            onClick={() => {
+                                                const newItems = budgetForm.items.filter((_, i) => i !== idx);
+                                                setBudgetForm({ ...budgetForm, items: newItems });
+                                            }}
+                                            className="p-2 text-red-400 hover:text-red-600"
+                                        >
+                                            ✕
+                                        </button>
                                     </div>
                                 ))}
-                                {budgetForm.items.length === 0 && <p className="text-center text-[10px] text-slate-400">Sin items</p>}
+                                <button
+                                    onClick={() => setBudgetForm({ ...budgetForm, items: [...budgetForm.items, { name: '', price: 0 }] })}
+                                    className="w-full py-2 bg-white border border-dashed border-slate-300 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors"
+                                >
+                                    + Añadir Concepto
+                                </button>
+                                {budgetForm.items.length === 0 && <p className="text-center text-[10px] text-slate-400 mt-2">Añada conceptos al presupuesto</p>}
                             </div>
                         </div>
                         <div className="flex gap-4 mt-6">
@@ -599,28 +693,19 @@ const Patients: React.FC = () => {
                                 onClick={async () => {
                                     if (!budgetForm.title) return alert("Indique título");
                                     try {
-                                        // Use api.budget.create if available, or just mock and alert
-                                        // Since api.budget might not be fully implemented in previous steps, let's verify. 
-                                        // api.ts has budget.create?
-                                        // I should check api.ts later. For now, assuming it exists or catching error.
-                                        // Actually, let's just alert since I haven't added api.budget yet in my memory (checked logs? no).
-                                        // Wait, I saw 'api.clinicalRecords' added. I did NOT add 'api.budget'.
-                                        // So I should just alert for now or implement it. 
-                                        // "Create Budget" was requested.
+                                        await api.budget.create({
+                                            patientId: selectedPatient?.id,
+                                            items: budgetForm.items,
+                                            // Backend might ignore title if not in schema but let's send it
+                                        });
 
-                                        // I'll add a provisional alert mock here to avoid specific crash, and then I will update api.ts if needed.
-                                        // But the User asked for "Enable creation of budgets".
-                                        // So I must implement it.
-                                        // I'll assume 'api.budget.create' will be implemented next.
-
-                                        if (api.budget && api.budget.create) {
-                                            await api.budget.create({ patientId: selectedPatient?.id, items: budgetForm.items, title: budgetForm.title });
-                                            alert("Presupuesto creado correctamente");
-                                        } else {
-                                            alert("Simulación: Presupuesto creado (Backend pending implementation)");
-                                        }
+                                        alert("Presupuesto Creado Correctamente");
                                         setIsBudgetModalOpen(false);
-                                    } catch (e) { alert("Error: " + e.message); }
+                                        // Refresh Budgets List
+                                        const updatedBudgets = await api.budget.getByPatient(selectedPatient?.id);
+                                        setBudgets(updatedBudgets);
+                                        setPatientTab('budget'); // Switch to tab to view it
+                                    } catch (e) { alert("Error al crear: " + e.message); }
                                 }}
                                 className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
                             >

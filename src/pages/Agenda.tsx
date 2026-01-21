@@ -122,27 +122,8 @@ const Agenda: React.FC = () => {
                 </div>
 
                 <div className="flex gap-4 items-center flex-wrap justify-end">
-                    {/* SEARCH INPUTS FOR AGENDA FILTERING */}
-                    <div className="flex gap-2">
-                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 flex items-center gap-2 w-40">
-                            <Search size={14} className="text-slate-400" />
-                            <input
-                                className="bg-transparent text-xs font-bold outline-none w-full"
-                                placeholder="Buscar Paciente"
-                                value={apptSearch}
-                                onChange={(e) => setApptSearch(e.target.value)}
-                            />
-                        </div>
-                        <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 flex items-center gap-2 w-40">
-                            <Search size={14} className="text-slate-400" />
-                            <input
-                                className="bg-transparent text-xs font-bold outline-none w-full"
-                                placeholder="Filtrar Tratamiento"
-                                value={apptTreatmentSearch}
-                                onChange={(e) => setApptTreatmentSearch(e.target.value)}
-                            />
-                        </div>
-                    </div>
+                    {/* FILTERS REMOVED AS REQUESTED */}
+
                     {/* DOCTOR SELECTOR (ADMIN ONLY) */}
                     {(currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') && (
                         <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
@@ -165,9 +146,11 @@ const Agenda: React.FC = () => {
                             <button onClick={() => setViewMode('weekly')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${viewMode === 'weekly' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900'}`}>Semana</button>
                         </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                         <button onClick={handlePrev} className="p-3 bg-white rounded-xl text-slate-400 hover:text-blue-600 hover:shadow-lg transition-all border border-slate-200"><ChevronLeft size={18} /></button>
-                        <button onClick={() => setCurrentDate(new Date())} className="p-3 bg-white rounded-xl text-slate-900 font-black text-xs uppercase hover:shadow-md transition-all border border-slate-200">Hoy</button>
+                        <button onClick={() => setCurrentDate(new Date())} className="px-6 py-3 bg-white rounded-xl text-slate-900 font-black text-xs uppercase hover:shadow-md transition-all border border-slate-200 min-w-[120px]">
+                            {viewMode === 'daily' ? currentDate.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }) : getWeekRange(currentDate)}
+                        </button>
                         <button onClick={handleNext} className="p-3 bg-white rounded-xl text-slate-400 hover:text-blue-600 hover:shadow-lg transition-all border border-slate-200"><ChevronRight size={18} /></button>
                     </div>
                 </div>
