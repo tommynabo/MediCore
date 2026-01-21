@@ -8,6 +8,8 @@ if (!rootElement) {
   throw new Error("Could not find root element to mount to");
 }
 
+console.log(`%c MEDICORE APP VERSION: ${new Date().toISOString()} `, 'background: #222; color: #bada55; padding: 4px; border-radius: 4px;');
+
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
