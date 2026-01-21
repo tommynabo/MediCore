@@ -284,8 +284,6 @@ app.post('/api/patients', async (req, res) => {
 
         console.log("✅ Patient created:", created.id);
         res.json(created);
-        console.log("✅ Patient created:", created.id);
-        res.json(created);
     } catch (e) {
         console.error("Error creating patient:", e);
         res.status(500).json({ error: e.message });
