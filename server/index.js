@@ -93,57 +93,7 @@ app.get('/api/liquidations', async (req, res) => {
 });
 
 // --- BUDGETS ---
-// --- BUDGETS ---
-app.get('/api/patients/:patientId/budgets', async (req, res) => {
-    try {
-        let supabase;
-        try { supabase = getSupabase(); } catch (configError) { return res.status(500).json({ error: configError.message }); }
-
-        const budgets = await budgetService.getBudgetsByPatient(supabase, req.params.patientId);
-        res.json(budgets);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/patients/:patientId/budgets', async (req, res) => {
-    try {
-        let supabase;
-        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
-
-        const budget = await budgetService.createBudget(supabase, req.params.patientId, req.body.items);
-        res.json(budget);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/budgets/:id/status', async (req, res) => {
-    try {
-        let supabase;
-        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
-
-        const budget = await budgetService.updateBudgetStatus(supabase, req.params.id, req.body.status);
-        res.json(budget);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/patients/:patientId/budgets/draft/items', async (req, res) => {
-    try {
-        let supabase;
-        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
-
-        const budget = await budgetService.addItemToDraftBudget(supabase, req.params.patientId, req.body);
-        res.json(budget);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-
-app.post('/api/budgets/:id/convert', async (req, res) => {
-    try {
-        let supabase;
-        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
-
-        const invoice = await budgetService.convertBudgetToInvoice(supabase, req.params.id);
-        res.json(invoice);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
+// --- BUDGETS (Moved to Module 8 below) ---
 
 app.post('/api/finance/financing', async (req, res) => {
     try {
@@ -315,27 +265,34 @@ app.post('/api/patients', async (req, res) => {
 // --- APPOINTMENTS ---
 app.post('/api/appointments', async (req, res) => {
     try {
-        console.log("POST /api/appointments Body:", req.body);
-        const { id, doctorId, patientId, date, time, treatment, status } = req.body;
+        const { date, time, patientId, doctorId, treatmentId } = req.body;
 
-        // Initialize Supabase safely
         let supabase;
-        try {
-            supabase = getSupabase();
-        } catch (configError) {
-            return res.status(500).json({ error: configError.message });
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        // VALIDATION: Specialization Check
+        if (treatmentId && doctorId) {
+            const { data: treatment } = await supabase.from('Treatment').select('specialtyId').eq('id', treatmentId).single();
+            const { data: doctor } = await supabase.from('Doctor').select('specialtyId, name').eq('id', doctorId).single();
+
+            if (treatment && doctor) {
+                if (treatment.specialtyId && doctor.specialtyId && treatment.specialtyId !== doctor.specialtyId) {
+                    // Check if doctor is "General" (allows basic treatments?) 
+                    // Or strict? User asked for strict: "si no es especialista... que no deje"
+                    return res.status(400).json({ error: `El Dr. ${doctor.name} no es especialista en el tratamiento seleccionado.` });
+                }
+            }
         }
 
         const { data, error } = await supabase
             .from('Appointment')
             .insert([{
-                id: id || crypto.randomUUID(), // Use provided ID or generate
-                doctorId,
-                patientId,
-                date,
+                date: new Date(date).toISOString(),
                 time,
-                treatment,
-                status: status || 'PENDING'
+                patientId,
+                doctorId,
+                treatmentId,
+                status: 'Scheduled'
             }])
             .select()
             .single();

@@ -48,10 +48,21 @@ model Patient {
   createdAt      DateTime         @default(now())
 }
 
+model Specialty {
+  id          String      @id @default(uuid())
+  name        String      @unique // e.g. "General", "Ortodoncia", "Implantología"
+  description String?
+  doctors     Doctor[]
+  treatments  Treatment[]
+}
+
 model Doctor {
   id                   String        @id @default(uuid())
   name                 String
-  specialization       String
+  // specialization       String    // DEPRECATED/LEGACY: Keeping for safety but prefer specialtyId
+  specialization       String?       // Made optional to phase out
+  specialtyId          String?
+  specialty            Specialty?    @relation(fields: [specialtyId], references: [id])
   commissionPercentage Float         @default(0.0) // Module 1: Base Commission (e.g., 0.30)
   users                User[]
   patients             Patient[]
@@ -66,6 +77,8 @@ model Treatment {
   price          Float
   labCost        Float    @default(0.0) // Coste de Laboratorio
   insurancePrices String? // JSON String for caching insurance prices
+  specialtyId    String?
+  specialty      Specialty? @relation(fields: [specialtyId], references: [id])
   appointments   Appointment[]
   items          InvoiceItem[]
   budgetItems    BudgetLineItem[]
