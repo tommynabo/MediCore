@@ -48,23 +48,46 @@ const Billing: React.FC = () => {
             if (!patient) throw new Error("Paciente no encontrado");
 
             const payload = {
-                patient: patient, // Pass full patient object as expected by backend/service
+                patient: patient,
                 items: invoiceItems,
                 paymentMethod: 'card',
                 type: 'invoice'
             };
 
-            const data = await api.invoices.create(payload);
+            const data = await api.invoices.create(payload) as any;
+
+            // Add invoice to local state
+            const newInvoice: any = {
+                id: data.invoiceNumber || data.invoice_number || crypto.randomUUID(),
+                invoiceNumber: data.invoiceNumber || data.invoice_number,
+                amount: invoiceItems.reduce((sum, i) => sum + i.price, 0),
+                patientId: patient.id,
+                date: new Date().toISOString(),
+                status: 'issued',
+                paymentMethod: 'card',
+                url: data.url || data.pdf_url,
+                qrUrl: data.qr_url || data.qrUrl
+            };
+
+            setInvoices(prev => [newInvoice, ...prev]);
 
             // Success
-            alert(`✅ Factura ${data.invoice_number} emitida con éxito!`);
-            window.open(data.pdf_url, '_blank');
+            alert(`✅ Factura ${data.invoiceNumber || data.invoice_number} emitida con éxito!`);
+
+            // Open PDF only if URL exists
+            if (data.url || data.pdf_url) {
+                window.open(data.url || data.pdf_url, '_blank');
+            }
+
             setIsInvoiceModalOpen(false);
-            // Optionally refresh invoices from context/DB
+
+            // Reset form
+            setSelectedPatientId('');
+            setInvoiceItems([{ name: 'Consulta General', price: 50.0 }]);
 
         } catch (e: any) {
-            console.error("Emit Error", e); // Debug
-            console.log("API State:", api); // Debug
+            console.error("Emit Error", e);
+            console.log("API State:", api);
             setEmitError(e.message);
         } finally {
             setIsEmitting(false);
