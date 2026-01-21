@@ -674,8 +674,7 @@ const Patients: React.FC = () => {
             }
 
             {/* BUDGET MODAL */}
-            {
-                isBudgetModalOpen && (
+            { isBudgetModalOpen && (
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
                         <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
                             <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Presupuesto</h3>
@@ -768,7 +767,6 @@ const Patients: React.FC = () => {
                             </button>
                         </div>
                     </div>
-                </div>
             )}
         </div>
     );
