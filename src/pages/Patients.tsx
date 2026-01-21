@@ -543,32 +543,25 @@ const Patients: React.FC = () => {
                                 onClick={async () => {
                                     if (!treatmentForm.name) return alert("Indique el nombre");
                                     try {
-                                        // Using appointmentscreate as a placeholder for treatments/jobs or a specific treatments endpoints
-                                        // Since user asked for tasks, we might need a Treatment table.
-                                        // For now, let's assume we save it as a pending appointment or a tracked item.
-                                        // Given the context, let's treat it as a Clinical Record marked as 'PLAN' or similar if no Treatment table exists.
-                                        // OR, creating a treatment could mean adding to a 'TreatmentPlan'.
-                                        // Let's us ClinicalRecords for now or specific endpoint if created.
-                                        // Actually I added clinicalRecords endpoint. Let's use that for now, or just save to state if UI only.
-                                        // User asked for "add treatments".
-
-                                        // Let's use the clinicalRecords.create but with status 'PENDING' description? 
-                                        // Or create a new Appointment with status PENDING?
-                                        await api.appointments.create({
+                                        // Save as Clinical Record (Treatment Log) instead of Appointment
+                                        await api.clinicalRecords.create({
                                             patientId: selectedPatient?.id,
-                                            doctorId: 'doctor-id-placeholder', // In real app, select doctor
-                                            date: new Date().toISOString(),
-                                            time: '09:00',
                                             treatment: treatmentForm.name,
-                                            status: 'PENDING'
+                                            observation: `Tratamiento planificado: ${treatmentForm.name} - ${treatmentForm.price}€`,
+                                            specialization: 'General'
                                         });
-                                        alert("Tratamiento planificado correctamente");
+
+                                        alert("Tratamiento guardado en historial");
                                         setIsNewTreatmentModalOpen(false);
+                                        // Trigger refresh if possible (by updating state in context or re-fetching)
+                                        // For now, we rely on the component re-render or explicit refresh
+                                        const recs = await api.clinicalRecords.getByPatient(selectedPatient?.id);
+                                        // Update context or local state if present, or just let user reload tab
                                     } catch (e) { alert("Error: " + e.message); }
                                 }}
                                 className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
                             >
-                                Planificar
+                                Guardar Tratamiento
                             </button>
                         </div>
                     </div>

@@ -24,6 +24,7 @@ const Agenda: React.FC = () => {
     // Search States
     const [apptSearch, setApptSearch] = useState('');
     const [bookingTreatment, setBookingTreatment] = useState('');
+    const [apptTreatmentSearch, setApptTreatmentSearch] = useState('');
 
     // Helpers
     const getWeekRange = (d: Date) => {
