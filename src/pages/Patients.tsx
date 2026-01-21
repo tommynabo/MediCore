@@ -85,12 +85,16 @@ const Patients: React.FC = () => {
             console.log("Patients list empty, forcing refresh...");
             api.getPatients()
                 .then(pts => {
-                    console.log(`Fetched ${pts.length} patients`);
-                    setPatients(pts);
+                    if (Array.isArray(pts)) {
+                        console.log(`Fetched ${pts.length} patients`);
+                        setPatients(pts);
+                    } else {
+                        console.error("API Error: Expected array of patients, got:", pts);
+                    }
                 })
                 .catch(err => console.error("Error auto-fetching patients", err));
         }
-    }, []); // Run once on mount
+    }, [patients.length]); // Add dep to ensure it runs if length causes issues
 
     // Computed
     const filteredPatients = useMemo(() => {

@@ -1,6 +1,7 @@
 import { Patient, Appointment, Invoice, ClinicalRecord, InventoryItem } from '../types';
 
-const API_URL = 'http://localhost:3000/api';
+// Use relative path in production (Vercel), localhost in dev
+const API_URL = import.meta.env.PROD ? '/api' : 'http://localhost:3000/api';
 
 const headers = {
     'Content-Type': 'application/json',
