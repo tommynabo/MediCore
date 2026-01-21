@@ -4,6 +4,7 @@ dotenv.config();
 const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
+const crypto = require('crypto');
 
 // Services
 const financeService = require('./services/financeService');
@@ -121,6 +122,7 @@ app.post('/api/clinical-records', async (req, res) => {
         const { data, error } = await supabase
             .from('ClinicalRecord')
             .insert([{
+                id: crypto.randomUUID(),
                 patientId,
                 date: new Date().toISOString(),
                 text: JSON.stringify(payload), // Serialize structure

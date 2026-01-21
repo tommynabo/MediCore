@@ -7,6 +7,7 @@ const createBudget = async (supabase, patientId, items = []) => {
     const { data: budget, error: budgetError } = await supabase
         .from('Budget')
         .insert([{
+            id: crypto.randomUUID(),
             patientId,
             status: 'DRAFT',
             totalAmount,
@@ -21,6 +22,7 @@ const createBudget = async (supabase, patientId, items = []) => {
     // 2. Create Items
     if (items.length > 0) {
         const lineItems = items.map(item => ({
+            id: crypto.randomUUID(),
             budgetId: budget.id,
             name: item.name,
             price: Number(item.price),
@@ -44,12 +46,16 @@ const createBudget = async (supabase, patientId, items = []) => {
         specialization: 'General'
     };
 
-    await supabase.from('ClinicalRecord').insert([{
+    const { error: historyError } = await supabase.from('ClinicalRecord').insert([{
+        id: crypto.randomUUID(),
         patientId,
         date: new Date().toISOString(),
         text: JSON.stringify(historyPayload),
         authorId: 'system'
     }]);
+
+    if (historyError) console.error("❌ Error creating shadow clinical record for budget:", historyError);
+    else console.log("✅ Shadow clinical record created for budget.");
 
     // Return full structure
     const { data: fullBudget } = await supabase

@@ -586,8 +586,15 @@ const Patients: React.FC = () => {
                             <button
                                 onClick={async () => {
                                     if (!newEntryForm.treatment) return alert("Rellene el tratamiento");
+                                    if (!selectedPatient?.id) {
+                                        console.error("❌ No matches for selectedPatient ID");
+                                        return alert("Error: Paciente no seleccionado correctamente.");
+                                    }
                                     try {
-                                        const rec = await api.clinicalRecords.create({ ...newEntryForm, patientId: selectedPatient?.id });
+                                        const payload = { ...newEntryForm, patientId: selectedPatient.id };
+                                        console.log("🚀 Sending Clinical Record Payload:", payload);
+                                        const rec = await api.clinicalRecords.create(payload);
+                                        console.log("✅ Server Response:", rec);
                                         setClinicalRecords(prev => [rec, ...prev]);
                                         setIsNewEntryModalOpen(false);
                                         setNewEntryForm({ treatment: '', observation: '', specialization: 'General' });
