@@ -16,7 +16,7 @@ const getHeaders = () => {
 export const api = {
     // Budget & Finance
     budget: {
-        getAll: async (patientId: string) => {
+        getByPatient: async (patientId: string) => {
             const res = await fetch(`${API_URL}/patients/${patientId}/budgets`, { headers: getHeaders() });
             return res.json();
         },

@@ -323,8 +323,29 @@ const Patients: React.FC = () => {
                                         <div className="col-span-1 text-right">Acciones</div>
                                     </div>
                                     <div className="space-y-2 mt-4">
-                                        {/* Mock Data - In real app, map through patient.treatments */}
-                                        <div className="p-4 text-center text-slate-400 text-xs">No hay tratamientos activos.</div>
+                                        {clinicalRecords.filter(r => r.patientId === selectedPatient?.id).length === 0 ? (
+                                            <div className="p-4 text-center text-slate-400 text-xs">No hay tratamientos activos.</div>
+                                        ) : (
+                                            clinicalRecords.filter(r => r.patientId === selectedPatient?.id).map((record, idx) => (
+                                                <div key={idx} className="grid grid-cols-12 gap-4 items-center p-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-600 border border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer text-left">
+                                                    <div className="col-span-1 border-r border-slate-200 pr-2 text-center text-slate-400">
+                                                        {record.clinicalData.treatment.includes('Diente') ? record.clinicalData.treatment.split('Diente ')[1] : '-'}
+                                                    </div>
+                                                    <div className="col-span-4 text-slate-900 line-clamp-1" title={record.clinicalData.treatment}>
+                                                        {record.clinicalData.treatment}
+                                                    </div>
+                                                    <div className="col-span-3 text-emerald-600">
+                                                        Realizado
+                                                    </div>
+                                                    <div className="col-span-3 text-slate-900">
+                                                        -
+                                                    </div>
+                                                    <div className="col-span-1 text-right">
+                                                        <button className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -509,122 +530,129 @@ const Patients: React.FC = () => {
                                 />
                             </div>
                             <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400 flex justify-between items-center">
-                                    <span>Detalles</span>
-                                    <button
-                                        onClick={async () => {
-                                            if (!newEntryForm.observation) return;
-                                            setIsProcessing(true);
-                                            try {
-                                                const prompt = `Reescribe y estructura profesionalmente la siguiente nota clínica odontológica, organizándola por puntos clave (Motivo, Observación, Plan): "${newEntryForm.observation}"`;
-                                                const res = await api.ai.query(prompt, selectedPatient?.id);
-                                                if (res && res.answer) {
-                                                    setNewEntryForm(prev => ({ ...prev, observation: res.answer }));
-                                                }
-                                            } catch (e) { console.error(e); alert("Error AI"); }
-                                            setIsProcessing(false);
-                                        }}
-                                        className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-200 transition-colors flex items-center gap-1"
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 flex justify-between items-center mb-2">
+                                        <span>Detalles</span>
+                                        <button
+                                            onClick={async () => {
+                                                if (!newEntryForm.observation) return alert("Escribe algo primero...");
+                                                console.log("AI Request:", newEntryForm.observation);
+                                                setIsProcessing(true);
+                                                try {
+                                                    const prompt = `Reescribe y estructura profesionalmente la siguiente nota clínica odontológica, organizándola por puntos clave (Motivo, Observación, Plan): "${newEntryForm.observation}"`;
+                                                    const res = await api.ai.query(prompt, selectedPatient?.id);
+                                                    console.log("AI Response:", res);
+                                                    if (res && (res.answer || res.message)) {
+                                                        setNewEntryForm(prev => ({ ...prev, observation: res.answer || res.message }));
+                                                    } else {
+                                                        alert("La IA no devolvió respuesta válida.");
+                                                    }
+                                                } catch (e) { console.error(e); alert("Error conectando con IA: " + e.message); }
+                                                setIsProcessing(false);
+                                            }}
+                                            className="text-xs bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200"
+                                        >
+                                            ✨ Mejorar redacción (AI)
+                                        </button>
+                                    </label>
+                                    <textarea
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32"
+                                        placeholder="Escribe las notas sin orden... la IA lo arreglará."
+                                        value={newEntryForm.observation}
+                                        onChange={e => setNewEntryForm({ ...newEntryForm, observation: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Especialidad</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        value={newEntryForm.specialization}
+                                        onChange={e => setNewEntryForm({ ...newEntryForm, specialization: e.target.value })}
                                     >
-                                        ✨ Mejorar redacción (AI)
-                                    </button>
-                                </label>
-                                <textarea
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32"
-                                    placeholder="Escribe las notas sin orden... la IA lo arreglará."
-                                    value={newEntryForm.observation}
-                                    onChange={e => setNewEntryForm({ ...newEntryForm, observation: e.target.value })}
-                                />
+                                        <option value="General">General</option>
+                                        <option value="Odontología">Odontología</option>
+                                        <option value="Ortodoncia">Ortodoncia</option>
+                                        <option value="Implantología">Implantología</option>
+                                    </select>
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Especialidad</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    value={newEntryForm.specialization}
-                                    onChange={e => setNewEntryForm({ ...newEntryForm, specialization: e.target.value })}
+                            <div className="flex gap-4 mt-6">
+                                <button onClick={() => setIsNewEntryModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                                <button
+                                    onClick={async () => {
+                                        if (!newEntryForm.treatment) return alert("Rellene el tratamiento");
+                                        try {
+                                            // Save as ClinicalRecord
+                                            const rec = await api.clinicalRecords.create({ ...newEntryForm, patientId: selectedPatient?.id });
+                                            // Update state immediately
+                                            setClinicalRecords(prev => [rec, ...prev]);
+                                            setIsNewEntryModalOpen(false);
+                                            setNewEntryForm({ treatment: '', observation: '', specialization: 'General' });
+                                            alert("Historial actualizado correctamente");
+                                        } catch (e) { alert("Error al guardar: " + e.message); }
+                                    }}
+                                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
                                 >
-                                    <option value="General">General</option>
-                                    <option value="Odontología">Odontología</option>
-                                    <option value="Ortodoncia">Ortodoncia</option>
-                                    <option value="Implantología">Implantología</option>
-                                </select>
+                                    Guardar
+                                </button>
                             </div>
-                        </div>
-                        <div className="flex gap-4 mt-6">
-                            <button onClick={() => setIsNewEntryModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button
-                                onClick={async () => {
-                                    if (!newEntryForm.treatment) return alert("Rellene el tratamiento");
-                                    try {
-                                        const rec = await api.clinicalRecords.create({ ...newEntryForm, patientId: selectedPatient?.id });
-                                        setClinicalRecords(prev => [rec, ...prev]);
-                                        setIsNewEntryModalOpen(false);
-                                        setNewEntryForm({ treatment: '', observation: '', specialization: 'General' });
-                                    } catch (e) { alert("Error al guardar: " + e.message); }
-                                }}
-                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
-                            >
-                                Guardar
-                            </button>
                         </div>
                     </div>
-                </div>
             )}
 
-            {/* NEW TREATMENT MODAL */}
-            {isNewTreatmentModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-                    <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
-                        <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Tratamiento</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Nombre del Tratamiento</label>
-                                <input
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="Ej. Implante Muela"
-                                    value={treatmentForm.name}
-                                    onChange={e => setTreatmentForm({ ...treatmentForm, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Precio Estimado (€)</label>
-                                <input
-                                    type="number"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="0.00"
-                                    value={treatmentForm.price}
-                                    onChange={e => setTreatmentForm({ ...treatmentForm, price: e.target.value })}
-                                />
+                    {/* NEW TREATMENT MODAL */}
+                    {isNewTreatmentModalOpen && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                            <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
+                                <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Tratamiento</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400">Nombre del Tratamiento</label>
+                                        <input
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                            placeholder="Ej. Implante Muela"
+                                            value={treatmentForm.name}
+                                            onChange={e => setTreatmentForm({ ...treatmentForm, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400">Precio Estimado (€)</label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                            placeholder="0.00"
+                                            value={treatmentForm.price}
+                                            onChange={e => setTreatmentForm({ ...treatmentForm, price: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex gap-4 mt-6">
+                                    <button onClick={() => setIsNewTreatmentModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                                    <button
+                                        onClick={async () => {
+                                            if (!treatmentForm.name) return alert("Nombre requerido");
+                                            try {
+                                                // Save as Clinical Record primarily (as requested for history)
+                                                const rec = await api.clinicalRecords.create({
+                                                    patientId: selectedPatient?.id,
+                                                    treatment: treatmentForm.name,
+                                                    observation: `Precio Estimado: ${treatmentForm.price}€`,
+                                                    specialization: 'Odontología'
+                                                });
+                                                setClinicalRecords(prev => [rec, ...prev]);
+                                                setIsNewTreatmentModalOpen(false);
+                                                setTreatmentForm({ name: '', price: '', status: 'Pendiente' });
+                                                alert("Tratamiento guardado en historial");
+                                            } catch (e) { alert("Error: " + e.message); }
+                                        }}
+                                        className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
+                                    >
+                                        Guardar
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <div className="flex gap-4 mt-6">
-                            <button onClick={() => setIsNewTreatmentModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button
-                                onClick={async () => {
-                                    if (!treatmentForm.name) return alert("Indique el nombre");
-                                    try {
-                                        // Save as Clinical Record (Treatment Log) instead of Appointment
-                                        await api.clinicalRecords.create({
-                                            patientId: selectedPatient?.id,
-                                            treatment: treatmentForm.name,
-                                            observation: `Tratamiento planificado: ${treatmentForm.name} - ${treatmentForm.price}€`,
-                                            specialization: 'General'
-                                        });
-
-                                        alert("Tratamiento guardado en historial");
-                                        setIsNewTreatmentModalOpen(false);
-                                        // Trigger refresh if possible (by updating state in context or re-fetching)
-                                        // For now, we rely on the component re-render or explicit refresh
-                                        const recs = await api.clinicalRecords.getByPatient(selectedPatient?.id);
-                                        // Update context or local state if present, or just let user reload tab
-                                    } catch (e) { alert("Error: " + e.message); }
-                                }}
-                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
-                            >
-                                Guardar Tratamiento
-                            </button>
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
             {/* BUDGET MODAL */}
