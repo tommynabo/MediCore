@@ -770,7 +770,6 @@ const Patients: React.FC = () => {
                     </div>
                 </div>
             )}
-
         </div>
     );
 };
