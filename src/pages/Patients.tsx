@@ -650,125 +650,126 @@ const Patients: React.FC = () => {
                                     if (!treatmentForm.name) return alert("Nombre requerido");
                                     try {
                                         // Save as Clinical Record primarily (as requested for history)
-                                        patientId: selectedPatient?.id,
+                                        const rec = await api.clinicalRecords.create({
+                                            patientId: selectedPatient?.id,
                                             treatment: treatmentForm.name,
-                            observation: `Precio Estimado: ${treatmentForm.price}€`,
-                            specialization: 'Odontología',
-                            price: Number(treatmentForm.price)
+                                            observation: `Precio Estimado: ${treatmentForm.price}€`,
+                                            specialization: 'Odontología',
+                                            price: Number(treatmentForm.price)
                                         });
                                         setClinicalRecords(prev => [rec, ...prev]);
-                            setIsNewTreatmentModalOpen(false);
-                            setTreatmentForm({name: '', price: '', status: 'Pendiente' });
-                            alert("Tratamiento guardado en historial");
-                                    } catch (e) {alert("Error: " + e.message); }
+                                        setIsNewTreatmentModalOpen(false);
+                                        setTreatmentForm({ name: '', price: '', status: 'Pendiente' });
+                                        alert("Tratamiento guardado en historial");
+                                    } catch (e) { alert("Error: " + e.message); }
                                 }}
-                            className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
+                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
                             >
-                            Guardar
-                        </button>
+                                Guardar
+                            </button>
+                        </div>
                     </div>
                 </div>
-                </div>
-    )
-}
+            )
+            }
 
-{/* BUDGET MODAL */ }
-{
-    isBudgetModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-            <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
-                <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Presupuesto</h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-[10px] font-black uppercase text-slate-400">Título</label>
-                        <input
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                            placeholder="Ej. Implante completo"
-                            value={budgetForm.title}
-                            onChange={e => setBudgetForm({ ...budgetForm, title: e.target.value })}
-                        />
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
-                        <p className="text-xs font-bold text-slate-500 mb-2">Conceptos:</p>
-                        {budgetForm.items.map((item, idx) => (
-                            <div key={idx} className="flex gap-2 items-center mb-2">
-                                <input
-                                    className="flex-1 bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none"
-                                    value={item.name}
-                                    onChange={(e) => {
-                                        const newItems = [...budgetForm.items];
-                                        newItems[idx].name = e.target.value;
-                                        setBudgetForm({ ...budgetForm, items: newItems });
-                                    }}
-                                    placeholder="Concepto"
-                                />
-                                <input
-                                    type="number"
-                                    className="w-20 bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none"
-                                    value={item.price}
-                                    onChange={(e) => {
-                                        const newItems = [...budgetForm.items];
-                                        newItems[idx].price = parseFloat(e.target.value) || 0;
-                                        setBudgetForm({ ...budgetForm, items: newItems });
-                                    }}
-                                    placeholder="€"
-                                />
-                                <button
-                                    onClick={() => {
-                                        const newItems = budgetForm.items.filter((_, i) => i !== idx);
-                                        setBudgetForm({ ...budgetForm, items: newItems });
-                                    }}
-                                    className="p-2 text-red-400 hover:text-red-600"
-                                >
-                                    ✕
-                                </button>
+            {/* BUDGET MODAL */}
+            {
+                isBudgetModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                        <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
+                            <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Presupuesto</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Título</label>
+                                    <input
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="Ej. Implante completo"
+                                        value={budgetForm.title}
+                                        onChange={e => setBudgetForm({ ...budgetForm, title: e.target.value })}
+                                    />
+                                </div>
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
+                                    <p className="text-xs font-bold text-slate-500 mb-2">Conceptos:</p>
+                                    {budgetForm.items.map((item, idx) => (
+                                        <div key={idx} className="flex gap-2 items-center mb-2">
+                                            <input
+                                                className="flex-1 bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none"
+                                                value={item.name}
+                                                onChange={(e) => {
+                                                    const newItems = [...budgetForm.items];
+                                                    newItems[idx].name = e.target.value;
+                                                    setBudgetForm({ ...budgetForm, items: newItems });
+                                                }}
+                                                placeholder="Concepto"
+                                            />
+                                            <input
+                                                type="number"
+                                                className="w-20 bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold outline-none"
+                                                value={item.price}
+                                                onChange={(e) => {
+                                                    const newItems = [...budgetForm.items];
+                                                    newItems[idx].price = parseFloat(e.target.value) || 0;
+                                                    setBudgetForm({ ...budgetForm, items: newItems });
+                                                }}
+                                                placeholder="€"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    const newItems = budgetForm.items.filter((_, i) => i !== idx);
+                                                    setBudgetForm({ ...budgetForm, items: newItems });
+                                                }}
+                                                className="p-2 text-red-400 hover:text-red-600"
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <button
+                                        onClick={() => setBudgetForm({ ...budgetForm, items: [...budgetForm.items, { name: '', price: 0 }] })}
+                                        className="w-full py-2 bg-white border border-dashed border-slate-300 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors"
+                                    >
+                                        + Añadir Concepto
+                                    </button>
+                                    {budgetForm.items.length === 0 && <p className="text-center text-[10px] text-slate-400 mt-2">Añada conceptos al presupuesto</p>}
+                                </div>
                             </div>
-                        ))}
-                        <button
-                            onClick={() => setBudgetForm({ ...budgetForm, items: [...budgetForm.items, { name: '', price: 0 }] })}
-                            className="w-full py-2 bg-white border border-dashed border-slate-300 rounded-lg text-xs font-bold text-slate-400 hover:text-slate-600 hover:border-slate-400 transition-colors"
-                        >
-                            + Añadir Concepto
-                        </button>
-                        {budgetForm.items.length === 0 && <p className="text-center text-[10px] text-slate-400 mt-2">Añada conceptos al presupuesto</p>}
+
+                            {/* Financing Info */}
+                            <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                <p className="text-[10px] font-black uppercase text-indigo-400 mb-1">Opciones de Pago</p>
+                                <p className="text-xs text-indigo-900 font-bold">
+                                    💡 Podrás definir los plazos (ej. 3 pagos en 6 meses) y generar un plan de financiación una vez creado el presupuesto base.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex gap-4 mt-6">
+                            <button onClick={() => setIsBudgetModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                            <button
+                                onClick={async () => {
+                                    if (!budgetForm.title) return alert("Indique título");
+                                    try {
+                                        await api.budget.create(
+                                            selectedPatient?.id,
+                                            budgetForm.items
+                                        );
+
+                                        alert("Presupuesto Creado Correctamente");
+                                        setIsBudgetModalOpen(false);
+                                        // Refresh Budgets List
+                                        const updatedBudgets = await api.budget.getByPatient(selectedPatient?.id);
+                                        setBudgets(updatedBudgets);
+                                        setPatientTab('budget'); // Switch to tab to view it
+                                    } catch (e) { alert("Error al crear: " + e.message); }
+                                }}
+                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
+                            >
+                                Crear
+                            </button>
+                        </div>
                     </div>
-                </div>
-
-                {/* Financing Info */}
-                <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
-                    <p className="text-[10px] font-black uppercase text-indigo-400 mb-1">Opciones de Pago</p>
-                    <p className="text-xs text-indigo-900 font-bold">
-                        💡 Podrás definir los plazos (ej. 3 pagos en 6 meses) y generar un plan de financiación una vez creado el presupuesto base.
-                    </p>
-                </div>
-            </div>
-            <div className="flex gap-4 mt-6">
-                <button onClick={() => setIsBudgetModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                <button
-                    onClick={async () => {
-                        if (!budgetForm.title) return alert("Indique título");
-                        try {
-                            await api.budget.create(
-                                selectedPatient?.id,
-                                budgetForm.items
-                            );
-
-                            alert("Presupuesto Creado Correctamente");
-                            setIsBudgetModalOpen(false);
-                            // Refresh Budgets List
-                            const updatedBudgets = await api.budget.getByPatient(selectedPatient?.id);
-                            setBudgets(updatedBudgets);
-                            setPatientTab('budget'); // Switch to tab to view it
-                        } catch (e) { alert("Error al crear: " + e.message); }
-                    }}
-                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
-                >
-                    Crear
-                </button>
-            </div>
-        </div>
     </div >
-)
+    )
 }
         </div >
     );
