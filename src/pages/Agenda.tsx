@@ -222,7 +222,11 @@ const Agenda: React.FC = () => {
                                                 {filteredAppointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0]).map(a => (
                                                     <div key={a.id} className="absolute inset-2 bg-blue-100 text-blue-700 p-2 rounded-xl text-xs font-bold border border-blue-200 flex flex-col justify-center">
                                                         <span>{patients.find(p => p.id === a.patientId)?.name || 'Paciente'}</span>
-                                                        <span className="text-[10px] opacity-70">{a.treatment}</span>
+                                                        <span className="text-[10px] opacity-70">
+                                                            {typeof a.treatment === 'object' && a.treatment !== null
+                                                                ? (a.treatment as any).name || 'Tratamiento'
+                                                                : a.treatment || '-'}
+                                                        </span>
                                                     </div>
                                                 ))}
                                                 {/* Empty State Plus */}

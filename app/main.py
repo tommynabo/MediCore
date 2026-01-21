@@ -6,6 +6,14 @@ from supabase import create_client, Client
 from app.services.billing import FacturaDirectaClient
 from dotenv import load_dotenv
 
+from pathlib import Path
+
+env_path = Path('.') / 'server' / '.env'
+if not env_path.exists():
+    env_path = Path('..') / 'server' / '.env'
+
+load_dotenv(dotenv_path=env_path if env_path.exists() else None)
+# Fallback to standard load if specific path fails
 load_dotenv()
 
 app = FastAPI(title="Billing Service", version="1.0.0")

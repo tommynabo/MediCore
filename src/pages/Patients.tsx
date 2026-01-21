@@ -541,8 +541,8 @@ const Patients: React.FC = () => {
                                                 const prompt = `Reescribe y estructura profesionalmente la siguiente nota clínica odontológica, organizándola por puntos clave (Motivo, Observación, Plan): "${newEntryForm.observation}"`;
                                                 const res = await api.ai.query(prompt, selectedPatient?.id);
                                                 console.log("AI Response:", res);
-                                                if (res && (res.answer || res.message)) {
-                                                    setNewEntryForm(prev => ({ ...prev, observation: res.answer || res.message }));
+                                                if (res && (res.answer || res.message || res.content)) {
+                                                    setNewEntryForm(prev => ({ ...prev, observation: res.answer || res.message || res.content }));
                                                 } else {
                                                     alert("La IA no devolvió respuesta válida.");
                                                 }
