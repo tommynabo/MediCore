@@ -9,14 +9,14 @@ export const DOCTORS: Doctor[] = [
 ];
 
 export const DENTAL_SERVICES = [
-    { id: 'srv-1', name: 'Limpieza Dental', price: 50, insurancePrice: { 'Sanitas': 0, 'Adeslas': 10 } },
-    { id: 'srv-2', name: 'Obturación Simple', price: 60, insurancePrice: { 'Sanitas': 40, 'Adeslas': 45 } },
-    { id: 'srv-3', name: 'Endodoncia Unirradicular', price: 120, insurancePrice: { 'Sanitas': 90, 'Adeslas': 100 } },
-    { id: 'srv-4', name: 'Implante Titanio', price: 1200 },
-    { id: 'srv-5', name: 'Ortodoncia Brackets (Mensual)', price: 100 },
-    { id: 'srv-6', name: 'Invisalign Full', price: 3500 },
-    { id: 'srv-7', name: 'Blanqueamiento Zoom', price: 300 },
-    { id: 'srv-8', name: 'Corona Zirconio', price: 350 },
-    { id: 'srv-9', name: 'Extracción Simple', price: 40 },
-    { id: 'srv-10', name: 'Curetaje por Cuadrante', price: 70 }
+    { id: 'srv-1', name: 'Limpieza Dental', price: 50, insurancePrice: { 'Sanitas': 0, 'Adeslas': 10 }, specialization: Specialization.GENERAL },
+    { id: 'srv-2', name: 'Obturación Simple', price: 60, insurancePrice: { 'Sanitas': 40, 'Adeslas': 45 }, specialization: Specialization.GENERAL },
+    { id: 'srv-3', name: 'Endodoncia Unirradicular', price: 120, insurancePrice: { 'Sanitas': 90, 'Adeslas': 100 }, specialization: Specialization.GENERAL }, // Technically ENDO but usually General can do? Or separate? Let's use General for simplicity or add ENDO if type exists
+    { id: 'srv-4', name: 'Implante Titanio', price: 1200, specialization: Specialization.IMPLANTOLOGY },
+    { id: 'srv-5', name: 'Ortodoncia Brackets (Mensual)', price: 100, specialization: Specialization.ORTHODONTICS },
+    { id: 'srv-6', name: 'Invisalign Full', price: 3500, specialization: Specialization.ORTHODONTICS },
+    { id: 'srv-7', name: 'Blanqueamiento Zoom', price: 300, specialization: Specialization.ESTHETICS },
+    { id: 'srv-8', name: 'Corona Zirconio', price: 350, specialization: Specialization.ESTHETICS }, // Prosthodontics/Esthetics
+    { id: 'srv-9', name: 'Extracción Simple', price: 40, specialization: Specialization.GENERAL },
+    { id: 'srv-10', name: 'Curetaje por Cuadrante', price: 70, specialization: Specialization.PERIODONTICS }
 ];

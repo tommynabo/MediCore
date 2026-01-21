@@ -3,7 +3,7 @@ import {
     ChevronLeft, ChevronRight, Search, Plus, Calendar, User, Clock, CheckCircle2
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { DENTAL_SERVICES } from '../constants';
+import { DENTAL_SERVICES, DOCTORS } from '../constants';
 import { Appointment, Doctor } from '../../types';
 
 // Temporary constant move (should be in a constants file)
@@ -23,7 +23,8 @@ const Agenda: React.FC = () => {
 
     // Search States
     const [apptSearch, setApptSearch] = useState('');
-    const [bookingTreatment, setBookingTreatment] = useState('');
+    const [bookingTreatment, setBookingTreatment] = useState(''); // Stores Treatment ID
+    const [bookingDoctorId, setBookingDoctorId] = useState(''); // Local state for modal
     const [apptTreatmentSearch, setApptTreatmentSearch] = useState('');
 
     // Helpers
@@ -87,13 +88,17 @@ const Agenda: React.FC = () => {
             dateToSave.setDate(diff);
         }
 
+        // Get Treatment Details
+        const selectedTreatment = DENTAL_SERVICES.find(t => t.id === bookingTreatment);
+
         const newAppt: any = {
             id: crypto.randomUUID(),
-            doctorId: selectedDoctorId === 'all' ? 'dr-1' : selectedDoctorId, // Default to dr-1 if all
+            doctorId: bookingDoctorId || 'dr-1', // Fallback to dr-1 if forced but shouldn't happen with validation
             patientId: patient.id,
             date: dateToSave.toISOString().split('T')[0],
             time: activeSlot.time,
-            treatment: bookingTreatment || 'Consulta General',
+            treatmentId: bookingTreatment, // Send ID for backend validation
+            treatment: selectedTreatment ? selectedTreatment.name : 'Consulta General', // Legacy String
             status: 'PENDING'
         };
 
@@ -205,7 +210,12 @@ const Agenda: React.FC = () => {
                                         {selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? (
                                             ['dr-1', 'dr-2', 'dr-3'].map((docId, idx) => (
                                                 <div key={docId} className="col-span-3 relative h-24 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all cursor-pointer"
-                                                    onClick={() => { setActiveSlot({ time, dayIdx: 0 }); setSelectedDoctorId(docId); setIsAppointmentModalOpen(true); }}
+                                                    onClick={() => {
+                                                        setActiveSlot({ time, dayIdx: 0 });
+                                                        setSelectedDoctorId(docId);
+                                                        setBookingDoctorId(docId); // Init modal doc
+                                                        setIsAppointmentModalOpen(true);
+                                                    }}
                                                 >
                                                     {appointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0] && a.doctorId === docId).map(a => (
                                                         <div key={a.id} className="absolute inset-2 bg-blue-100 text-blue-700 p-2 rounded-xl text-[10px] font-bold border border-blue-200 overflow-hidden leading-tight">
@@ -216,7 +226,11 @@ const Agenda: React.FC = () => {
                                             ))
                                         ) : (
                                             <div className="col-span-7 relative h-24 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all group-hover:shadow-lg group-hover:shadow-blue-500/5 flex items-center justify-center cursor-pointer"
-                                                onClick={() => { setActiveSlot({ time, dayIdx: 0 }); setIsAppointmentModalOpen(true); }}
+                                                onClick={() => {
+                                                    setActiveSlot({ time, dayIdx: 0 });
+                                                    setBookingDoctorId(selectedDoctorId === 'all' ? '' : selectedDoctorId);
+                                                    setIsAppointmentModalOpen(true);
+                                                }}
                                             >
                                                 {/* Show existing appointments */}
                                                 {filteredAppointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0]).map(a => (
@@ -254,7 +268,11 @@ const Agenda: React.FC = () => {
 
                                         return (
                                             <div key={i} className="col-span-1 h-24 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 hover:bg-white hover:border-solid hover:border-blue-400 transition-all cursor-pointer relative"
-                                                onClick={() => { setActiveSlot({ time, dayIdx: i }); setIsAppointmentModalOpen(true); }}
+                                                onClick={() => {
+                                                    setActiveSlot({ time, dayIdx: i });
+                                                    setBookingDoctorId(selectedDoctorId === 'all' ? '' : selectedDoctorId);
+                                                    setIsAppointmentModalOpen(true);
+                                                }}
                                             >
                                                 {cellAppts.map(a => (
                                                     <div key={a.id} className="absolute inset-1 bg-blue-100 text-blue-700 p-1 rounded-lg text-[9px] font-bold border border-blue-200 overflow-hidden leading-tight">
@@ -308,6 +326,24 @@ const Agenda: React.FC = () => {
                             )}
                         </div>
 
+                        {/* Doctor Selection */}
+                        <div>
+                            <label className="text-xs font-bold uppercase text-slate-400">Doctor</label>
+                            <select
+                                className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
+                                value={bookingDoctorId}
+                                onChange={(e) => {
+                                    setBookingDoctorId(e.target.value);
+                                    setBookingTreatment(''); // Reset treatment when doctor changes
+                                }}
+                            >
+                                <option value="">Seleccionar Doctor...</option>
+                                {DOCTORS.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name} ({d.specialization})</option>
+                                ))}
+                            </select>
+                        </div>
+
                         {/* Treatment Selection */}
                         <div>
                             <label className="text-xs font-bold uppercase text-slate-400">Tratamiento</label>
@@ -315,11 +351,24 @@ const Agenda: React.FC = () => {
                                 className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
                                 value={bookingTreatment}
                                 onChange={(e) => setBookingTreatment(e.target.value)}
+                                disabled={!bookingDoctorId}
                             >
                                 <option value="">Seleccionar Tratamiento...</option>
-                                {Object.values(DENTAL_SERVICES).flat().map((t, i) => (
-                                    <option key={i} value={t}>{t}</option>
-                                ))}
+                                {DENTAL_SERVICES
+                                    .filter(t => {
+                                        if (!bookingDoctorId) return true;
+                                        const doc = DOCTORS.find(d => d.id === bookingDoctorId);
+                                        // Allow General doctors to see General treatments
+                                        // Allow Specialists to see ONLY their specialty (or maybe General too? strict: only theirs)
+                                        // Let's go strict as requested.
+                                        // If Doctor is General, show General.
+                                        if (!doc) return true;
+                                        return t.specialization === doc.specialization;
+                                    })
+                                    .map(t => (
+                                        <option key={t.id} value={t.id}>{t.name} ({t.price}€)</option>
+                                    ))
+                                }
                             </select>
                         </div>
 
