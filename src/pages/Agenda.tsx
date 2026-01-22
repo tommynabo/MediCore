@@ -176,7 +176,9 @@ const Agenda: React.FC = () => {
                     <div className="min-w-[1000px]">
                         {/* Header Row */}
                         {/* Header Row */}
-                        <div className={`grid gap-4 mb-6 ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? 'grid-cols-16' : 'grid-cols-8'}`}>
+                        <div className={`grid gap-4 mb-6 ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? '' : 'grid-cols-8'}`}
+                            style={viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? { gridTemplateColumns: 'repeat(16, minmax(0, 1fr))' } : {}}
+                        >
                             <div className="col-span-1 text-[10px] font-black uppercase text-slate-300 tracking-widest text-center self-end pb-2">Hora</div>
 
                             {/* DAY VIEW HEADERS */}
@@ -215,7 +217,9 @@ const Agenda: React.FC = () => {
 
                         {/* Time Slots */}
                         {TIME_SLOTS.map((time) => (
-                            <div key={time} className={`grid gap-4 mb-4 group ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? 'grid-cols-16' : 'grid-cols-8'}`}>
+                            <div key={time} className={`grid gap-4 mb-4 group ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? '' : 'grid-cols-8'}`}
+                                style={viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? { gridTemplateColumns: 'repeat(16, minmax(0, 1fr))' } : {}}
+                            >
                                 <div className="col-span-1 text-right pr-6 py-4">
                                     <span className="text-xs font-black text-slate-400 group-hover:text-blue-500 transition-colors">{time}</span>
                                 </div>

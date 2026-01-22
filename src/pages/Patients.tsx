@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
     Search, Plus, Filter, UserCheck, ShieldCheck, Mail, CheckCircle2, Edit, Check, Edit3, Trash2,
     ArrowUp, Activity, FileText, ClipboardCheck, Layers, DollarSign, PenTool, Smile, Calculator,
-    Phone, Settings, Download, Zap, TrendingUp, CreditCard, FileText as FileTextIcon // Alias for conflict
+    Phone, Settings, Download, Zap, TrendingUp, CreditCard, Clock, FileText as FileTextIcon // Alias for conflict
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment } from '../../types';
@@ -40,7 +40,11 @@ const Patients: React.FC = () => {
     const [isNewEntryModalOpen, setIsNewEntryModalOpen] = useState(false);
     const [isEditEntryModalOpen, setIsEditEntryModalOpen] = useState(false);
     const [editingRecord, setEditingRecord] = useState<ClinicalRecord | null>(null);
-    const [newEntryForm, setNewEntryForm] = useState({ treatment: '', observation: '', specialization: 'General' });
+    const [newEntryForm, setNewEntryForm] = useState({ treatment: '', price: '', observation: '', specialization: 'General' });
+    // Templates State
+    const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+    const [selectedDocTemplate, setSelectedDocTemplate] = useState('');
+    const [docContent, setDocContent] = useState('');
 
     // Treatments
     const [isNewTreatmentModalOpen, setIsNewTreatmentModalOpen] = useState(false);
@@ -385,7 +389,7 @@ const Patients: React.FC = () => {
                                                         {record.clinicalData.price ? record.clinicalData.price + '€' : '-'}
                                                     </div>
                                                     <div className="col-span-1 text-right">
-                                                        <button className="text-slate-400 hover:text-red-500"><Trash2 size={12} /></button>
+                                                        <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
                                                     </div>
                                                 </div>
                                             ))
@@ -466,10 +470,39 @@ const Patients: React.FC = () => {
                             </div>
                         )}
 
-                        {/* PLACEHOLDER TABS */}
-                        {(patientTab === 'docs') && (
-                            <div className="p-10 text-center opacity-50 font-bold uppercase">
-                                Sección {patientTab} en construcción
+                        {/* DOCS TAB (TEMPLATES) */}
+                        {patientTab === 'docs' && (
+                            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                                <h3 className="text-3xl font-black text-slate-900 tracking-tight">Documentos y Plantillas</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {[
+                                        { title: 'Consentimiento Informado', icon: <FileText size={24} />, text: 'YO, {{PACIENTE}}, CON DNI {{DNI}}, DOY MI CONSENTIMIENTO PARA EL TRATAMIENTO DE ...' },
+                                        { title: 'Justificante Asistencia', icon: <Clock size={24} />, text: 'HAGO CONSTAR QUE EL PACIENTE {{PACIENTE}} HA ACUDIDO A SU CITA EL DÍA {{FECHA}} A LAS {{HORA}}...' },
+                                        { title: 'Presupuesto Formal', icon: <DollarSign size={24} />, text: 'PRESUPUESTO PARA {{PACIENTE}}\n\nCONCEPTOS:\n...' }
+                                    ].map((doc, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => {
+                                                setSelectedDocTemplate(doc.title);
+                                                // Simple variable replacement
+                                                let content = doc.text
+                                                    .replace('{{PACIENTE}}', selectedPatient.name)
+                                                    .replace('{{DNI}}', selectedPatient.dni)
+                                                    .replace('{{FECHA}}', new Date().toLocaleDateString())
+                                                    .replace('{{HORA}}', new Date().toLocaleTimeString());
+                                                setDocContent(content);
+                                                setIsDocModalOpen(true);
+                                            }}
+                                            className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all text-left group"
+                                        >
+                                            <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                                {doc.icon}
+                                            </div>
+                                            <h4 className="font-bold text-slate-900 text-sm">{doc.title}</h4>
+                                            <p className="text-[10px] text-slate-400 mt-2 font-medium">Click para generar y editar</p>
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -600,206 +633,175 @@ const Patients: React.FC = () => {
                                     </button>
                                 </label>
                                 <textarea
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32"
-                                    placeholder="Escribe las notas sin orden... la IA lo arreglará."
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium h-32 resize-none"
+                                    placeholder="Detalles de la sesión..."
                                     value={newEntryForm.observation}
                                     onChange={e => setNewEntryForm({ ...newEntryForm, observation: e.target.value })}
                                 />
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Especialidad</label>
-                                <select
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    value={newEntryForm.specialization}
-                                    onChange={e => setNewEntryForm({ ...newEntryForm, specialization: e.target.value })}
-                                >
-                                    <option value="General">General</option>
-                                    <option value="Odontología">Odontología</option>
-                                    <option value="Ortodoncia">Ortodoncia</option>
-                                    <option value="Implantología">Implantología</option>
-                                </select>
-                            </div>
                         </div>
                         <div className="flex gap-4 mt-6">
                             <button onClick={() => setIsNewEntryModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button
-                                onClick={async () => {
-                                    if (!newEntryForm.treatment) return alert("Rellene el tratamiento");
-                                    if (!selectedPatient?.id) {
-                                        console.error("❌ No matches for selectedPatient ID");
-                                        return alert("Error: Paciente no seleccionado correctamente.");
-                                    }
-                                    try {
-                                        const payload = { ...newEntryForm, patientId: selectedPatient.id };
-                                        console.log("🚀 Sending Clinical Record Payload:", payload);
-                                        const rec = await api.clinicalRecords.create(payload);
-                                        console.log("✅ Server Response:", rec);
-                                        setClinicalRecords(prev => [rec, ...prev]);
-                                        setIsNewEntryModalOpen(false);
-                                        setNewEntryForm({ treatment: '', observation: '', specialization: 'General' });
-                                        alert("Historial actualizado correctamente");
-                                    } catch (e) { alert("Error al guardar: " + e.message); }
-                                }}
-                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
-                            >
-                                Guardar
-                            </button>
+                            <button onClick={handleAddClinicalRecord} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Guardar Entrada</button>
                         </div>
                     </div>
                 </div>
             )}
 
             {/* NEW TREATMENT MODAL */}
-            {isNewTreatmentModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-                    <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
-                        <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Tratamiento</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Nombre del Tratamiento</label>
-                                <input
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="Ej. Implante Muela"
-                                    value={treatmentForm.name}
-                                    onChange={e => setTreatmentForm({ ...treatmentForm, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Precio Estimado (€)</label>
-                                <input
-                                    type="number"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="0.00"
-                                    value={treatmentForm.price}
-                                    onChange={e => setTreatmentForm({ ...treatmentForm, price: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex gap-4 mt-6">
-                            <button onClick={() => setIsNewTreatmentModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button
-                                onClick={async () => {
-                                    if (!treatmentForm.name) return alert("Nombre requerido");
-                                    try {
-                                        // Save as Clinical Record primarily (as requested for history)
-                                        const rec = await api.clinicalRecords.create({
-                                            patientId: selectedPatient?.id,
-                                            treatment: treatmentForm.name,
-                                            observation: `Precio Estimado: ${treatmentForm.price}€`,
-                                            specialization: 'Odontología',
-                                            price: Number(treatmentForm.price)
-                                        });
-                                        setClinicalRecords(prev => [rec, ...prev]);
-                                        setIsNewTreatmentModalOpen(false);
-                                        setTreatmentForm({ name: '', price: '', status: 'Pendiente' });
-                                        alert("Tratamiento guardado en historial");
-                                    } catch (e) { alert("Error: " + e.message); }
-                                }}
-                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
-                            >
-                                Guardar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )
-            }
-
-            {/* BUDGET MODAL */}
-            {isBudgetModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-                    <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
-                        <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Presupuesto</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Título del Tratamiento</label>
-                                <input
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
-                                    placeholder="Ej. Implante completo"
-                                    value={budgetForm.title}
-                                    onChange={e => setBudgetForm({ ...budgetForm, title: e.target.value })}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+            {
+                isNewTreatmentModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                        <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
+                            <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Tratamiento</h3>
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-400">Importe Total (€)</label>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Nombre del Tratamiento</label>
                                     <input
-                                        type="number"
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xl font-black text-slate-900 outline-none focus:ring-2 focus:ring-blue-100"
-                                        placeholder="0.00"
-                                        value={budgetForm.totalPrice}
-                                        onChange={e => setBudgetForm({ ...budgetForm, totalPrice: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="Ej. Implante Muela"
+                                        value={treatmentForm.name}
+                                        onChange={e => setTreatmentForm({ ...treatmentForm, name: e.target.value })}
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-400">Pagos / Meses</label>
-                                    <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
-                                        value={budgetForm.installments}
-                                        onChange={e => setBudgetForm({ ...budgetForm, installments: parseInt(e.target.value) })}
-                                    >
-                                        <option value={1}>Pago Único</option>
-                                        <option value={3}>3 Meses</option>
-                                        <option value={6}>6 Meses</option>
-                                        <option value={9}>9 Meses</option>
-                                        <option value={12}>12 Meses</option>
-                                        <option value={24}>24 Meses</option>
-                                    </select>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Precio Estimado (€)</label>
+                                    <input
+                                        type="number"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="0.00"
+                                        value={treatmentForm.price}
+                                        onChange={e => setTreatmentForm({ ...treatmentForm, price: e.target.value })}
+                                    />
                                 </div>
                             </div>
-
-                            {/* Financing Calculator Result */}
-                            {budgetForm.totalPrice && parseFloat(budgetForm.totalPrice) > 0 && budgetForm.installments > 1 && (
-                                <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 flex justify-between items-center animate-in zoom-in-50">
-                                    <div className="text-indigo-900">
-                                        <p className="text-[10px] font-black uppercase opacity-60">Cuota Mensual</p>
-                                        <p className="text-xs font-bold">durante {budgetForm.installments} meses</p>
-                                    </div>
-                                    <p className="text-3xl font-black text-indigo-600">
-                                        {(parseFloat(budgetForm.totalPrice) / budgetForm.installments).toFixed(2)}€
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex gap-4 mt-8">
-                            <button onClick={() => setIsBudgetModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
-                            <button
-                                onClick={async () => {
-                                    if (!budgetForm.title || !budgetForm.totalPrice) return alert("Indique título e importe");
-                                    try {
-                                        // Create items array from single price
-                                        const items = [{
-                                            name: budgetForm.title,
-                                            price: parseFloat(budgetForm.totalPrice)
-                                        }];
-
-                                        // Note: Installments info is currently just for calculation, 
-                                        // unless we append it to description or backend supports it.
-                                        // For now, we save the simple budget.
-
-                                        await api.budget.create(
-                                            selectedPatient?.id,
-                                            items
-                                        );
-
-                                        alert("✅ Presupuesto Creado Correctamente");
-                                        setIsBudgetModalOpen(false);
-                                        // Refresh Budgets List
-                                        const updatedBudgets = await api.budget.getByPatient(selectedPatient?.id);
-                                        setBudgets(updatedBudgets);
-                                        setPatientTab('budget');
-                                    } catch (e) { alert("Error al crear: " + e.message); }
-                                }}
-                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg hover:bg-black transition-all transform active:scale-95"
-                            >
-                                Crear Presupuesto
-                            </button>
+                            <div className="flex gap-4 mt-6">
+                                <button onClick={() => setIsNewTreatmentModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                                <button
+                                    onClick={async () => {
+                                        if (!treatmentForm.name) return alert("Nombre requerido");
+                                        try {
+                                            // Save as Clinical Record primarily (as requested for history)
+                                            const rec = await api.clinicalRecords.create({
+                                                patientId: selectedPatient?.id,
+                                                treatment: treatmentForm.name,
+                                                observation: `Precio Estimado: ${treatmentForm.price}€`,
+                                                specialization: 'Odontología',
+                                                price: Number(treatmentForm.price)
+                                            });
+                                            setClinicalRecords(prev => [rec, ...prev]);
+                                            setIsNewTreatmentModalOpen(false);
+                                            setTreatmentForm({ name: '', price: '', status: 'Pendiente' });
+                                            alert("Tratamiento guardado en historial");
+                                        } catch (e) { alert("Error: " + e.message); }
+                                    }}
+                                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg"
+                                >
+                                    Guardar
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+
+            {/* BUDGET MODAL */}
+            {
+                isBudgetModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                        <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
+                            <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Presupuesto</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Título del Tratamiento</label>
+                                    <input
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                                        placeholder="Ej. Implante completo"
+                                        value={budgetForm.title}
+                                        onChange={e => setBudgetForm({ ...budgetForm, title: e.target.value })}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400">Importe Total (€)</label>
+                                        <input
+                                            type="number"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xl font-black text-slate-900 outline-none focus:ring-2 focus:ring-blue-100"
+                                            placeholder="0.00"
+                                            value={budgetForm.totalPrice}
+                                            onChange={e => setBudgetForm({ ...budgetForm, totalPrice: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400">Pagos / Meses</label>
+                                        <select
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                                            value={budgetForm.installments}
+                                            onChange={e => setBudgetForm({ ...budgetForm, installments: parseInt(e.target.value) })}
+                                        >
+                                            <option value={1}>Pago Único</option>
+                                            <option value={3}>3 Meses</option>
+                                            <option value={6}>6 Meses</option>
+                                            <option value={9}>9 Meses</option>
+                                            <option value={12}>12 Meses</option>
+                                            <option value={24}>24 Meses</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* Financing Calculator Result */}
+                                {budgetForm.totalPrice && parseFloat(budgetForm.totalPrice) > 0 && budgetForm.installments > 1 && (
+                                    <div className="p-6 bg-indigo-50 rounded-2xl border border-indigo-100 flex justify-between items-center animate-in zoom-in-50">
+                                        <div className="text-indigo-900">
+                                            <p className="text-[10px] font-black uppercase opacity-60">Cuota Mensual</p>
+                                            <p className="text-xs font-bold">durante {budgetForm.installments} meses</p>
+                                        </div>
+                                        <p className="text-3xl font-black text-indigo-600">
+                                            {(parseFloat(budgetForm.totalPrice) / budgetForm.installments).toFixed(2)}€
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex gap-4 mt-8">
+                                <button onClick={() => setIsBudgetModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors">Cancelar</button>
+                                <button
+                                    onClick={async () => {
+                                        if (!budgetForm.title || !budgetForm.totalPrice) return alert("Indique título e importe");
+                                        try {
+                                            // Create items array from single price
+                                            const items = [{
+                                                name: budgetForm.title,
+                                                price: parseFloat(budgetForm.totalPrice)
+                                            }];
+
+                                            // Note: Installments info is currently just for calculation, 
+                                            // unless we append it to description or backend supports it.
+                                            // For now, we save the simple budget.
+
+                                            await api.budget.create(
+                                                selectedPatient?.id,
+                                                items
+                                            );
+
+                                            alert("✅ Presupuesto Creado Correctamente");
+                                            setIsBudgetModalOpen(false);
+                                            // Refresh Budgets List
+                                            const updatedBudgets = await api.budget.getByPatient(selectedPatient?.id);
+                                            setBudgets(updatedBudgets);
+                                            setPatientTab('budget');
+                                        } catch (e) { alert("Error al crear: " + e.message); }
+                                    }}
+                                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg hover:bg-black transition-all transform active:scale-95"
+                                >
+                                    Crear Presupuesto
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
+        </div >
     );
 };
 

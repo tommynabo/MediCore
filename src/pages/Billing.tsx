@@ -18,6 +18,7 @@ const Billing: React.FC = () => {
     // Invoice Creation State
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [invoiceItems, setInvoiceItems] = useState<{ name: string, price: number }[]>([{ name: 'Consulta General', price: 50.0 }]);
+    const [patientSearch, setPatientSearch] = useState(''); // Text for search input
     const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'transfer'>('card');
 
     // New State for Invoice Type
@@ -379,16 +380,47 @@ const Billing: React.FC = () => {
 
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Paciente</label>
-                                    <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
-                                        value={selectedPatientId}
-                                        onChange={(e) => setSelectedPatientId(e.target.value)}
-                                    >
-                                        <option value="">-- Seleccionar Paciente --</option>
-                                        {(patients || []).map(p => (
-                                            <option key={p.id} value={p.id}>{p.name} - {p.dni}</option>
-                                        ))}
-                                    </select>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            placeholder="🔍 Buscar paciente..."
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                                            value={selectedPatientId ? (patients.find(p => p.id === selectedPatientId)?.name || patientSearch) : patientSearch}
+                                            onChange={(e) => {
+                                                setPatientSearch(e.target.value);
+                                                setSelectedPatientId(''); // Clear selection on type
+                                            }}
+                                        />
+                                        {patientSearch && !selectedPatientId && (
+                                            <div className="absolute top-full left-0 w-full bg-white border border-slate-100 rounded-xl shadow-xl mt-2 max-h-48 overflow-y-auto z-50">
+                                                {patients.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.dni.includes(patientSearch)).length === 0 ? (
+                                                    <div className="p-4 text-xs text-slate-400 font-bold">No se encontraron pacientes.</div>
+                                                ) : (
+                                                    patients.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.dni.includes(patientSearch)).map(p => (
+                                                        <div
+                                                            key={p.id}
+                                                            onClick={() => {
+                                                                setSelectedPatientId(p.id);
+                                                                setPatientSearch(p.name);
+                                                            }}
+                                                            className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center"
+                                                        >
+                                                            <span className="text-xs font-bold text-slate-700">{p.name}</span>
+                                                            <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded">{p.dni}</span>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                        {selectedPatientId && (
+                                            <button
+                                                onClick={() => { setSelectedPatientId(''); setPatientSearch(''); }}
+                                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-rose-500"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
