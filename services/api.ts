@@ -51,6 +51,10 @@ export const api = {
             });
             return res.json();
         },
+        delete: async (id: string) => {
+            const res = await fetch(`${API_URL}/budgets/${id}`, { method: 'DELETE', headers: getHeaders() });
+            if (!res.ok) throw new Error('Failed to delete budget');
+        },
         createFinancing: async (data: any) => {
             const res = await fetch(`${API_URL}/finance/financing`, {
                 method: 'POST',
