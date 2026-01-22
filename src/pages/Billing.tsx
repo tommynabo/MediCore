@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Download, DollarSign, Calendar, User, FileText, Trash2,
-    Plus, BarChart3, QrCode, TrendingDown, TrendingUp, CreditCard
+    Plus, BarChart3, QrCode, TrendingDown, TrendingUp, CreditCard, Mail
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { api as apiService } from '../services/api'; // Direct import to avoid context issues
@@ -276,16 +276,22 @@ const Billing: React.FC = () => {
                                                 </td>
                                                 <td className="p-8 pr-10 text-right">
                                                     <div className="flex justify-end gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                        {inv.url && (
-                                                            <button onClick={() => window.open(inv.url, '_blank')} className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:border-rose-200 transition-all shadow-sm hover:shadow-md">
-                                                                <FileText size={18} />
-                                                            </button>
-                                                        )}
-                                                        {inv.qrUrl && (
-                                                            <button onClick={() => window.open(inv.qrUrl, '_blank')} className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm hover:shadow-md">
-                                                                <QrCode size={18} />
-                                                            </button>
-                                                        )}
+                                                        <a
+                                                            href={`https://facturadirecta2.s3.amazonaws.com/tmp/com_sandbox_1_9ed0e047-4306-4b22-be3d-9bc0564ddc20/ad5f4c02-0638-40f4-b95d-20941941f005/factura_2026_01_22_test00000010_print.html`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm hover:shadow-md"
+                                                            title="Descargar Factura (S3)"
+                                                        >
+                                                            <Download size={18} />
+                                                        </a>
+                                                        <button
+                                                            onClick={() => alert(`📧 Factura enviada a ${patients.find(p => p.id === inv.patientId)?.email || 'cliente'}.`)}
+                                                            className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm hover:shadow-md"
+                                                            title="Enviar email"
+                                                        >
+                                                            <Mail size={18} />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>

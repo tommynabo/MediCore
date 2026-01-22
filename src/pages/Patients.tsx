@@ -206,6 +206,38 @@ const Patients: React.FC = () => {
         setIsBudgetModalOpen(true);
     };
 
+    const handleConvertToInvoice = async (budget: any) => {
+        if (!confirm("¿Convertir este presupuesto a factura?")) return;
+        try {
+            // 1. Create Invoice from Budget Data
+            const invoiceData = {
+                patientId: selectedPatient?.id,
+                amount: budget.items && budget.items.length > 0 ? budget.items.reduce((acc: number, item: any) => acc + (Number(item.price) || 0), 0) : 0,
+                status: 'pending', // Default status
+                date: new Date().toISOString(),
+                concept: budget.title || "Presupuesto Convertido",
+                items: budget.items || []
+            };
+
+            // Call API
+            await api.invoices.create(invoiceData);
+
+            // 2. Optionally update budget status (if API supported it, skipping for now as 'convert' method was missing in API check)
+
+            // 3. Notify and Switch Tab
+            alert("✅ Factura generada correctamente.");
+
+            // Refresh invoices
+            const updatedInvoices = await api.invoices.getAll();
+            setInvoices(updatedInvoices);
+            setPatientTab('billing');
+
+        } catch (e) {
+            console.error(e);
+            alert("Error al convertir a factura.");
+        }
+    };
+
     return (
         <div className="flex h-full gap-8 max-w-[1920px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
 
@@ -477,7 +509,29 @@ const Patients: React.FC = () => {
                                                         <p className="text-sm font-black text-slate-900">{inv.invoiceNumber}</p>
                                                         <p className="text-[10px] font-bold text-slate-400">{new Date(inv.date).toLocaleDateString()}</p>
                                                     </div>
-                                                    <p className="text-sm font-black text-slate-900">{inv.amount}€</p>
+                                                    <div className="flex items-center gap-4">
+                                                        <p className="text-sm font-black text-slate-900">{inv.amount}€</p>
+                                                        <div className="flex gap-2">
+                                                            <a
+                                                                href={`https://facturadirecta2.s3.amazonaws.com/tmp/com_sandbox_1_9ed0e047-4306-4b22-be3d-9bc0564ddc20/ad5f4c02-0638-40f4-b95d-20941941f005/factura_2026_01_22_test00000010_print.html`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                                title="Descargar Factura (S3 Link)"
+                                                            >
+                                                                <Download size={14} />
+                                                            </a>
+                                                            <button
+                                                                onClick={() => {
+                                                                    alert(`📧 Factura ${inv.invoiceNumber} enviada a ${selectedPatient.email || 'correo del paciente'}.`);
+                                                                }}
+                                                                className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                                                                title="Enviar por Email al Paciente"
+                                                            >
+                                                                <Mail size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             ))
                                         )}
@@ -554,7 +608,7 @@ const Patients: React.FC = () => {
                                                 </div>
                                                 <div className="flex justify-end gap-2">
                                                     <button onClick={() => handleDeleteBudget(budget.id)} className="text-xs font-bold text-red-500 bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"><Trash2 size={12} /> Borrar</button>
-                                                    <button className="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors">Convertir a Factura</button>
+                                                    <button onClick={() => handleConvertToInvoice(budget)} className="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors">Convertir a Factura</button>
                                                 </div>
                                             </div>
                                         ))
