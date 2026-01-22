@@ -393,10 +393,10 @@ const Billing: React.FC = () => {
                                         />
                                         {patientSearch && !selectedPatientId && (
                                             <div className="absolute top-full left-0 w-full bg-white border border-slate-100 rounded-xl shadow-xl mt-2 max-h-48 overflow-y-auto z-50">
-                                                {patients.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.dni.includes(patientSearch)).length === 0 ? (
+                                                {patients.filter(p => (p.name?.toLowerCase() || '').includes(patientSearch.toLowerCase()) || (p.dni || '').includes(patientSearch)).length === 0 ? (
                                                     <div className="p-4 text-xs text-slate-400 font-bold">No se encontraron pacientes.</div>
                                                 ) : (
-                                                    patients.filter(p => p.name.toLowerCase().includes(patientSearch.toLowerCase()) || p.dni.includes(patientSearch)).map(p => (
+                                                    patients.filter(p => (p.name?.toLowerCase() || '').includes(patientSearch.toLowerCase()) || (p.dni || '').includes(patientSearch)).map(p => (
                                                         <div
                                                             key={p.id}
                                                             onClick={() => {

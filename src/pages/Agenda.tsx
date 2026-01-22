@@ -331,7 +331,7 @@ const Agenda: React.FC = () => {
                             {apptSearch.length > 0 && (
                                 <div className="mt-2 bg-white border border-slate-100 rounded-xl shadow-lg max-h-40 overflow-y-auto">
                                     {patients
-                                        .filter(p => p.name.toLowerCase().includes(apptSearch.toLowerCase()))
+                                        .filter(p => (p.name?.toLowerCase() || '').includes(apptSearch.toLowerCase()) || (p.dni || '').includes(apptSearch))
                                         .map(p => (
                                             <div
                                                 key={p.id}

@@ -160,6 +160,22 @@ const Patients: React.FC = () => {
         }
     };
 
+    const handleAddClinicalRecord = async () => {
+        if (!newEntryForm.treatment) return alert("Rellene el tratamiento");
+        if (!selectedPatient?.id) return alert("Error: Paciente no seleccionado.");
+
+        try {
+            const payload = { ...newEntryForm, patientId: selectedPatient.id };
+            const rec = await api.clinicalRecords.create(payload);
+            setClinicalRecords(prev => [rec, ...prev]);
+            setIsNewEntryModalOpen(false);
+            setNewEntryForm({ treatment: '', observation: '', specialization: 'General' });
+        } catch (e) {
+            console.error(e);
+            alert("Error al guardar: " + e.message);
+        }
+    };
+
     const handleDeleteBudget = async (id: string) => {
         if (!confirm("¿Borrar presupuesto?")) return;
         try {
@@ -643,6 +659,49 @@ const Patients: React.FC = () => {
                         <div className="flex gap-4 mt-6">
                             <button onClick={() => setIsNewEntryModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
                             <button onClick={handleAddClinicalRecord} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Guardar Entrada</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* DOCUMENT TEMPLATE MODAL */}
+            {isDocModalOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                    <div className="bg-white max-w-2xl w-full rounded-[2rem] p-8 shadow-2xl h-[80vh] flex flex-col">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-2xl font-black text-slate-900">{selectedDocTemplate}</h3>
+                            <button onClick={() => setIsDocModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                        </div>
+
+                        <div className="flex-1 overflow-hidden flex flex-col gap-4">
+                            <div className="bg-blue-50 p-4 rounded-xl text-xs text-blue-700 font-bold flex gap-2 items-center">
+                                ℹ️ Puedes editar el contenido antes de descargar.
+                            </div>
+                            <textarea
+                                className="flex-1 w-full bg-slate-50 border border-slate-200 p-6 rounded-xl font-mono text-sm leading-relaxed outline-none resize-none focus:ring-2 focus:ring-blue-100"
+                                value={docContent}
+                                onChange={(e) => setDocContent(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="flex gap-4 mt-6 pt-6 border-t border-slate-100">
+                            <button onClick={() => setIsDocModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                            <button
+                                onClick={() => {
+                                    // Simulated Download
+                                    const element = document.createElement("a");
+                                    const file = new Blob([docContent], { type: 'text/plain' });
+                                    element.href = URL.createObjectURL(file);
+                                    element.download = `${selectedDocTemplate.replace(/\s+/g, '_')}_${selectedPatient?.name}.txt`;
+                                    document.body.appendChild(element); // Required for this to work in FireFox
+                                    element.click();
+                                    alert("✅ Documento descargado (Simulación PDF)");
+                                    setIsDocModalOpen(false);
+                                }}
+                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg flex items-center justify-center gap-2"
+                            >
+                                <Download size={18} /> Descargar PDF
+                            </button>
                         </div>
                     </div>
                 </div>
