@@ -174,6 +174,10 @@ export const api = {
         getByPatient: async (patientId: string) => {
             const res = await fetch(`${API_URL}/patients/${patientId}/clinical-records`, { headers: getHeaders() });
             return res.json();
+        },
+        delete: async (id: string) => {
+            const res = await fetch(`${API_URL}/clinical-records/${id}`, { method: 'DELETE', headers: getHeaders() });
+            if (!res.ok) throw new Error('Failed to delete clinical record');
         }
     },
 

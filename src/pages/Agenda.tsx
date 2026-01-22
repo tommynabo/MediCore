@@ -26,6 +26,9 @@ const Agenda: React.FC = () => {
     const [bookingTreatment, setBookingTreatment] = useState(''); // Stores Treatment ID
     const [bookingDoctorId, setBookingDoctorId] = useState(''); // Local state for modal
     const [apptTreatmentSearch, setApptTreatmentSearch] = useState('');
+    const [bookingObservation, setBookingObservation] = useState('');
+    const [bookingPrice, setBookingPrice] = useState<number>(0);
+    const [bookingDuration, setBookingDuration] = useState<number>(30);
 
     // Helpers
     const getWeekRange = (d: Date) => {
@@ -99,7 +102,10 @@ const Agenda: React.FC = () => {
             time: activeSlot.time,
             treatmentId: bookingTreatment, // Send ID for backend validation
             treatment: selectedTreatment ? selectedTreatment.name : 'Consulta General', // Legacy String
-            status: 'PENDING'
+            status: 'PENDING',
+            observations: bookingObservation,
+            price: bookingPrice,
+            duration: bookingDuration
         };
 
         try {
@@ -109,6 +115,9 @@ const Agenda: React.FC = () => {
             setActiveSlot(null);
             setApptSearch('');
             setBookingTreatment('');
+            setBookingObservation('');
+            setBookingPrice(0);
+            setBookingDuration(30);
             alert("✅ Cita guardada correctamente.");
         } catch (e) {
             console.error(e);
@@ -379,14 +388,53 @@ const Agenda: React.FC = () => {
                             </select>
                         </div>
 
+                        {/* Additional Details: Price, Duration, Observation */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold uppercase text-slate-400">Precio (€)</label>
+                                <input
+                                    type="number"
+                                    className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
+                                    value={bookingPrice}
+                                    onChange={e => setBookingPrice(Number(e.target.value))}
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold uppercase text-slate-400">Duración</label>
+                                <select
+                                    className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
+                                    value={bookingDuration}
+                                    onChange={e => setBookingDuration(Number(e.target.value))}
+                                >
+                                    <option value={15}>15 Min</option>
+                                    <option value={30}>30 Min</option>
+                                    <option value={45}>45 Min</option>
+                                    <option value={60}>1 Hora</option>
+                                    <option value={90}>1.5 Horas</option>
+                                    <option value={120}>2 Horas</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-xs font-bold uppercase text-slate-400">Observaciones</label>
+                            <textarea
+                                className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600 h-24 resize-none"
+                                placeholder="Notas adicionales..."
+                                value={bookingObservation}
+                                onChange={e => setBookingObservation(e.target.value)}
+                            />
+                        </div>
+
                         <div className="flex gap-4 pt-4">
                             <button onClick={() => setIsAppointmentModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
                             <button onClick={handleBooking} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Confirmar</button>
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+            )
+            }
+        </div >
     );
 };
 

@@ -19,6 +19,11 @@ const Billing: React.FC = () => {
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [invoiceItems, setInvoiceItems] = useState<{ name: string, price: number }[]>([{ name: 'Consulta General', price: 50.0 }]);
     const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'transfer'>('card');
+
+    // New State for Invoice Type
+    const [invoiceType, setInvoiceType] = useState<'ordinary' | 'rectificative'>('ordinary');
+    const [invoiceStep, setInvoiceStep] = useState<1 | 2>(1); // Step 1: Type & Patient, Step 2: Items & Emit
+
     const [isEmitting, setIsEmitting] = useState(false);
     const [emitError, setEmitError] = useState<string | null>(null);
 
@@ -51,8 +56,8 @@ const Billing: React.FC = () => {
             const payload = {
                 patient: patient,
                 items: invoiceItems,
-                paymentMethod: 'card',
-                type: 'invoice'
+                paymentMethod: paymentMethod, // Use state
+                type: invoiceType // Use state
             };
 
             const data = await api.invoices.create(payload) as any;
@@ -83,6 +88,7 @@ const Billing: React.FC = () => {
             setIsInvoiceModalOpen(false);
 
             // Reset form
+            setInvoiceStep(1); // Reset to step 1
             setSelectedPatientId('');
             setInvoiceItems([{ name: 'Consulta General', price: 50.0 }]);
 
@@ -138,7 +144,7 @@ const Billing: React.FC = () => {
                         <h3 className="text-3xl font-black text-slate-900 tracking-tight">Caja & Facturación</h3>
                         <p className="text-xs text-slate-500 font-black uppercase tracking-widest mt-2">Finanzas Veri*Factu AEAT Ready</p>
                     </div>
-                    <button onClick={() => setIsInvoiceModalOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-xl hover:bg-black transition-colors">
+                    <button onClick={() => { setInvoiceStep(1); setIsInvoiceModalOpen(true); }} className="bg-slate-900 text-white px-8 py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-xl hover:bg-black transition-colors">
                         + Emitir Nueva Factura
                     </button>
                 </div>
@@ -348,124 +354,126 @@ const Billing: React.FC = () => {
                             </button>
                         </div>
 
-                        <div className="p-8 space-y-6">
-                            {/* Patient Selection (Improved with Search) */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Paciente</label>
+                        {/* STEP 1: Type & Patient */}
+                        {invoiceStep === 1 && (
+                            <div className="p-8 space-y-6">
+                                <div className="space-y-4">
+                                    <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Tipo de Factura</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <button
+                                            onClick={() => setInvoiceType('ordinary')}
+                                            className={`p-4 rounded-xl border-2 text-left transition-all ${invoiceType === 'ordinary' ? 'border-blue-500 bg-blue-50' : 'border-slate-100 hover:border-blue-200'}`}
+                                        >
+                                            <span className="block text-sm font-black text-slate-900 uppercase">Ordinaria</span>
+                                            <span className="text-[10px] text-slate-400 font-bold">Venta de servicios normal</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setInvoiceType('rectificative')}
+                                            className={`p-4 rounded-xl border-2 text-left transition-all ${invoiceType === 'rectificative' ? 'border-amber-500 bg-amber-50' : 'border-slate-100 hover:border-amber-200'}`}
+                                        >
+                                            <span className="block text-sm font-black text-slate-900 uppercase">Rectificativa</span>
+                                            <span className="text-[10px] text-slate-400 font-bold">Corrección / Devolución</span>
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="space-y-2">
-                                    <input
-                                        type="text"
-                                        placeholder="🔍 Buscar paciente por nombre o DNI..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
-                                        list="patient-list"
-                                        onChange={(e) => {
-                                            // Simple matcher: if input matches a name exactly, select ID
-                                            // But real user wants to select from list. Datalist is good for this.
-                                            const val = e.target.value;
-                                            const found = patients.find(p => p.name === val || p.dni === val || `${p.name} - ${p.dni}` === val);
-                                            if (found) setSelectedPatientId(found.id);
-                                        }}
-                                    />
-                                    <datalist id="patient-list">
-                                        {(patients || []).map(p => (
-                                            <option key={p.id} value={`${p.name} - ${p.dni}`} />
-                                        ))}
-                                    </datalist>
-                                    {/* Fallback/Explicit select to confirm selection if input is ambiguous */}
+                                    <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Paciente</label>
                                     <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-600 outline-none"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
                                         value={selectedPatientId}
                                         onChange={(e) => setSelectedPatientId(e.target.value)}
                                     >
-                                        <option value="">-- Confirmar Paciente --</option>
+                                        <option value="">-- Seleccionar Paciente --</option>
                                         {(patients || []).map(p => (
-                                            <option key={p.id} value={p.id}>{p.name}</option>
+                                            <option key={p.id} value={p.id}>{p.name} - {p.dni}</option>
                                         ))}
                                     </select>
                                 </div>
                             </div>
+                        )}
 
-                            {/* Payment Method Selector */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Método de Pago</label>
-                                <select
-                                    value={paymentMethod}
-                                    onChange={(e) => setPaymentMethod(e.target.value as any)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
-                                >
-                                    <option value="card">Tarjeta de Crédito/Débito</option>
-                                    <option value="cash">Efectivo</option>
-                                    <option value="transfer">Transferencia Bancaria</option>
-                                </select>
+                        {/* STEP 2: Details */}
+                        {invoiceStep === 2 && (
+                            <div className="p-8 space-y-6">
+                                {/* Items Logic (Same as before) */}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Conceptos ({invoiceType === 'rectificative' ? 'Devolución' : 'Servicios'})</label>
+                                        <button onClick={handleAddItem} className="text-[10px] font-bold uppercase text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 px-3 py-1 rounded-lg">
+                                            + Añadir Línea
+                                        </button>
+                                    </div>
+                                    <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                                        {invoiceItems.map((item, idx) => (
+                                            <div key={idx} className="flex gap-2 items-center">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Descripción"
+                                                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                                                    value={item.name}
+                                                    onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
+                                                />
+                                                <input
+                                                    type="number"
+                                                    placeholder="€"
+                                                    className={`w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none text-right ${invoiceType === 'rectificative' ? 'text-red-500' : 'text-slate-900'}`}
+                                                    value={item.price}
+                                                    onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
+                                                />
+                                                <button onClick={() => handleRemoveItem(idx)} className="text-slate-300 hover:text-rose-500 transition-colors p-2">✕</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="text-right border-t border-slate-100 pt-4">
+                                        <span className="text-2xl font-black text-slate-900">{invoiceItems.reduce((sum, i) => sum + i.price, 0).toFixed(2)}€</span>
+                                    </div>
+                                </div>
+
+                                {/* Payment Method Selector */}
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Método</label>
+                                    <select
+                                        value={paymentMethod}
+                                        onChange={(e) => setPaymentMethod(e.target.value as any)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none"
+                                    >
+                                        <option value="card">Tarjeta</option>
+                                        <option value="cash">Efectivo</option>
+                                        <option value="transfer">Transferencia</option>
+                                    </select>
+                                </div>
+
+                                {emitError && <div className="bg-rose-50 text-rose-600 p-4 rounded-xl text-xs font-bold">⚠️ {emitError}</div>}
                             </div>
-
-                            {/* Items */}
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Conceptos</label>
-                                    <button onClick={handleAddItem} className="text-[10px] font-bold uppercase text-blue-600 hover:text-blue-800 transition-colors bg-blue-50 px-3 py-1 rounded-lg">
-                                        + Añadir Línea
-                                    </button>
-                                </div>
-                                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                                    {invoiceItems.map((item, idx) => (
-                                        <div key={idx} className="flex gap-2 items-center">
-                                            <input
-                                                type="text"
-                                                placeholder="Descripción del servicio"
-                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-300 transition-all"
-                                                value={item.name}
-                                                onChange={(e) => handleItemChange(idx, 'name', e.target.value)}
-                                            />
-                                            <input
-                                                type="number"
-                                                placeholder="€"
-                                                className="w-24 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-blue-300 transition-all text-right"
-                                                value={item.price}
-                                                onChange={(e) => handleItemChange(idx, 'price', e.target.value)}
-                                            />
-                                            <button onClick={() => handleRemoveItem(idx)} className="text-slate-300 hover:text-rose-500 transition-colors p-2">
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="text-right border-t border-slate-100 pt-4">
-                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mr-4">Total Factura</span>
-                                    <span className="text-2xl font-black text-slate-900">{invoiceItems.reduce((sum, i) => sum + i.price, 0).toFixed(2)}€</span>
-                                </div>
-                            </div>
-
-                            {/* Error Message */}
-                            {emitError && (
-                                <div className="bg-rose-50 text-rose-600 p-4 rounded-xl text-xs font-bold flex items-center gap-2">
-                                    ⚠️ {emitError}
-                                </div>
-                            )}
-                        </div>
+                        )}
 
                         <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
-                            <button
-                                onClick={() => setIsInvoiceModalOpen(false)}
-                                className="px-6 py-3 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-200 transition-colors uppercase tracking-widest"
-                                disabled={isEmitting}
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                onClick={handleEmitInvoice}
-                                disabled={isEmitting}
-                                className="bg-slate-900 text-white px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-black transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                            >
-                                {isEmitting ? (
-                                    <>
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                        Conectando Hacienda...
-                                    </>
-                                ) : (
-                                    <>✅ Emitir Factura</>
-                                )}
-                            </button>
+                            {invoiceStep === 1 ? (
+                                <>
+                                    <button onClick={() => setIsInvoiceModalOpen(false)} className="px-6 py-3 rounded-xl text-xs font-bold text-slate-500">Cancelar</button>
+                                    <button
+                                        onClick={() => {
+                                            if (!selectedPatientId) return alert("Seleccione un paciente");
+                                            setInvoiceStep(2);
+                                        }}
+                                        className="bg-slate-900 text-white px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg"
+                                    >
+                                        Siguiente
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => setInvoiceStep(1)} className="px-6 py-3 rounded-xl text-xs font-bold text-slate-500">Atrás</button>
+                                    <button
+                                        onClick={handleEmitInvoice}
+                                        disabled={isEmitting}
+                                        className="bg-slate-900 text-white px-8 py-3 rounded-xl text-xs font-bold uppercase tracking-widest shadow-lg disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {isEmitting ? 'Emitiendo...' : '✅ Emitir Factura'}
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
