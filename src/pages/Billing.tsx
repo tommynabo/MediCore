@@ -18,6 +18,7 @@ const Billing: React.FC = () => {
     // Invoice Creation State
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [invoiceItems, setInvoiceItems] = useState<{ name: string, price: number }[]>([{ name: 'Consulta General', price: 50.0 }]);
+    const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'transfer'>('card');
     const [isEmitting, setIsEmitting] = useState(false);
     const [emitError, setEmitError] = useState<string | null>(null);
 
@@ -58,7 +59,7 @@ const Billing: React.FC = () => {
 
             // Add invoice to local state
             const newInvoice: any = {
-                id: data.invoiceNumber || data.invoice_number || crypto.randomUUID(),
+                id: data.invoiceNumber || data.invoice_number || `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 invoiceNumber: data.invoiceNumber || data.invoice_number,
                 amount: invoiceItems.reduce((sum, i) => sum + i.price, 0),
                 patientId: patient.id,
@@ -366,7 +367,7 @@ const Billing: React.FC = () => {
                                         }}
                                     />
                                     <datalist id="patient-list">
-                                        {patients.map(p => (
+                                        {(patients || []).map(p => (
                                             <option key={p.id} value={`${p.name} - ${p.dni}`} />
                                         ))}
                                     </datalist>
@@ -377,11 +378,25 @@ const Billing: React.FC = () => {
                                         onChange={(e) => setSelectedPatientId(e.target.value)}
                                     >
                                         <option value="">-- Confirmar Paciente --</option>
-                                        {patients.map(p => (
+                                        {(patients || []).map(p => (
                                             <option key={p.id} value={p.id}>{p.name}</option>
                                         ))}
                                     </select>
                                 </div>
+                            </div>
+
+                            {/* Payment Method Selector */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold uppercase text-slate-500 tracking-widest">Método de Pago</label>
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value as any)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all"
+                                >
+                                    <option value="card">Tarjeta de Crédito/Débito</option>
+                                    <option value="cash">Efectivo</option>
+                                    <option value="transfer">Transferencia Bancaria</option>
+                                </select>
                             </div>
 
                             {/* Items */}

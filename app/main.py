@@ -82,7 +82,7 @@ def emit_invoice(payload: InvoiceRequest):
             "url": result["pdf_url"],
             "patientId": payload.patient_id,
             # "items": ... # Prisma handles this relationally usually, dependent on schema.
-            # If we were using Prisma directly in Python we would create relations.
+            # If we were using Prisma directly in No we would create relations.
             # With Supabase pure REST, we insert valid row.
         }
         

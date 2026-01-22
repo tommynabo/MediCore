@@ -15,7 +15,18 @@ export const api = {
         getAll: async (): Promise<Invoice[]> => {
             const res = await fetch(`${API_URL}/finance/invoices`, { headers });
             if (!res.ok) throw new Error('Failed to fetch invoices');
-            return res.json();
+            const data = await res.json();
+            // Normalize backend data to match frontend properties
+            return data.map((inv: any) => ({
+                ...inv,
+                id: inv.id || inv._id,
+                invoiceNumber: inv.invoiceNumber || inv.invoice_number,
+                url: inv.url || inv.pdf_url,
+                qrUrl: inv.qrUrl || inv.qr_url,
+                patientId: inv.patientId || inv.patient_id,
+                amount: Number(inv.amount),
+                paymentMethod: inv.paymentMethod || inv.payment_method
+            }));
         },
         create: async (invoiceData: any): Promise<Invoice> => {
             const res = await fetch(`${API_URL}/finance/invoice`, {
@@ -24,7 +35,14 @@ export const api = {
                 body: JSON.stringify(invoiceData)
             });
             if (!res.ok) throw new Error('Failed to create invoice');
-            return res.json();
+            const data = await res.json();
+            // Normalize response
+            return {
+                ...data,
+                invoiceNumber: data.invoiceNumber || data.invoice_number,
+                url: data.url || data.pdf_url,
+                qrUrl: data.qrUrl || data.qr_url,
+            };
         }
     },
 

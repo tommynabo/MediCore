@@ -166,7 +166,8 @@ const Agenda: React.FC = () => {
                 <div className="overflow-x-auto pb-4">
                     <div className="min-w-[1000px]">
                         {/* Header Row */}
-                        <div className={`grid gap-4 mb-6 ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? 'grid-cols-10' : 'grid-cols-8'}`}>
+                        {/* Header Row */}
+                        <div className={`grid gap-4 mb-6 ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? 'grid-cols-16' : 'grid-cols-8'}`}>
                             <div className="col-span-1 text-[10px] font-black uppercase text-slate-300 tracking-widest text-center self-end pb-2">Hora</div>
 
                             {/* DAY VIEW HEADERS */}
@@ -174,11 +175,17 @@ const Agenda: React.FC = () => {
                                 <>
                                     {/* If All Doctors: Show Doctor Columns */}
                                     {selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? (
-                                        <>
-                                            <div className="col-span-3 text-center pb-2 border-b-2 border-blue-500"><span className="text-sm font-black text-slate-900 uppercase">Dr. Martin</span></div>
-                                            <div className="col-span-3 text-center pb-2 border-b-2 border-purple-500"><span className="text-sm font-black text-slate-900 uppercase">Dra. Garcia</span></div>
-                                            <div className="col-span-3 text-center pb-2 border-b-2 border-emerald-500"><span className="text-sm font-black text-slate-900 uppercase">Dr. Fernandez</span></div>
-                                        </>
+                                        DOCTORS.map(doc => {
+                                            const colorMap: Record<string, string> = {
+                                                'dr-1': 'blue', 'dr-2': 'purple', 'dr-3': 'emerald', 'dr-4': 'rose', 'dr-5': 'amber'
+                                            };
+                                            const color = colorMap[doc.id] || 'slate';
+                                            return (
+                                                <div key={doc.id} className={`col-span-3 text-center pb-2 border-b-2 border-${color}-500`}>
+                                                    <span className="text-sm font-black text-slate-900 uppercase">{doc.name}</span>
+                                                </div>
+                                            );
+                                        })
                                     ) : (
                                         <div className="col-span-7 text-center pb-2 border-b-2 border-blue-500">
                                             <span className="text-sm font-black text-slate-900 uppercase">Hoy</span>
@@ -199,7 +206,7 @@ const Agenda: React.FC = () => {
 
                         {/* Time Slots */}
                         {TIME_SLOTS.map((time) => (
-                            <div key={time} className={`grid gap-4 mb-4 group ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? 'grid-cols-10' : 'grid-cols-8'}`}>
+                            <div key={time} className={`grid gap-4 mb-4 group ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? 'grid-cols-16' : 'grid-cols-8'}`}>
                                 <div className="col-span-1 text-right pr-6 py-4">
                                     <span className="text-xs font-black text-slate-400 group-hover:text-blue-500 transition-colors">{time}</span>
                                 </div>
@@ -208,16 +215,16 @@ const Agenda: React.FC = () => {
                                 {viewMode === 'daily' && (
                                     <>
                                         {selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? (
-                                            ['dr-1', 'dr-2', 'dr-3'].map((docId, idx) => (
-                                                <div key={docId} className="col-span-3 relative h-24 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all cursor-pointer"
+                                            DOCTORS.map((doc, idx) => (
+                                                <div key={doc.id} className="col-span-3 relative h-24 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-300 transition-all cursor-pointer"
                                                     onClick={() => {
                                                         setActiveSlot({ time, dayIdx: 0 });
-                                                        setSelectedDoctorId(docId);
-                                                        setBookingDoctorId(docId); // Init modal doc
+                                                        setSelectedDoctorId(doc.id);
+                                                        setBookingDoctorId(doc.id); // Init modal doc
                                                         setIsAppointmentModalOpen(true);
                                                     }}
                                                 >
-                                                    {appointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0] && a.doctorId === docId).map(a => (
+                                                    {appointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0] && a.doctorId === doc.id).map(a => (
                                                         <div key={a.id} className="absolute inset-2 bg-blue-100 text-blue-700 p-2 rounded-xl text-[10px] font-bold border border-blue-200 overflow-hidden leading-tight">
                                                             {patients.find(p => p.id === a.patientId)?.name || 'Paciente'}
                                                         </div>
