@@ -2,7 +2,8 @@ import React, { useState, useMemo, useRef } from 'react';
 import {
     Search, Plus, Filter, UserCheck, ShieldCheck, Mail, CheckCircle2, Edit, Check, Edit3, Trash2,
     ArrowUp, Activity, FileText, ClipboardCheck, Layers, DollarSign, PenTool, Smile, Calculator,
-    Phone, Settings, Download, Zap, TrendingUp, CreditCard, Clock, FileText as FileTextIcon // Alias for conflict
+    Phone, Settings, Download, Zap, TrendingUp, CreditCard, Clock, FileText as FileTextIcon, // Alias for conflict
+    QrCode
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment } from '../../types';
@@ -144,7 +145,7 @@ const Patients: React.FC = () => {
                 await api.clinicalRecords.create({
                     patientId: selectedPatient.id,
                     date: new Date().toISOString(),
-                    text: `[RECETA] ${medication}\n\n${generatedText}`,
+                    text: `[RECETA] ${medication} \n\n${generatedText} `,
                     type: 'prescription'
                 });
 
@@ -192,13 +193,13 @@ const Patients: React.FC = () => {
     };
 
     const handleOdontogramAddTreatment = (toothId: number) => {
-        setTreatmentForm({ name: `Tratamiento Diente ${toothId}`, price: '50', status: 'Pendiente' });
+        setTreatmentForm({ name: `Tratamiento Diente ${toothId} `, price: '50', status: 'Pendiente' });
         setIsNewTreatmentModalOpen(true);
     };
 
     const handleOdontogramAddBudget = (toothId: number, status: string) => {
         setBudgetForm({
-            title: `Presupuesto Diente ${toothId}`,
+            title: `Presupuesto Diente ${toothId} `,
             items: [], // Deprecated in UI but kept for type safety if needed, utilizing totalPrice logic instead
             totalPrice: '100',
             installments: 1
@@ -229,7 +230,15 @@ const Patients: React.FC = () => {
 
             // Refresh invoices
             const updatedInvoices = await api.invoices.getAll();
-            setInvoices(updatedInvoices);
+
+            // Enrich with dynamic simulated URLs for demo
+            const enrichedInvoices = updatedInvoices.map((inv: any) => ({
+                ...inv,
+                url: inv.url || `https://facturadirecta2.s3.amazonaws.com/tmp/simulated_path/${inv.invoiceNumber || 'draft'}/factura_${inv.invoiceNumber || Date.now()}_print.html`,
+                qrUrl: inv.qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://verifactu.sede.gob.es/vn?td=FACTURA_DIRECTA_${inv.invoiceNumber || 'DEMO'}`
+            }));
+
+            setInvoices(enrichedInvoices);
             setPatientTab('billing');
 
         } catch (e) {
@@ -242,7 +251,7 @@ const Patients: React.FC = () => {
         <div className="flex h-full gap-8 max-w-[1920px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
 
             {/* LEFT COLUMN: PATIENT LIST */}
-            <div className={`flex flex-col gap-6 transition-all duration-500 ease-in-out ${selectedPatient ? 'w-1/3 min-w-[320px] hidden xl:flex' : 'w-full max-w-5xl mx-auto'}`}>
+            <div className={`flex flex - col gap - 6 transition - all duration - 500 ease -in -out ${selectedPatient ? 'w-1/3 min-w-[320px] hidden xl:flex' : 'w-full max-w-5xl mx-auto'} `}>
                 {/* Same list code as before... */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Pacientes</h2>
@@ -270,24 +279,24 @@ const Patients: React.FC = () => {
                         <div
                             key={patient.id}
                             onClick={() => { setSelectedPatient(patient); setPatientTab('ficha'); }}
-                            className={`group p-5 rounded-[1.5rem] cursor-pointer border transition-all duration-300 relative overflow-hidden
+                            className={`group p - 5 rounded - [1.5rem] cursor - pointer border transition - all duration - 300 relative overflow - hidden
                   ${selectedPatient?.id === patient.id
                                     ? 'bg-slate-900 text-white border-slate-900 shadow-2xl scale-[1.02]'
                                     : 'bg-white text-slate-600 border-slate-100 hover:border-blue-300 hover:shadow-lg'
                                 }
-                `}
+`}
                         >
                             <div className="flex justify-between items-start relative z-10">
                                 <div className="flex gap-4 items-center">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-colors
+                                    <div className={`w - 12 h - 12 rounded - 2xl flex items - center justify - center font - black text - sm transition - colors
                            ${selectedPatient?.id === patient.id ? 'bg-white text-slate-900' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'}
-                        `}>
+`}>
                                         {patient.name.charAt(0)}
                                     </div>
                                     <div>
-                                        <h4 className={`text-sm font-black ${selectedPatient?.id === patient.id ? 'text-white' : 'text-slate-900'}`}>{patient.name}</h4>
+                                        <h4 className={`text - sm font - black ${selectedPatient?.id === patient.id ? 'text-white' : 'text-slate-900'} `}>{patient.name}</h4>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedPatient?.id === patient.id ? 'text-slate-400' : 'text-slate-400'}`}>
+                                            <span className={`text - [10px] font - bold uppercase tracking - wider ${selectedPatient?.id === patient.id ? 'text-slate-400' : 'text-slate-400'} `}>
                                                 ID: {patient.id.slice(0, 6)}...
                                             </span>
                                             {patient.insurance === 'Privado' && <span className="w-2 h-2 rounded-full bg-amber-400"></span>}
@@ -312,12 +321,12 @@ const Patients: React.FC = () => {
                                 <button
                                     key={tab}
                                     onClick={() => setPatientTab(tab)}
-                                    className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap
+                                    className={`px - 5 py - 3 rounded - xl text - [10px] font - black uppercase tracking - widest transition - all whitespace - nowrap
                         ${patientTab === tab
                                             ? 'bg-slate-900 text-white shadow-lg'
                                             : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
                                         }
-                      `}
+`}
                                 >
                                     {tab === 'history' ? 'Historial' : tab === 'treatments' ? 'Tratamientos' : tab === 'prescriptions' ? 'Recetas' : tab === 'billing' ? 'Pagos' : tab === 'docs' ? 'Docs' : tab === 'budget' ? 'Pptos' : tab}
                                 </button>
@@ -337,7 +346,7 @@ const Patients: React.FC = () => {
                                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ficha del Paciente</h2>
                                     <button
                                         onClick={() => setIsEditingPatient(!isEditingPatient)}
-                                        className={`px-6 py-2 rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition-all ${isEditingPatient ? 'bg-emerald-50 text-emerald-600' : 'bg-white border border-slate-200'}`}
+                                        className={`px - 6 py - 2 rounded - xl text - xs font - bold uppercase flex items - center gap - 2 transition - all ${isEditingPatient ? 'bg-emerald-50 text-emerald-600' : 'bg-white border border-slate-200'} `}
                                     >
                                         {isEditingPatient ? <><Check size={16} /> Guardar</> : <><Edit size={16} /> Modificar</>}
                                     </button>
@@ -520,7 +529,7 @@ const Patients: React.FC = () => {
                                                                 title="Descargar Factura (S3 Link)"
                                                             >
                                                                 <Download size={14} />
-                                                            </a>
+                                                            </a >
                                                             <button
                                                                 onClick={() => {
                                                                     alert(`📧 Factura ${inv.invoiceNumber} enviada a ${selectedPatient.email || 'correo del paciente'}.`);
@@ -530,236 +539,259 @@ const Patients: React.FC = () => {
                                                             >
                                                                 <Mail size={14} />
                                                             </button>
+                                                            {
+                                                                inv.qrUrl && (
+                                                                    <a
+                                                                        href={inv.qrUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                                                                        title="Ver/Descargar código QR Veri*Factu"
+                                                                    >
+                                                                        <QrCode size={14} />
+                                                                    </a>
+                                                                )
+                                                            }
+                                                        </div >
+                                                    </div >
+                                                </div >
+                                            ))
+                                        )}
+                                    </div >
+                                </div >
+                            </div >
+                        )}
+
+                        {/* DOCS TAB (TEMPLATES) */}
+                        {
+                            patientTab === 'docs' && (
+                                <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">Documentos y Plantillas</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        {[
+                                            { title: 'Consentimiento Informado', icon: <FileText size={24} />, text: 'YO, {{PACIENTE}}, CON DNI {{DNI}}, DOY MI CONSENTIMIENTO PARA EL TRATAMIENTO DE ...' },
+                                            { title: 'Justificante Asistencia', icon: <Clock size={24} />, text: 'HAGO CONSTAR QUE EL PACIENTE {{PACIENTE}} HA ACUDIDO A SU CITA EL DÍA {{FECHA}} A LAS {{HORA}}...' },
+                                            { title: 'Presupuesto Formal', icon: <DollarSign size={24} />, text: 'PRESUPUESTO PARA {{PACIENTE}}\n\nCONCEPTOS:\n...' }
+                                        ].map((doc, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => {
+                                                    setSelectedDocTemplate(doc.title);
+                                                    // Simple variable replacement
+                                                    let content = doc.text
+                                                        .replace('{{PACIENTE}}', selectedPatient.name)
+                                                        .replace('{{DNI}}', selectedPatient.dni)
+                                                        .replace('{{FECHA}}', new Date().toLocaleDateString())
+                                                        .replace('{{HORA}}', new Date().toLocaleTimeString());
+                                                    setDocContent(content);
+                                                    setIsDocModalOpen(true);
+                                                }}
+                                                className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all text-left group"
+                                            >
+                                                <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
+                                                    {doc.icon}
+                                                </div>
+                                                <h4 className="font-bold text-slate-900 text-sm">{doc.title}</h4>
+                                                <p className="text-[10px] text-slate-400 mt-2 font-medium">Click para generar y editar</p>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* BUDGET TAB OVERRIDE if 'budget' */}
+                        {
+                            patientTab === 'budget' && (
+                                <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">Presupuestos</h2>
+                                        <button onClick={() => setIsBudgetModalOpen(true)} className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 hover:bg-slate-800 transition-colors shadow-lg"><Plus size={16} /> Nuevo Presupuesto</button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {budgets.length === 0 ? (
+                                            <div className="p-10 text-center opacity-50 font-bold uppercase">No hay presupuestos registrados</div>
+                                        ) : (
+                                            budgets.map((budget: any) => (
+                                                <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                                                    <div className="flex justify-between items-start mb-4">
+                                                        <div>
+                                                            <h4 className="text-xl font-black text-slate-900">{budget.title || `Presupuesto #${budget.id.substring(0, 6)}`}</h4>
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{new Date(budget.createdAt).toLocaleDateString()}</p>
                                                         </div>
+                                                        <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${budget.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {budget.status || 'BORRADOR'}
+                                                        </div>
+                                                    </div>
+                                                    <div className="space-y-2 mb-4">
+                                                        {budget.items?.map((item: any, idx: number) => (
+                                                            <div key={idx} className="flex justify-between text-xs font-bold text-slate-600 border-b border-slate-50 pb-1">
+                                                                <span>{item.name}</span>
+                                                                <span>{item.price}€</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="flex justify-end gap-2">
+                                                        <button onClick={() => handleDeleteBudget(budget.id)} className="text-xs font-bold text-red-500 bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"><Trash2 size={12} /> Borrar</button>
+                                                        <button onClick={() => handleConvertToInvoice(budget)} className="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors">Convertir a Factura</button>
                                                     </div>
                                                 </div>
                                             ))
                                         )}
                                     </div>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* DOCS TAB (TEMPLATES) */}
-                        {patientTab === 'docs' && (
-                            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
-                                <h3 className="text-3xl font-black text-slate-900 tracking-tight">Documentos y Plantillas</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {[
-                                        { title: 'Consentimiento Informado', icon: <FileText size={24} />, text: 'YO, {{PACIENTE}}, CON DNI {{DNI}}, DOY MI CONSENTIMIENTO PARA EL TRATAMIENTO DE ...' },
-                                        { title: 'Justificante Asistencia', icon: <Clock size={24} />, text: 'HAGO CONSTAR QUE EL PACIENTE {{PACIENTE}} HA ACUDIDO A SU CITA EL DÍA {{FECHA}} A LAS {{HORA}}...' },
-                                        { title: 'Presupuesto Formal', icon: <DollarSign size={24} />, text: 'PRESUPUESTO PARA {{PACIENTE}}\n\nCONCEPTOS:\n...' }
-                                    ].map((doc, idx) => (
-                                        <button
-                                            key={idx}
-                                            onClick={() => {
-                                                setSelectedDocTemplate(doc.title);
-                                                // Simple variable replacement
-                                                let content = doc.text
-                                                    .replace('{{PACIENTE}}', selectedPatient.name)
-                                                    .replace('{{DNI}}', selectedPatient.dni)
-                                                    .replace('{{FECHA}}', new Date().toLocaleDateString())
-                                                    .replace('{{HORA}}', new Date().toLocaleTimeString());
-                                                setDocContent(content);
-                                                setIsDocModalOpen(true);
-                                            }}
-                                            className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-xl hover:border-blue-200 transition-all text-left group"
-                                        >
-                                            <div className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                                                {doc.icon}
-                                            </div>
-                                            <h4 className="font-bold text-slate-900 text-sm">{doc.title}</h4>
-                                            <p className="text-[10px] text-slate-400 mt-2 font-medium">Click para generar y editar</p>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* BUDGET TAB OVERRIDE if 'budget' */}
-                        {patientTab === 'budget' && (
-                            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
-                                <div className="flex justify-between items-center">
-                                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Presupuestos</h2>
-                                    <button onClick={() => setIsBudgetModalOpen(true)} className="bg-slate-900 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 hover:bg-slate-800 transition-colors shadow-lg"><Plus size={16} /> Nuevo Presupuesto</button>
-                                </div>
-                                <div className="space-y-4">
-                                    {budgets.length === 0 ? (
-                                        <div className="p-10 text-center opacity-50 font-bold uppercase">No hay presupuestos registrados</div>
-                                    ) : (
-                                        budgets.map((budget: any) => (
-                                            <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                                                <div className="flex justify-between items-start mb-4">
-                                                    <div>
-                                                        <h4 className="text-xl font-black text-slate-900">{budget.title || `Presupuesto #${budget.id.substring(0, 6)}`}</h4>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">{new Date(budget.createdAt).toLocaleDateString()}</p>
-                                                    </div>
-                                                    <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${budget.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                        {budget.status || 'BORRADOR'}
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2 mb-4">
-                                                    {budget.items?.map((item: any, idx: number) => (
-                                                        <div key={idx} className="flex justify-between text-xs font-bold text-slate-600 border-b border-slate-50 pb-1">
-                                                            <span>{item.name}</span>
-                                                            <span>{item.price}€</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <div className="flex justify-end gap-2">
-                                                    <button onClick={() => handleDeleteBudget(budget.id)} className="text-xs font-bold text-red-500 bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"><Trash2 size={12} /> Borrar</button>
-                                                    <button onClick={() => handleConvertToInvoice(budget)} className="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors">Convertir a Factura</button>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
+                            )
+                        }
+                    </div >
+                </div >
             )}
 
             {/* NEW PATIENT MODAL */}
-            {isNewPatientModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-                    <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
-                        <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Paciente</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Nombre Completo</label>
-                                <input
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="Ej. Juan Pérez"
-                                    value={newPatient.name}
-                                    onChange={e => setNewPatient({ ...newPatient, name: e.target.value })}
-                                />
+            {
+                isNewPatientModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                        <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
+                            <h3 className="text-2xl font-black text-slate-900 mb-6">Nuevo Paciente</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Nombre Completo</label>
+                                    <input
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="Ej. Juan Pérez"
+                                        value={newPatient.name}
+                                        onChange={e => setNewPatient({ ...newPatient, name: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">DNI / NIE</label>
+                                    <input
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="12345678X"
+                                        value={newPatient.dni}
+                                        onChange={e => setNewPatient({ ...newPatient, dni: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Email</label>
+                                    <input
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="juan@email.com"
+                                        value={newPatient.email}
+                                        onChange={e => setNewPatient({ ...newPatient, email: e.target.value })}
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">DNI / NIE</label>
-                                <input
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="12345678X"
-                                    value={newPatient.dni}
-                                    onChange={e => setNewPatient({ ...newPatient, dni: e.target.value })}
-                                />
+                            <div className="flex gap-4 mt-6">
+                                <button onClick={() => setIsNewPatientModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                                <button onClick={handleCreatePatient} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Guardar</button>
                             </div>
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Email</label>
-                                <input
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="juan@email.com"
-                                    value={newPatient.email}
-                                    onChange={e => setNewPatient({ ...newPatient, email: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="flex gap-4 mt-6">
-                            <button onClick={() => setIsNewPatientModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button onClick={handleCreatePatient} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Guardar</button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* NEW CLINICAL RECORD MODAL */}
-            {isNewEntryModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-                    <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
-                        <h3 className="text-2xl font-black text-slate-900 mb-6">Nueva Entrada Historial</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-black uppercase text-slate-400">Tratamiento / Título</label>
-                                <input
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
-                                    placeholder="Ej. Revisión General"
-                                    value={newEntryForm.treatment}
-                                    onChange={e => setNewEntryForm({ ...newEntryForm, treatment: e.target.value })}
-                                />
+            {
+                isNewEntryModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                        <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl">
+                            <h3 className="text-2xl font-black text-slate-900 mb-6">Nueva Entrada Historial</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Tratamiento / Título</label>
+                                    <input
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="Ej. Revisión General"
+                                        value={newEntryForm.treatment}
+                                        onChange={e => setNewEntryForm({ ...newEntryForm, treatment: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black uppercase text-slate-400 flex justify-between items-center mb-2">
+                                        <span>Detalles</span>
+                                        <button
+                                            onClick={async () => {
+                                                if (!newEntryForm.observation) return alert("Escribe algo primero...");
+                                                console.log("AI Request:", newEntryForm.observation);
+                                                setIsProcessing(true);
+                                                try {
+                                                    const prompt = `Reescribe y estructura profesionalmente la siguiente nota clínica odontológica, organizándola por puntos clave (Motivo, Observación, Plan): "${newEntryForm.observation}"`;
+                                                    const res = await api.ai.query(prompt, selectedPatient?.id);
+                                                    console.log("AI Response:", res);
+                                                    if (res && (res.answer || res.message || res.content)) {
+                                                        setNewEntryForm(prev => ({ ...prev, observation: res.answer || res.message || res.content }));
+                                                    } else {
+                                                        alert("La IA no devolvió respuesta válida.");
+                                                    }
+                                                } catch (e) { console.error(e); alert("Error conectando con IA: " + e.message); }
+                                                setIsProcessing(false);
+                                            }}
+                                            className="text-xs bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200"
+                                        >
+                                            ✨ Mejorar redacción (AI)
+                                        </button>
+                                    </label>
+                                    <textarea
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium h-32 resize-none"
+                                        placeholder="Detalles de la sesión..."
+                                        value={newEntryForm.observation}
+                                        onChange={e => setNewEntryForm({ ...newEntryForm, observation: e.target.value })}
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-xs font-black uppercase text-slate-400 flex justify-between items-center mb-2">
-                                    <span>Detalles</span>
-                                    <button
-                                        onClick={async () => {
-                                            if (!newEntryForm.observation) return alert("Escribe algo primero...");
-                                            console.log("AI Request:", newEntryForm.observation);
-                                            setIsProcessing(true);
-                                            try {
-                                                const prompt = `Reescribe y estructura profesionalmente la siguiente nota clínica odontológica, organizándola por puntos clave (Motivo, Observación, Plan): "${newEntryForm.observation}"`;
-                                                const res = await api.ai.query(prompt, selectedPatient?.id);
-                                                console.log("AI Response:", res);
-                                                if (res && (res.answer || res.message || res.content)) {
-                                                    setNewEntryForm(prev => ({ ...prev, observation: res.answer || res.message || res.content }));
-                                                } else {
-                                                    alert("La IA no devolvió respuesta válida.");
-                                                }
-                                            } catch (e) { console.error(e); alert("Error conectando con IA: " + e.message); }
-                                            setIsProcessing(false);
-                                        }}
-                                        className="text-xs bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200"
-                                    >
-                                        ✨ Mejorar redacción (AI)
-                                    </button>
-                                </label>
-                                <textarea
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-medium h-32 resize-none"
-                                    placeholder="Detalles de la sesión..."
-                                    value={newEntryForm.observation}
-                                    onChange={e => setNewEntryForm({ ...newEntryForm, observation: e.target.value })}
-                                />
+                            <div className="flex gap-4 mt-6">
+                                <button onClick={() => setIsNewEntryModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                                <button onClick={handleAddClinicalRecord} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Guardar Entrada</button>
                             </div>
-                        </div>
-                        <div className="flex gap-4 mt-6">
-                            <button onClick={() => setIsNewEntryModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button onClick={handleAddClinicalRecord} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Guardar Entrada</button>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* DOCUMENT TEMPLATE MODAL */}
-            {isDocModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
-                    <div className="bg-white max-w-2xl w-full rounded-[2rem] p-8 shadow-2xl h-[80vh] flex flex-col">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-2xl font-black text-slate-900">{selectedDocTemplate}</h3>
-                            <button onClick={() => setIsDocModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-                        </div>
-
-                        <div className="flex-1 overflow-hidden flex flex-col gap-4">
-                            <div className="bg-blue-50 p-4 rounded-xl text-xs text-blue-700 font-bold flex gap-2 items-center">
-                                ℹ️ Puedes editar el contenido antes de descargar.
+            {
+                isDocModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                        <div className="bg-white max-w-2xl w-full rounded-[2rem] p-8 shadow-2xl h-[80vh] flex flex-col">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-2xl font-black text-slate-900">{selectedDocTemplate}</h3>
+                                <button onClick={() => setIsDocModalOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
                             </div>
-                            <textarea
-                                className="flex-1 w-full bg-slate-50 border border-slate-200 p-6 rounded-xl font-mono text-sm leading-relaxed outline-none resize-none focus:ring-2 focus:ring-blue-100"
-                                value={docContent}
-                                onChange={(e) => setDocContent(e.target.value)}
-                            />
-                        </div>
 
-                        <div className="flex gap-4 mt-6 pt-6 border-t border-slate-100">
-                            <button onClick={() => setIsDocModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button
-                                onClick={() => {
-                                    // Simulated Download
-                                    const element = document.createElement("a");
-                                    const file = new Blob([docContent], { type: 'text/plain' });
-                                    element.href = URL.createObjectURL(file);
-                                    element.download = `${selectedDocTemplate.replace(/\s+/g, '_')}_${selectedPatient?.name}.txt`;
-                                    document.body.appendChild(element); // Required for this to work in FireFox
-                                    element.click();
-                                    alert("✅ Documento descargado (Simulación PDF)");
-                                    setIsDocModalOpen(false);
-                                }}
-                                className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg flex items-center justify-center gap-2"
-                            >
-                                <Download size={18} /> Descargar PDF
-                            </button>
+                            <div className="flex-1 overflow-hidden flex flex-col gap-4">
+                                <div className="bg-blue-50 p-4 rounded-xl text-xs text-blue-700 font-bold flex gap-2 items-center">
+                                    ℹ️ Puedes editar el contenido antes de descargar.
+                                </div>
+                                <textarea
+                                    className="flex-1 w-full bg-slate-50 border border-slate-200 p-6 rounded-xl font-mono text-sm leading-relaxed outline-none resize-none focus:ring-2 focus:ring-blue-100"
+                                    value={docContent}
+                                    onChange={(e) => setDocContent(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="flex gap-4 mt-6 pt-6 border-t border-slate-100">
+                                <button onClick={() => setIsDocModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
+                                <button
+                                    onClick={() => {
+                                        // Simulated Download
+                                        const element = document.createElement("a");
+                                        const file = new Blob([docContent], { type: 'text/plain' });
+                                        element.href = URL.createObjectURL(file);
+                                        element.download = `${selectedDocTemplate.replace(/\s+/g, '_')}_${selectedPatient?.name}.txt`;
+                                        document.body.appendChild(element); // Required for this to work in FireFox
+                                        element.click();
+                                        alert("✅ Documento descargado (Simulación PDF)");
+                                        setIsDocModalOpen(false);
+                                    }}
+                                    className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg flex items-center justify-center gap-2"
+                                >
+                                    <Download size={18} /> Descargar PDF
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* NEW TREATMENT MODAL */}
             {
