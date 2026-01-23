@@ -12,6 +12,8 @@ import Payroll from './src/pages/Payroll';
 import Settings from './src/pages/Settings';
 import Login from './src/pages/Login';
 
+import { AppointmentDetails } from './src/pages/AppointmentDetails';
+
 const App: React.FC = () => {
   return (
     <AppProvider>
@@ -22,6 +24,7 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="agenda" element={<Agenda />} />
+            <Route path="appointment/:appointmentId" element={<AppointmentDetails />} />
             <Route path="pacientes" element={<Patients />} />
             <Route path="billing" element={<Billing />} />
             <Route path="inventory" element={<Settings />} /> {/* User said inventory is in settings, but Layout links to /inventory. Let's make inventory route go to Stock component or Redirect? Actually Layout has Settings AND Inventory. User said "remove from left panel". I removed it from Layout. So /inventory link is gone. But just in case. */}

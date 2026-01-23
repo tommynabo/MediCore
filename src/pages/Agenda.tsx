@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import {
-    ChevronLeft, ChevronRight, Search, Plus, Calendar, User, Clock, CheckCircle2
+    ChevronLeft, ChevronRight, Search, Plus, Calendar, User, Clock, CheckCircle2, ExternalLink
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { DENTAL_SERVICES, DOCTORS } from '../constants';
 import { Appointment, Doctor } from '../../types';
@@ -13,6 +14,7 @@ const Agenda: React.FC = () => {
     const {
         appointments, addAppointment, patients, currentUser, currentUserRole, api
     } = useAppContext();
+    const navigate = useNavigate();
 
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<'daily' | 'weekly'>('daily');
@@ -20,6 +22,7 @@ const Agenda: React.FC = () => {
 
     const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
     const [activeSlot, setActiveSlot] = useState<{ time: string, dayIdx: number } | null>(null);
+    const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
 
     // Search States
     const [apptSearch, setApptSearch] = useState('');
@@ -67,12 +70,43 @@ const Agenda: React.FC = () => {
         return appointments.filter(a => {
             // Filter by Doctor if not 'all'
             if (selectedDoctorId !== 'all' && a.doctorId !== selectedDoctorId) return false;
-            return true;
+            return filteredDateMatch(a, currentDate, viewMode);
         });
-    }, [appointments, selectedDoctorId]);
+    }, [appointments, selectedDoctorId, currentDate, viewMode]);
+
+    // Helper para filtrar por fecha visual
+    function filteredDateMatch(a: Appointment, date: Date, mode: 'daily' | 'weekly') {
+        // Simple logic: we are filtering mainly in the render loop for slots, 
+        // global filter here might be redundant if we just map active slots.
+        // But let's keep it simple.
+        return true;
+    }
+
+    // Handle Click on Existing Appointment
+    const handleAppointmentClick = (e: React.MouseEvent, appt: Appointment) => {
+        e.stopPropagation();
+        setSelectedAppt(appt);
+
+        // Pre-fill modal for viewing details
+        const patientName = patients.find(p => p.id === appt.patientId)?.name || '';
+        setApptSearch(patientName);
+        setBookingDoctorId(appt.doctorId);
+        setBookingTreatment(typeof appt.treatment === 'string' ? appt.treatment : (appt.treatment as any)?.id || '');
+        // Other fields would need to be in Appointment type to prefill correctly (price, duration, obs etc.)
+        // Assuming default for now if missing
+
+        setActiveSlot({ time: appt.time, dayIdx: 0 }); // Visual context
+        setIsAppointmentModalOpen(true);
+    };
 
     // Handle Booking
     const handleBooking = async () => {
+        if (selectedAppt) {
+            // Update logic here if requested, currently user only asked for "Ver Cita" button
+            alert("Modo edición no implementado completamente. Solo visualización.");
+            return;
+        }
+
         if (!activeSlot || !apptSearch) return;
 
         // Find Patient
@@ -125,6 +159,7 @@ const Agenda: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Header ... */}
             <div className="flex flex-col xl:flex-row justify-between items-end xl:items-center gap-4 bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                 <div>
                     <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Agenda Médica</h2>
@@ -134,8 +169,6 @@ const Agenda: React.FC = () => {
                 </div>
 
                 <div className="flex gap-4 items-center flex-wrap justify-end">
-                    {/* FILTERS REMOVED AS REQUESTED */}
-
                     {/* DOCTOR SELECTOR (ADMIN ONLY) */}
                     {(currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') && (
                         <div className="bg-slate-50 p-1 rounded-xl border border-slate-200">
@@ -172,7 +205,6 @@ const Agenda: React.FC = () => {
             <div className="bg-white rounded-[2.5rem] p-8 shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden relative">
                 <div className="overflow-x-auto pb-4">
                     <div className="min-w-[1000px]">
-                        {/* Header Row */}
                         {/* Header Row */}
                         <div className={`grid gap-4 mb-6 ${viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? '' : 'grid-cols-8'}`}
                             style={viewMode === 'daily' && selectedDoctorId === 'all' && (currentUserRole === 'ADMIN' || currentUserRole === 'RECEPTION') ? { gridTemplateColumns: 'repeat(16, minmax(0, 1fr))' } : {}}
@@ -231,12 +263,17 @@ const Agenda: React.FC = () => {
                                                     onClick={() => {
                                                         setActiveSlot({ time, dayIdx: 0 });
                                                         setSelectedDoctorId(doc.id);
-                                                        setBookingDoctorId(doc.id); // Init modal doc
+                                                        setBookingDoctorId(doc.id);
+                                                        setSelectedAppt(null); // Clear selection
                                                         setIsAppointmentModalOpen(true);
                                                     }}
                                                 >
                                                     {appointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0] && a.doctorId === doc.id).map(a => (
-                                                        <div key={a.id} className="absolute inset-2 bg-blue-100 text-blue-700 p-2 rounded-xl text-[10px] font-bold border border-blue-200 overflow-hidden leading-tight">
+                                                        <div
+                                                            key={a.id}
+                                                            onClick={(e) => handleAppointmentClick(e, a)}
+                                                            className="absolute inset-2 bg-blue-100 text-blue-700 p-2 rounded-xl text-[10px] font-bold border border-blue-200 overflow-hidden leading-tight hover:scale-[1.02] transition-transform cursor-pointer shadow-sm hover:shadow-md"
+                                                        >
                                                             {patients.find(p => p.id === a.patientId)?.name || 'Paciente'}
                                                         </div>
                                                     ))}
@@ -247,12 +284,17 @@ const Agenda: React.FC = () => {
                                                 onClick={() => {
                                                     setActiveSlot({ time, dayIdx: 0 });
                                                     setBookingDoctorId(selectedDoctorId === 'all' ? '' : selectedDoctorId);
+                                                    setSelectedAppt(null); // Clear selection
                                                     setIsAppointmentModalOpen(true);
                                                 }}
                                             >
                                                 {/* Show existing appointments */}
-                                                {filteredAppointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0]).map(a => (
-                                                    <div key={a.id} className="absolute inset-2 bg-blue-100 text-blue-700 p-2 rounded-xl text-xs font-bold border border-blue-200 flex flex-col justify-center">
+                                                {appointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0] && (selectedDoctorId === 'all' || a.doctorId === selectedDoctorId)).map(a => (
+                                                    <div
+                                                        key={a.id}
+                                                        onClick={(e) => handleAppointmentClick(e, a)}
+                                                        className="absolute inset-2 bg-blue-100 text-blue-700 p-2 rounded-xl text-xs font-bold border border-blue-200 flex flex-col justify-center hover:scale-[1.02] transition-transform cursor-pointer shadow-sm hover:shadow-md"
+                                                    >
                                                         <span>{patients.find(p => p.id === a.patientId)?.name || 'Paciente'}</span>
                                                         <span className="text-[10px] opacity-70">
                                                             {typeof a.treatment === 'object' && a.treatment !== null
@@ -262,7 +304,7 @@ const Agenda: React.FC = () => {
                                                     </div>
                                                 ))}
                                                 {/* Empty State Plus */}
-                                                {filteredAppointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0]).length === 0 && (
+                                                {appointments.filter(a => a.time === time && a.date === currentDate.toISOString().split('T')[0] && (selectedDoctorId === 'all' || a.doctorId === selectedDoctorId)).length === 0 && (
                                                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-2 text-blue-500 font-bold text-xs uppercase tracking-wide">
                                                         <Plus size={16} />
                                                     </div>
@@ -282,18 +324,23 @@ const Agenda: React.FC = () => {
                                         d.setDate(diff);
                                         const dateStr = d.toISOString().split('T')[0];
 
-                                        const cellAppts = filteredAppointments.filter(a => a.time === time && a.date === dateStr);
+                                        const cellAppts = appointments.filter(a => a.time === time && a.date === dateStr && (selectedDoctorId === 'all' || a.doctorId === selectedDoctorId));
 
                                         return (
                                             <div key={i} className="col-span-1 h-24 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 hover:bg-white hover:border-solid hover:border-blue-400 transition-all cursor-pointer relative"
                                                 onClick={() => {
                                                     setActiveSlot({ time, dayIdx: i });
                                                     setBookingDoctorId(selectedDoctorId === 'all' ? '' : selectedDoctorId);
+                                                    setSelectedAppt(null); // Clear selection
                                                     setIsAppointmentModalOpen(true);
                                                 }}
                                             >
                                                 {cellAppts.map(a => (
-                                                    <div key={a.id} className="absolute inset-1 bg-blue-100 text-blue-700 p-1 rounded-lg text-[9px] font-bold border border-blue-200 overflow-hidden leading-tight">
+                                                    <div
+                                                        key={a.id}
+                                                        onClick={(e) => handleAppointmentClick(e, a)}
+                                                        className="absolute inset-1 bg-blue-100 text-blue-700 p-1 rounded-lg text-[9px] font-bold border border-blue-200 overflow-hidden leading-tight hover:scale-105 transition-transform shadow-sm"
+                                                    >
                                                         {patients.find(p => p.id === a.patientId)?.name?.split(' ')[0] || 'Pct'}
                                                     </div>
                                                 ))}
@@ -311,7 +358,19 @@ const Agenda: React.FC = () => {
             {isAppointmentModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in">
                     <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl space-y-6">
-                        <h3 className="text-2xl font-black text-slate-900">Nueva Cita</h3>
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-2xl font-black text-slate-900">{selectedAppt ? 'Detalles Cita' : 'Nueva Cita'}</h3>
+                            {selectedAppt && (
+                                <button
+                                    onClick={() => navigate(`/appointment/${selectedAppt.id}`)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase flex items-center gap-2 shadow-lg transition-all"
+                                >
+                                    <ExternalLink size={16} />
+                                    <span>Ver Cita (Box)</span>
+                                </button>
+                            )}
+                        </div>
+
                         <p className="text-sm text-slate-500">
                             {activeSlot?.time} - {viewMode === 'daily' ? currentDate.toLocaleDateString() : 'Día ' + activeSlot?.dayIdx}
                         </p>
@@ -324,9 +383,10 @@ const Agenda: React.FC = () => {
                                 placeholder="Buscar paciente (Nombre)"
                                 value={apptSearch}
                                 onChange={(e) => setApptSearch(e.target.value)}
+                                disabled={!!selectedAppt} // Readonly if viewing
                             />
-                            {/* Suggestions - Solo mostrar si NO hay coincidencia exacta */}
-                            {apptSearch.length > 0 && !patients.find(p => p.name === apptSearch) && (
+                            {/* Suggestions - Solo mostrar si NO hay coincidencia exacta y NO estamos en modo ver */}
+                            {!selectedAppt && apptSearch.length > 0 && !patients.find(p => p.name === apptSearch) && (
                                 <div className="mt-2 bg-white border border-slate-100 rounded-xl shadow-lg max-h-40 overflow-y-auto">
                                     {patients
                                         .filter(p => (p.name?.toLowerCase() || '').includes(apptSearch.toLowerCase()) || (p.dni || '').includes(apptSearch))
@@ -355,6 +415,7 @@ const Agenda: React.FC = () => {
                                     setBookingDoctorId(e.target.value);
                                     setBookingTreatment(''); // Reset treatment when doctor changes
                                 }}
+                                disabled={!!selectedAppt}
                             >
                                 <option value="">Seleccionar Doctor...</option>
                                 {DOCTORS.map(d => (
@@ -370,7 +431,7 @@ const Agenda: React.FC = () => {
                                 className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
                                 value={bookingTreatment}
                                 onChange={(e) => setBookingTreatment(e.target.value)}
-                                disabled={!bookingDoctorId}
+                                disabled={!bookingDoctorId || !!selectedAppt}
                             >
                                 <option value="">Seleccionar Tratamiento...</option>
                                 {DENTAL_SERVICES
@@ -400,6 +461,7 @@ const Agenda: React.FC = () => {
                                     className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
                                     value={bookingPrice}
                                     onChange={e => setBookingPrice(Number(e.target.value))}
+                                    disabled={!!selectedAppt}
                                 />
                             </div>
                             <div>
@@ -408,6 +470,7 @@ const Agenda: React.FC = () => {
                                     className="w-full bg-slate-50 p-3 rounded-xl border border-slate-200 mt-2 outline-none font-bold text-slate-600"
                                     value={bookingDuration}
                                     onChange={e => setBookingDuration(Number(e.target.value))}
+                                    disabled={!!selectedAppt}
                                 >
                                     <option value={15}>15 Min</option>
                                     <option value={30}>30 Min</option>
@@ -426,12 +489,19 @@ const Agenda: React.FC = () => {
                                 placeholder="Notas adicionales..."
                                 value={bookingObservation}
                                 onChange={e => setBookingObservation(e.target.value)}
+                                disabled={!!selectedAppt}
                             />
                         </div>
 
                         <div className="flex gap-4 pt-4">
-                            <button onClick={() => setIsAppointmentModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">Cancelar</button>
-                            <button onClick={handleBooking} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">Confirmar</button>
+                            <button onClick={() => setIsAppointmentModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500">
+                                {selectedAppt ? 'Cerrar' : 'Cancelar'}
+                            </button>
+                            {!selectedAppt && (
+                                <button onClick={handleBooking} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold uppercase shadow-lg">
+                                    Confirmar
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

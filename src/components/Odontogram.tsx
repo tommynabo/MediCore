@@ -59,7 +59,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 
     // Cargar tratamientos del paciente desde API
     useEffect(() => {
-        if (patientId) {
+        if (patientId && api?.treatments?.getByPatient) {
             api.treatments.getByPatient(patientId)
                 .then((data: PatientTreatment[]) => {
                     setTreatments(data || []);
@@ -67,7 +67,10 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 })
                 .catch(err => console.error("Error cargando tratamientos:", err));
         }
-    }, [patientId]);
+    }, [patientId, api]);
+
+    // Helper para filtrar tratamientos por diente
+    const getToothTreatments = (toothId: number) => treatments.filter(t => t.toothId === toothId);
 
     // Filtrar servicios según búsqueda
     const filteredServices = ALL_SERVICES.filter(service =>
@@ -217,18 +220,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         }
     };
 
-    // Obtener color del diente según tratamientos
-    const getToothColor = (toothId: number): string => {
-        const toothTreatments = treatments.filter(t => t.toothId === toothId);
-        if (toothTreatments.length === 0) return '#e2e8f0'; // slate-200 (sano)
-
-        const hasCompleted = toothTreatments.some(t => t.status === 'COMPLETADO');
-        const hasPending = toothTreatments.some(t => t.status === 'PENDIENTE');
-
-        if (hasCompleted) return '#10b981'; // green (completado)
-        if (hasPending) return '#f59e0b'; // amber (pendiente)
-        return '#3b82f6'; // blue (en proceso)
-    };
 
     return (
         <div className="w-full space-y-6">
@@ -260,12 +251,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 </div>
 
                 {/* Dientes Superiores */}
-                <div className="flex justify-center gap-1 mb-8">
+                <div className="flex justify-center gap-2 mb-12 flex-wrap">
                     {upperTeeth.map(toothId => (
                         <Tooth
                             key={toothId}
                             id={toothId}
-                            color={getToothColor(toothId)}
+                            treatments={getToothTreatments(toothId)}
                             isSelected={selectedTeeth.includes(toothId)}
                             onClick={(e) => handleToothClick(toothId, e)}
                         />
@@ -273,15 +264,15 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 </div>
 
                 {/* Divider */}
-                <div className="border-t-2 border-slate-300 my-6"></div>
+                <div className="border-t-2 border-slate-300 my-8"></div>
 
                 {/* Dientes Inferiores */}
-                <div className="flex justify-center gap-1 mb-8">
+                <div className="flex justify-center gap-2 mb-8 flex-wrap">
                     {lowerTeeth.map(toothId => (
                         <Tooth
                             key={toothId}
                             id={toothId}
-                            color={getToothColor(toothId)}
+                            treatments={getToothTreatments(toothId)}
                             isSelected={selectedTeeth.includes(toothId)}
                             onClick={(e) => handleToothClick(toothId, e)}
                         />
@@ -469,31 +460,65 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 // Tooth Component
 const Tooth: React.FC<{
     id: number;
-    color: string;
+    treatments: PatientTreatment[];
     isSelected: boolean;
     onClick: (e: React.MouseEvent) => void;
-}> = ({ id, color, isSelected, onClick }) => {
+}> = ({ id, treatments, isSelected, onClick }) => {
     const shape = getToothShape(id);
 
+    // Determinar color resumen
+    let color = '#e2e8f0'; // Sano default
+    if (treatments.length > 0) {
+        if (treatments.some(t => t.status === 'PENDIENTE')) color = '#f59e0b'; // Pendiente (Amber)
+        else if (treatments.some(t => t.status === 'EN_PROCESO')) color = '#3b82f6'; // En proceso (Blue)
+        else color = '#10b981'; // Completado (Green)
+    }
+
     return (
-        <div className="relative group cursor-pointer" onClick={onClick}>
-            <svg
-                width="35"
-                height="55"
-                viewBox="0 0 30 50"
-                className="transition-all duration-200"
-            >
-                <path
-                    d={shape}
-                    fill={color}
-                    stroke={isSelected ? '#8b5cf6' : '#cbd5e1'}
-                    strokeWidth={isSelected ? 3 : 1}
-                    className="transition-all group-hover:stroke-purple-500"
-                />
-            </svg>
-            <div className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[10px] font-black ${isSelected ? 'text-purple-600' : 'text-slate-600'
-                }`}>
-                {id}
+        <div className="flex flex-col items-center group cursor-pointer w-[60px]" onClick={onClick}>
+            {/* Diente SVG */}
+            <div className="relative mb-2 transition-transform hover:-translate-y-1">
+                <svg
+                    width="40"
+                    height="60"
+                    viewBox="0 0 30 50"
+                    className="overflow-visible"
+                >
+                    <path
+                        d={shape}
+                        fill={color}
+                        stroke={isSelected ? '#7c3aed' : '#94a3b8'} // Violet seleccionado, Slate normal
+                        strokeWidth={isSelected ? 3 : 1}
+                        className="transition-all duration-300"
+                    />
+                </svg>
+                <div className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[10px] font-black ${isSelected ? 'text-violet-700' : 'text-slate-500'
+                    }`}>
+                    {id}
+                </div>
+            </div>
+
+            {/* Lista de Tratamientos "Apilados" */}
+            <div className="flex flex-col gap-1 w-full mt-6 px-1">
+                {treatments.map((t, idx) => (
+                    <div
+                        key={t.id || idx}
+                        className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-md p-1 shadow-sm text-[8px] leading-tight overflow-hidden"
+                        title={`${t.serviceName} (${t.status})`}
+                    >
+                        <input
+                            type="checkbox"
+                            checked={t.status === 'COMPLETADO'}
+                            readOnly
+                            className="w-2 h-2 rounded-sm border-slate-300 text-blue-600 focus:ring-0 cursor-default"
+                        />
+                        <span className="truncate flex-1 font-bold text-slate-700">
+                            {t.serviceName.slice(0, 8)}{t.serviceName.length > 8 ? '.' : ''}
+                        </span>
+                    </div>
+                ))}
+                {/* Placeholder invisible para mantener espacio si no hay tratamientos, opcional */}
+                {treatments.length === 0 && <div className="h-4"></div>}
             </div>
         </div>
     );
