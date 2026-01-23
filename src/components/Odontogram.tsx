@@ -1,16 +1,14 @@
-import React, { useState } from 'react';
-import { ToothState } from '../../types';
-import { Check, AlertCircle, Plus, DollarSign, FileText } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Trash2, FileText, Plus, X } from 'lucide-react';
+import { PatientTreatment } from '../../types';
 
 interface OdontogramProps {
     patientId: string;
     isEditable: boolean;
-    initialState: Record<number, ToothState>;
-    onAddTreatment?: (toothId: number) => void;
-    onAddToBudget?: (toothId: number, status: string) => void;
+    onTreatmentsChange?: (treatments: PatientTreatment[]) => void;
 }
 
-// SVG PATHS (Simplified Realistic Shapes)
+// SVG PATHS para dientes
 const PATHS = {
     incisor: "M10,5 L20,5 L22,30 L15,45 L8,30 Z",
     canine: "M15,2 L25,10 L22,35 L15,50 L8,35 L5,10 Z",
@@ -18,163 +16,406 @@ const PATHS = {
     molar: "M2,5 L10,2 L20,2 L28,5 L30,20 L25,35 L15,40 L5,35 L0,20 Z"
 };
 
-// Mapping ISO 3950 to Shapes
-const getToothShape = (id: number) => {
-    const n = id % 10;
-    if (n >= 1 && n <= 2) return PATHS.incisor; // Central/Lateral Incisor
-    if (n === 3) return PATHS.canine; // Canine
-    if (n >= 4 && n <= 5) return PATHS.premolar; // Premolars
-    return PATHS.molar; // Molars (6,7,8)
+const getToothShape = (id: number): string => {
+    const lastDigit = id % 10;
+    if (lastDigit >= 1 && lastDigit <= 2) return PATHS.incisor;
+    if (lastDigit === 3) return PATHS.canine;
+    if (lastDigit === 4 || lastDigit === 5) return PATHS.premolar;
+    return PATHS.molar;
 };
 
-const getToothLabel = (id: number) => {
-    const n = id % 10;
-    const names = ["", "Incisivo Central", "Incisivo Lateral", "Canino", "Premolar 1", "Premolar 2", "Molar 1", "Molar 2", "Molar 3"];
-    return `${id} - ${names[n] || 'Diente'}`;
-};
+// Servicios dentales - ESTOS DEBERÍAN CARGARSE DESDE LA BASE DE DATOS
+const ALL_SERVICES = [
+    { id: 'srv-1', name: 'Limpieza Dental', price: 60 },
+    { id: 'srv-2', name: 'Extracción', price: 150 },
+    { id: 'srv-3', name: 'Empaste', price: 80 },
+    { id: 'srv-4', name: 'Endodoncia', price: 350 },
+    { id: 'srv-5', name: 'Corona', price: 450 },
+    { id: 'srv-6', name: 'Implante', price: 1200 },
+    { id: 'srv-7', name: 'Blanqueamiento', price: 200 },
+    { id: 'srv-8', name: 'Ortodoncia (mensual)', price: 180 },
+    { id: 'srv-9', name: 'Carilla', price: 300 },
+    { id: 'srv-10', name: 'Puente', price: 800 },
+];
 
-export const Odontogram: React.FC<OdontogramProps> = ({ patientId, isEditable, initialState, onAddTreatment, onAddToBudget }) => {
-    const [teeth, setTeeth] = useState<Record<number, ToothState>>(initialState);
-    const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
+export const Odontogram: React.FC<OdontogramProps> = ({
+    patientId,
+    isEditable,
+    onTreatmentsChange
+}) => {
+    // Estados
+    const [selectedTeeth, setSelectedTeeth] = useState<number[]>([]);
+    const [treatments, setTreatments] = useState<PatientTreatment[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedTreatmentsForBudget, setSelectedTreatmentsForBudget] = useState<string[]>([]);
 
-    // Quadrants (FDI Notation)
-    const q1 = [18, 17, 16, 15, 14, 13, 12, 11]; // Upper Right
-    const q2 = [21, 22, 23, 24, 25, 26, 27, 28]; // Upper Left
-    const q3 = [38, 37, 36, 35, 34, 33, 32, 31]; // Lower Left (Standard view is inverted L/R usually, let's stick to chart)
-    const q4 = [41, 42, 43, 44, 45, 46, 47, 48]; // Lower Right
+    // Dientes (ISO 3950)
+    const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
+    const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
-    // Correct visual order: Right side of mouth is Left on screen usually for doctors viewing patient
-    // Screen Left: Q1 (18-11), Q4 (48-41)
-    // Screen Right: Q2 (21-28), Q3 (31-38)
+    // Cargar tratamientos del paciente desde API
+    useEffect(() => {
+        if (patientId) {
+            // TODO: Cargar desde API
+        }
+    }, [patientId]);
 
-    // Status Colors
-    const getStatusColor = (status?: string) => {
-        switch (status) {
-            case 'CARIES': return 'fill-red-400 stroke-red-600';
-            case 'FILLED': return 'fill-blue-400 stroke-blue-600';
-            case 'MISSING': return 'fill-slate-200 stroke-slate-300 opacity-50';
-            case 'CROWN': return 'fill-yellow-400 stroke-yellow-600';
-            case 'ENDODONTICS': return 'fill-purple-400 stroke-purple-600';
-            default: return 'fill-white stroke-slate-400 hover:fill-slate-50';
+    // Filtrar servicios según búsqueda
+    const filteredServices = ALL_SERVICES.filter(service =>
+        service.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Manejo de clic en diente
+    const handleToothClick = (toothId: number, event: React.MouseEvent) => {
+        if (!isEditable) return;
+
+        if (event.ctrlKey || event.metaKey) {
+            // Selección múltiple con Ctrl/Cmd
+            setSelectedTeeth(prev =>
+                prev.includes(toothId)
+                    ? prev.filter(id => id !== toothId)
+                    : [...prev, toothId]
+            );
+        } else {
+            // Selección simple
+            setSelectedTeeth([toothId]);
         }
     };
 
-    const handleToothClick = (id: number) => {
-        if (!isEditable) return;
-        setSelectedTooth(id);
+    // Añadir tratamiento a dientes seleccionados
+    const handleAddTreatment = (service: typeof ALL_SERVICES[0]) => {
+        if (selectedTeeth.length === 0) {
+            alert('Selecciona al menos un diente');
+            return;
+        }
+
+        // Crear un tratamiento POR CADA diente seleccionado
+        const newTreatments: PatientTreatment[] = selectedTeeth.map(toothId => ({
+            id: `temp-${Date.now()}-${Math.random()}`,
+            patientId,
+            serviceId: service.id,
+            serviceName: service.name,
+            toothId,
+            price: service.price,
+            status: 'PENDIENTE',
+            createdAt: new Date().toISOString()
+        }));
+
+        // Añadir a la lista EXISTENTE (acumulación)
+        const updatedTreatments = [...treatments, ...newTreatments];
+        setTreatments(updatedTreatments);
+        onTreatmentsChange?.(updatedTreatments);
+
+        // Limpiar selección de dientes y búsqueda
+        setSelectedTeeth([]);
+        setSearchTerm('');
     };
 
-    const updateStatus = (id: number, status: ToothState['status']) => {
-        setTeeth(prev => ({ ...prev, [id]: { id, status } }));
-        setSelectedTooth(null);
+    // Eliminar tratamiento
+    const handleDeleteTreatment = (treatmentId: string) => {
+        if (!confirm('¿Eliminar este tratamiento?')) return;
+
+        const updated = treatments.filter(t => t.id !== treatmentId);
+        setTreatments(updated);
+        onTreatmentsChange?.(updated);
+    };
+
+    // Generar presupuesto
+    const handleCreateBudget = async () => {
+        if (selectedTreatmentsForBudget.length === 0) {
+            alert('Selecciona al menos un tratamiento para presupuestar');
+            return;
+        }
+
+        const selectedItems = treatments.filter(t =>
+            selectedTreatmentsForBudget.includes(t.id)
+        );
+
+        const total = selectedItems.reduce((sum, item) => sum + item.price, 0);
+
+        console.log('Crear presupuesto:', {
+            patientId,
+            items: selectedItems.map(t => ({
+                name: `${t.serviceName} - Diente ${t.toothId}`,
+                price: t.price
+            })),
+            total
+        });
+
+        alert(`✅ Presupuesto creado: ${total}€ (${selectedItems.length} tratamientos)`);
+
+        // Limpiar selección
+        setSelectedTreatmentsForBudget([]);
+    };
+
+    // Obtener color del diente según tratamientos
+    const getToothColor = (toothId: number): string => {
+        const toothTreatments = treatments.filter(t => t.toothId === toothId);
+        if (toothTreatments.length === 0) return '#e2e8f0'; // slate-200 (sano)
+
+        const hasCompleted = toothTreatments.some(t => t.status === 'COMPLETADO');
+        const hasPending = toothTreatments.some(t => t.status === 'PENDIENTE');
+
+        if (hasCompleted) return '#10b981'; // green (completado)
+        if (hasPending) return '#f59e0b'; // amber (pendiente)
+        return '#3b82f6'; // blue (en proceso)
     };
 
     return (
-        <div className="relative p-6 bg-slate-50 rounded-[2rem] border border-slate-200 shadow-inner max-w-5xl mx-auto">
+        <div className="w-full space-y-6">
+            {/* Odontograma Visual */}
+            <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm">
 
-            {/* Upper Jaw */}
-            <div className="flex justify-center gap-12 mb-8">
-                {/* Q1 (Right Patient -> Left Screen) */}
-                <div className="flex gap-1">
-                    {q1.map(id => (
-                        <Tooth key={id} id={id} status={teeth[id]?.status} onClick={() => handleToothClick(id)} />
+                {/* Instrucciones */}
+                <div className="mb-6 p-4 bg-blue-50 rounded-xl text-xs text-blue-700 font-bold flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-0.5">💡</div>
+                    <div>
+                        <p className="font-black mb-1">CÓMO USAR:</p>
+                        <p><strong>1.</strong> Haz clic en un diente (o Ctrl/Cmd + clic para seleccionar varios)</p>
+                        <p><strong>2.</strong> Busca el tratamiento en la barra inferior</p>
+                        <p><strong>3.</strong> Haz clic en el tratamiento para asignarlo</p>
+                        <p><strong>4.</strong> Puedes añadir varios tratamientos al mismo diente</p>
+                    </div>
+                </div>
+
+                {/* Dientes Superiores */}
+                <div className="flex justify-center gap-1 mb-8">
+                    {upperTeeth.map(toothId => (
+                        <Tooth
+                            key={toothId}
+                            id={toothId}
+                            color={getToothColor(toothId)}
+                            isSelected={selectedTeeth.includes(toothId)}
+                            onClick={(e) => handleToothClick(toothId, e)}
+                        />
                     ))}
                 </div>
-                {/* Q2 (Left Patient -> Right Screen) */}
-                <div className="flex gap-1">
-                    {q2.map(id => (
-                        <Tooth key={id} id={id} status={teeth[id]?.status} onClick={() => handleToothClick(id)} />
+
+                {/* Divider */}
+                <div className="border-t-2 border-slate-300 my-6"></div>
+
+                {/* Dientes Inferiores */}
+                <div className="flex justify-center gap-1 mb-8">
+                    {lowerTeeth.map(toothId => (
+                        <Tooth
+                            key={toothId}
+                            id={toothId}
+                            color={getToothColor(toothId)}
+                            isSelected={selectedTeeth.includes(toothId)}
+                            onClick={(e) => handleToothClick(toothId, e)}
+                        />
                     ))}
+                </div>
+
+                {/* Dientes Seleccionados */}
+                {selectedTeeth.length > 0 && (
+                    <div className="mt-6 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                        <div className="flex items-center justify-between mb-3">
+                            <p className="text-sm font-black text-purple-900">
+                                Dientes seleccionados: <span className="text-purple-600">{selectedTeeth.join(', ')}</span>
+                            </p>
+                            <button
+                                onClick={() => setSelectedTeeth([])}
+                                className="text-xs font-bold text-purple-600 hover:text-purple-800 flex items-center gap-1"
+                            >
+                                <X size={14} /> Limpiar
+                            </button>
+                        </div>
+                        <p className="text-xs text-purple-700">
+                            👇 Busca y selecciona un tratamiento abajo para asignarlo a estos dientes
+                        </p>
+                    </div>
+                )}
+
+                {/* Barra de Búsqueda de Tratamientos */}
+                <div className="mt-8 pt-6 border-t border-slate-200">
+                    <label className="text-xs font-black uppercase text-slate-400 mb-3 block">
+                        🔍 Buscar Tratamiento
+                    </label>
+
+                    <div className="relative mb-4">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Ej: Limpieza, Extracción, Endodoncia..."
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-blue-100"
+                        />
+                    </div>
+
+                    {/* Lista de Tratamientos Disponibles */}
+                    {searchTerm.length > 0 && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                            {filteredServices.length === 0 ? (
+                                <div className="col-span-full text-center p-6 text-slate-400 text-sm">
+                                    No se encontraron tratamientos
+                                </div>
+                            ) : (
+                                filteredServices.map(service => (
+                                    <button
+                                        key={service.id}
+                                        onClick={() => handleAddTreatment(service)}
+                                        disabled={selectedTeeth.length === 0}
+                                        className="group p-4 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                                    >
+                                        <p className="text-sm font-black text-slate-900 mb-1">{service.name}</p>
+                                        <p className="text-xs font-bold text-blue-600">{service.price}€</p>
+                                        <div className="mt-2 flex items-center gap-1 text-xs text-slate-500 group-hover:text-blue-600">
+                                            <Plus size={12} />
+                                            <span>Añadir</span>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* Lower Jaw */}
-            <div className="flex justify-center gap-12">
-                {/* Q4 (Right Patient -> Left Screen) */}
-                <div className="flex gap-1">
-                    {q4.reverse().map(id => (
-                        <Tooth key={id} id={id} status={teeth[id]?.status} onClick={() => handleToothClick(id)} />
-                    ))}
+            {/* Tabla de Tratamientos Asignados */}
+            <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                    <h4 className="text-lg font-black text-slate-900">
+                        📋 Tratamientos Planificados ({treatments.length})
+                    </h4>
+                    <button
+                        onClick={handleCreateBudget}
+                        disabled={selectedTreatmentsForBudget.length === 0}
+                        className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl text-xs font-black flex items-center gap-2 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <FileText size={16} />
+                        Presupuestar ({selectedTreatmentsForBudget.length})
+                    </button>
                 </div>
-                {/* Q3 (Left Patient -> Right Screen) */}
-                <div className="flex gap-1">
-                    {q3.map(id => (
-                        <Tooth key={id} id={id} status={teeth[id]?.status} onClick={() => handleToothClick(id)} />
-                    ))}
+
+                {/* Header */}
+                <div className="grid grid-cols-12 gap-4 pb-3 border-b border-slate-200 text-[10px] font-black uppercase text-slate-400">
+                    <div className="col-span-1">
+                        <input
+                            type="checkbox"
+                            checked={selectedTreatmentsForBudget.length === treatments.length && treatments.length > 0}
+                            onChange={(e) => {
+                                if (e.target.checked) {
+                                    setSelectedTreatmentsForBudget(treatments.map(t => t.id));
+                                } else {
+                                    setSelectedTreatmentsForBudget([]);
+                                }
+                            }}
+                            className="w-4 h-4 rounded cursor-pointer"
+                        />
+                    </div>
+                    <div className="col-span-1">Diente</div>
+                    <div className="col-span-5">Tratamiento</div>
+                    <div className="col-span-2">Precio</div>
+                    <div className="col-span-2">Estado</div>
+                    <div className="col-span-1 text-right">-</div>
                 </div>
+
+                {/* Rows */}
+                <div className="space-y-2 mt-4">
+                    {treatments.length === 0 ? (
+                        <div className="text-center py-12 text-slate-400">
+                            <p className="text-sm font-bold mb-2">No hay tratamientos planificados</p>
+                            <p className="text-xs">Selecciona dientes y busca tratamientos arriba para empezar</p>
+                        </div>
+                    ) : (
+                        treatments.map((treatment) => (
+                            <div
+                                key={treatment.id}
+                                className="grid grid-cols-12 gap-4 items-center p-4 bg-slate-50 rounded-xl text-sm border border-slate-100 hover:border-blue-200 transition-colors"
+                            >
+                                <div className="col-span-1">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedTreatmentsForBudget.includes(treatment.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedTreatmentsForBudget(prev => [...prev, treatment.id]);
+                                            } else {
+                                                setSelectedTreatmentsForBudget(prev => prev.filter(id => id !== treatment.id));
+                                            }
+                                        }}
+                                        className="w-4 h-4 rounded cursor-pointer"
+                                    />
+                                </div>
+                                <div className="col-span-1 font-black text-purple-600 text-center text-lg">
+                                    {treatment.toothId}
+                                </div>
+                                <div className="col-span-5 font-bold text-slate-900">
+                                    {treatment.serviceName}
+                                </div>
+                                <div className="col-span-2 font-black text-slate-900">
+                                    {treatment.price}€
+                                </div>
+                                <div className="col-span-2">
+                                    <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${treatment.status === 'COMPLETADO' ? 'bg-green-100 text-green-600' :
+                                        treatment.status === 'EN_PROCESO' ? 'bg-blue-100 text-blue-600' :
+                                            'bg-amber-100 text-amber-600'
+                                        }`}>
+                                        {treatment.status}
+                                    </span>
+                                </div>
+                                <div className="col-span-1 flex justify-end">
+                                    <button
+                                        onClick={() => handleDeleteTreatment(treatment.id)}
+                                        className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* Total */}
+                {treatments.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-slate-200 flex justify-between items-center">
+                        <p className="text-sm font-bold text-slate-600">
+                            Total de todos los tratamientos:
+                        </p>
+                        <p className="text-2xl font-black text-slate-900">
+                            {treatments.reduce((sum, t) => sum + t.price, 0)}€
+                        </p>
+                    </div>
+                )}
             </div>
-
-            {/* POPUP MENU */}
-            {selectedTooth && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white p-6 rounded-2xl shadow-2xl border border-slate-100 z-50 w-80 animate-in zoom-in-95 duration-200">
-                    <div className="flex justify-between items-center mb-4">
-                        <h4 className="font-black text-slate-900 text-lg">{getToothLabel(selectedTooth)}</h4>
-                        <button onClick={() => setSelectedTooth(null)} className="text-slate-400 hover:text-slate-900 font-bold">✕</button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                        {[
-                            { l: 'Sano', s: 'HEALTHY', c: 'bg-slate-100 text-slate-600' },
-                            { l: 'Caries', s: 'CARIES', c: 'bg-red-100 text-red-700' },
-                            { l: 'Empaste', s: 'FILLED', c: 'bg-blue-100 text-blue-700' },
-                            { l: 'Corona', s: 'CROWN', c: 'bg-yellow-100 text-yellow-700' },
-                            { l: 'Endodoncia', s: 'ENDODONTICS', c: 'bg-purple-100 text-purple-700' },
-                            { l: 'Ausente', s: 'MISSING', c: 'bg-slate-200 text-slate-500 line-through' },
-                        ].map((opt) => (
-                            <button
-                                key={opt.s}
-                                onClick={() => updateStatus(selectedTooth, opt.s as any)}
-                                className={`px-3 py-2 rounded-xl text-xs font-bold ${opt.c} hover:brightness-95 transition-all`}
-                            >
-                                {opt.l}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="space-y-2 pt-4 border-t border-slate-100">
-                        {onAddTreatment && (
-                            <button
-                                onClick={() => { onAddTreatment(selectedTooth); setSelectedTooth(null); }}
-                                className="w-full py-3 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase flex items-center justify-center gap-2 hover:bg-slate-800"
-                            >
-                                <FileText size={14} /> Añadir Tratamiento
-                            </button>
-                        )}
-                        {onAddToBudget && (
-                            <button
-                                onClick={() => { onAddToBudget(selectedTooth, teeth[selectedTooth]?.status || 'General'); setSelectedTooth(null); }}
-                                className="w-full py-3 bg-white border-2 border-slate-900 text-slate-900 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 hover:bg-slate-50"
-                            >
-                                <DollarSign size={14} /> Añadir a Presupuesto
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* DIMMED OVERLAY */}
-            {selectedTooth && <div className="absolute inset-0 bg-slate-900/10 rounded-[2rem] z-40" onClick={() => setSelectedTooth(null)} />}
         </div>
     );
 };
 
-const Tooth: React.FC<{ id: number; status?: string; onClick: () => void }> = ({ id, status, onClick }) => {
+// Tooth Component
+const Tooth: React.FC<{
+    id: number;
+    color: string;
+    isSelected: boolean;
+    onClick: (e: React.MouseEvent) => void;
+}> = ({ id, color, isSelected, onClick }) => {
     const shape = getToothShape(id);
-    const colorClass = (status === 'CARIES') ? 'fill-red-400 stroke-red-600' :
-        (status === 'FILLED') ? 'fill-blue-400 stroke-blue-600' :
-            (status === 'CROWN') ? 'fill-yellow-400 stroke-yellow-600' :
-                (status === 'ENDODONTICS') ? 'fill-purple-300 stroke-purple-500' :
-                    (status === 'MISSING') ? 'opacity-0' :
-                        'fill-white stroke-slate-300 hover:fill-blue-50 hover:stroke-blue-400';
 
     return (
-        <div className="flex flex-col items-center gap-1 cursor-pointer group" onClick={onClick}>
-            <span className="text-[9px] font-bold text-slate-400 group-hover:text-blue-500">{id}</span>
-            <svg width="35" height="55" viewBox="0 0 35 55" className={`transition-all duration-300 drop-shadow-sm group-hover:drop-shadow-md group-hover:-translate-y-1`}>
-                <path d={shape} className={`${colorClass} stroke-[2px]`} />
-                {/* Root hint */}
-                <path d="M15,40 L15,50" className="stroke-slate-200 stroke-1" />
+        <div className="relative group cursor-pointer" onClick={onClick}>
+            <svg
+                width="35"
+                height="55"
+                viewBox="0 0 30 50"
+                className="transition-all duration-200"
+            >
+                <path
+                    d={shape}
+                    fill={color}
+                    stroke={isSelected ? '#8b5cf6' : '#cbd5e1'}
+                    strokeWidth={isSelected ? 3 : 1}
+                    className="transition-all group-hover:stroke-purple-500"
+                />
             </svg>
+            <div className={`absolute -bottom-6 left-1/2 transform -translate-x-1/2 text-[10px] font-black ${isSelected ? 'text-purple-600' : 'text-slate-600'
+                }`}>
+                {id}
+            </div>
         </div>
     );
 };
+
+export default Odontogram;

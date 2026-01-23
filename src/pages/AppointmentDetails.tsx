@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, CreditCard, FileText } from 'lucide-react';
 import { Appointment, Patient, Budget, Payment } from '../../types';
-import { SimplifiedOdontogram } from '../components/SimplifiedOdontogram';
+import { Odontogram } from '../components/Odontogram';
 import { PaymentModal } from '../components/PaymentModal';
 import { useAppContext } from '../context/AppContext';
 
@@ -161,7 +161,7 @@ export const AppointmentDetails: React.FC = () => {
                     <div className="p-8 min-h-[600px]">
                         {activeTab === 'odontogram' && (
                             <div className="animate-in fade-in slide-in-from-bottom-4">
-                                <SimplifiedOdontogram
+                                <Odontogram
                                     patientId={patient.id}
                                     isEditable={true}
                                     onTreatmentsChange={(treatments) => {

@@ -192,20 +192,6 @@ const Patients: React.FC = () => {
         }
     };
 
-    const handleOdontogramAddTreatment = (toothId: number) => {
-        setTreatmentForm({ name: `Tratamiento Diente ${toothId} `, price: '50', status: 'Pendiente' });
-        setIsNewTreatmentModalOpen(true);
-    };
-
-    const handleOdontogramAddBudget = (toothId: number, status: string) => {
-        setBudgetForm({
-            title: `Presupuesto Diente ${toothId} `,
-            items: [], // Deprecated in UI but kept for type safety if needed, utilizing totalPrice logic instead
-            totalPrice: '100',
-            installments: 1
-        });
-        setIsBudgetModalOpen(true);
-    };
 
     const handleConvertToInvoice = async (budget: any) => {
         if (!confirm("¿Convertir este presupuesto a factura?")) return;
@@ -495,9 +481,7 @@ const Patients: React.FC = () => {
                                 <Odontogram
                                     patientId={selectedPatient.id}
                                     isEditable={true}
-                                    initialState={{}}
-                                    onAddTreatment={handleOdontogramAddTreatment}
-                                    onAddToBudget={handleOdontogramAddBudget}
+                                    onTreatmentsChange={(treatments) => console.log('Treatments updated:', treatments)}
                                 />
                             </div>
                         )}
