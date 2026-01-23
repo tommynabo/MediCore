@@ -189,23 +189,31 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 
     // Generar presupuesto
     const handleCreateBudget = async () => {
-        if (selectedTreatmentsForBudget.length === 0) {
-            alert('Selecciona al menos un tratamiento para presupuestar');
+        let itemsToBudget = [];
+
+        // 1. Si hay selección explícita, usarlos
+        if (selectedTreatmentsForBudget.length > 0) {
+            itemsToBudget = treatments.filter(t => selectedTreatmentsForBudget.includes(t.id));
+        } else {
+            // 2. Si NO hay selección, usar TODOS los pendientes por defecto
+            const pending = treatments.filter(t => t.status === 'PENDIENTE');
+            if (pending.length > 0) itemsToBudget = pending;
+            else if (treatments.length > 0) itemsToBudget = treatments;
+        }
+
+        if (itemsToBudget.length === 0) {
+            alert('No hay tratamientos disponibles para presupuestar.');
             return;
         }
 
-        const selectedItems = treatments.filter(t =>
-            selectedTreatmentsForBudget.includes(t.id)
-        );
-
-        if (confirm(`¿Crear presupuesto con ${selectedItems.length} tratamientos seleccionados?`)) {
+        if (confirm(`¿Crear presupuesto con ${itemsToBudget.length} tratamientos?`)) {
             try {
                 // Preparar items para el presupuesto
-                // Asumimos que la API espera un array de items con { name, price }
-                const budgetItems = selectedItems.map(t => ({
-                    id: crypto.randomUUID(), // ID temporal para el item
-                    name: `${t.serviceName} - Diente ${t.toothId}`,
-                    price: t.price
+                const budgetItems = itemsToBudget.map(t => ({
+                    id: crypto.randomUUID(),
+                    name: `${t.serviceName} - Diente ${t.toothId || 'General'}`,
+                    price: t.price,
+                    serviceId: t.serviceId
                 }));
 
                 await api.budget.create(patientId, budgetItems);
