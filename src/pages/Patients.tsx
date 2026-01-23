@@ -251,7 +251,7 @@ const Patients: React.FC = () => {
         <div className="flex h-full gap-8 max-w-[1920px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
 
             {/* LEFT COLUMN: PATIENT LIST */}
-            <div className={`flex flex - col gap - 6 transition - all duration - 500 ease -in -out ${selectedPatient ? 'w-1/3 min-w-[320px] hidden xl:flex' : 'w-full max-w-5xl mx-auto'} `}>
+            <div className={`flex flex-col gap-6 transition-all duration-500 ease-in-out ${selectedPatient ? 'w-1/3 min-w-[320px] hidden xl:flex' : 'w-full max-w-5xl mx-auto'} `}>
                 {/* Same list code as before... */}
                 <div className="flex items-center justify-between">
                     <h2 className="text-3xl font-black text-slate-900 tracking-tighter">Pacientes</h2>
@@ -279,7 +279,7 @@ const Patients: React.FC = () => {
                         <div
                             key={patient.id}
                             onClick={() => { setSelectedPatient(patient); setPatientTab('ficha'); }}
-                            className={`group p - 5 rounded - [1.5rem] cursor - pointer border transition - all duration - 300 relative overflow - hidden
+                            className={`group p-5 rounded-[1.5rem] cursor-pointer border transition-all duration-300 relative overflow-hidden
                   ${selectedPatient?.id === patient.id
                                     ? 'bg-slate-900 text-white border-slate-900 shadow-2xl scale-[1.02]'
                                     : 'bg-white text-slate-600 border-slate-100 hover:border-blue-300 hover:shadow-lg'
@@ -288,15 +288,15 @@ const Patients: React.FC = () => {
                         >
                             <div className="flex justify-between items-start relative z-10">
                                 <div className="flex gap-4 items-center">
-                                    <div className={`w - 12 h - 12 rounded - 2xl flex items - center justify - center font - black text - sm transition - colors
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-sm transition-colors
                            ${selectedPatient?.id === patient.id ? 'bg-white text-slate-900' : 'bg-slate-100 text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600'}
 `}>
                                         {patient.name.charAt(0)}
                                     </div>
                                     <div>
-                                        <h4 className={`text - sm font - black ${selectedPatient?.id === patient.id ? 'text-white' : 'text-slate-900'} `}>{patient.name}</h4>
+                                        <h4 className={`text-sm font-black ${selectedPatient?.id === patient.id ? 'text-white' : 'text-slate-900'} `}>{patient.name}</h4>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text - [10px] font - bold uppercase tracking - wider ${selectedPatient?.id === patient.id ? 'text-slate-400' : 'text-slate-400'} `}>
+                                            <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedPatient?.id === patient.id ? 'text-slate-400' : 'text-slate-400'} `}>
                                                 ID: {patient.id.slice(0, 6)}...
                                             </span>
                                             {patient.insurance === 'Privado' && <span className="w-2 h-2 rounded-full bg-amber-400"></span>}
@@ -321,7 +321,7 @@ const Patients: React.FC = () => {
                                 <button
                                     key={tab}
                                     onClick={() => setPatientTab(tab)}
-                                    className={`px - 5 py - 3 rounded - xl text - [10px] font - black uppercase tracking - widest transition - all whitespace - nowrap
+                                    className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap
                         ${patientTab === tab
                                             ? 'bg-slate-900 text-white shadow-lg'
                                             : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'
@@ -346,7 +346,7 @@ const Patients: React.FC = () => {
                                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ficha del Paciente</h2>
                                     <button
                                         onClick={() => setIsEditingPatient(!isEditingPatient)}
-                                        className={`px - 6 py - 2 rounded - xl text - xs font - bold uppercase flex items - center gap - 2 transition - all ${isEditingPatient ? 'bg-emerald-50 text-emerald-600' : 'bg-white border border-slate-200'} `}
+                                        className={`px-6 py-2 rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition-all ${isEditingPatient ? 'bg-emerald-50 text-emerald-600' : 'bg-white border border-slate-200'} `}
                                     >
                                         {isEditingPatient ? <><Check size={16} /> Guardar</> : <><Edit size={16} /> Modificar</>}
                                     </button>
