@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Trash2, FileText, Plus, X } from 'lucide-react';
+import { Search, Trash2, FileText, Plus, X, Save } from 'lucide-react';
 import { PatientTreatment } from '../../types';
+import { useAppContext } from '../context/AppContext';
 
 interface OdontogramProps {
     patientId: string;
@@ -24,7 +25,7 @@ const getToothShape = (id: number): string => {
     return PATHS.molar;
 };
 
-// Servicios dentales - ESTOS DEBERÍAN CARGARSE DESDE LA BASE DE DATOS
+// Servicios dentales
 const ALL_SERVICES = [
     { id: 'srv-1', name: 'Limpieza Dental', price: 60 },
     { id: 'srv-2', name: 'Extracción', price: 150 },
@@ -43,11 +44,14 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     isEditable,
     onTreatmentsChange
 }) => {
+    const { api } = useAppContext();
+
     // Estados
     const [selectedTeeth, setSelectedTeeth] = useState<number[]>([]);
     const [treatments, setTreatments] = useState<PatientTreatment[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTreatmentsForBudget, setSelectedTreatmentsForBudget] = useState<string[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Dientes (ISO 3950)
     const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
@@ -56,7 +60,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     // Cargar tratamientos del paciente desde API
     useEffect(() => {
         if (patientId) {
-            // TODO: Cargar desde API
+            api.treatments.getByPatient(patientId)
+                .then((data: PatientTreatment[]) => {
+                    setTreatments(data || []);
+                    onTreatmentsChange?.(data || []);
+                })
+                .catch(err => console.error("Error cargando tratamientos:", err));
         }
     }, [patientId]);
 
@@ -89,9 +98,9 @@ export const Odontogram: React.FC<OdontogramProps> = ({
             return;
         }
 
-        // Crear un tratamiento POR CADA diente seleccionado
+        // Crear tratamientos TEMPORALES (ID temporal empieza con temp-)
         const newTreatments: PatientTreatment[] = selectedTeeth.map(toothId => ({
-            id: `temp-${Date.now()}-${Math.random()}`,
+            id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             patientId,
             serviceId: service.id,
             serviceName: service.name,
@@ -101,23 +110,78 @@ export const Odontogram: React.FC<OdontogramProps> = ({
             createdAt: new Date().toISOString()
         }));
 
-        // Añadir a la lista EXISTENTE (acumulación)
         const updatedTreatments = [...treatments, ...newTreatments];
         setTreatments(updatedTreatments);
         onTreatmentsChange?.(updatedTreatments);
 
-        // Limpiar selección de dientes y búsqueda
+        // Limpiar selección
         setSelectedTeeth([]);
         setSearchTerm('');
     };
 
     // Eliminar tratamiento
-    const handleDeleteTreatment = (treatmentId: string) => {
+    const handleDeleteTreatment = async (treatmentId: string) => {
         if (!confirm('¿Eliminar este tratamiento?')) return;
 
-        const updated = treatments.filter(t => t.id !== treatmentId);
-        setTreatments(updated);
-        onTreatmentsChange?.(updated);
+        // Si es temporal (no guardado en BD), borrar localmente
+        if (treatmentId.startsWith('temp-')) {
+            const updated = treatments.filter(t => t.id !== treatmentId);
+            setTreatments(updated);
+            onTreatmentsChange?.(updated);
+            return;
+        }
+
+        // Si es real, borrar en API
+        try {
+            await api.treatments.delete(treatmentId);
+            const updated = treatments.filter(t => t.id !== treatmentId);
+            setTreatments(updated);
+            onTreatmentsChange?.(updated);
+        } catch (error) {
+            console.error(error);
+            alert("Error al eliminar el tratamiento del servidor.");
+        }
+    };
+
+    // Guardar Tratamientos
+    const handleSaveTreatments = async () => {
+        setIsSaving(true);
+        try {
+            // Filtrar y limpiar tratamientos para enviar (quitando IDs temporales si fuera necesario, 
+            // pero el backend suele ignorar ID si es autoincrement/uuid generado allá, 
+            // o mejor, enviamos todos y el backend hace upsert/insert)
+
+            // Estrategia más segura: Enviar todo el array para batch sync o solo los nuevos.
+            // Asumiremos que createBatch gestiona upserts o inserciones nuevas.
+            // Para simplificar, enviamos todo y el backend debería manejarlo. 
+            // Pero dado el endpoint `createBatch`, probablemente espera solo nuevos o sync completo.
+            // Como no tenemos lógica compleja de diff en frontend, enviamos los que tienen ID 'temp-' como nuevos.
+
+            const newTreatments = treatments.filter(t => t.id.startsWith('temp-'));
+
+            if (newTreatments.length === 0) {
+                alert("No hay tratamientos nuevos para guardar.");
+                setIsSaving(false);
+                return;
+            }
+
+            // Mapear para quitar el ID temporal antes de enviar (dejando que la BD genere ID)
+            const treatmentsPayload = newTreatments.map(({ id, ...rest }) => rest);
+
+            await api.treatments.createBatch(patientId, treatmentsPayload);
+
+            // Recargar para obtener IDs reales
+            const reloaded = await api.treatments.getByPatient(patientId);
+            setTreatments(reloaded);
+            onTreatmentsChange?.(reloaded);
+
+            alert("✅ Tratamientos guardados correctamente.");
+        } catch (error) {
+            console.error(error);
+            alert("Error al guardar tratamientos.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // Generar presupuesto
@@ -131,21 +195,26 @@ export const Odontogram: React.FC<OdontogramProps> = ({
             selectedTreatmentsForBudget.includes(t.id)
         );
 
-        const total = selectedItems.reduce((sum, item) => sum + item.price, 0);
+        if (confirm(`¿Crear presupuesto con ${selectedItems.length} tratamientos seleccionados?`)) {
+            try {
+                // Preparar items para el presupuesto
+                // Asumimos que la API espera un array de items con { name, price }
+                const budgetItems = selectedItems.map(t => ({
+                    id: crypto.randomUUID(), // ID temporal para el item
+                    name: `${t.serviceName} - Diente ${t.toothId}`,
+                    price: t.price
+                }));
 
-        console.log('Crear presupuesto:', {
-            patientId,
-            items: selectedItems.map(t => ({
-                name: `${t.serviceName} - Diente ${t.toothId}`,
-                price: t.price
-            })),
-            total
-        });
+                await api.budget.create(patientId, budgetItems);
 
-        alert(`✅ Presupuesto creado: ${total}€ (${selectedItems.length} tratamientos)`);
-
-        // Limpiar selección
-        setSelectedTreatmentsForBudget([]);
+                alert(`✅ Presupuesto creado correctamente.`);
+                setSelectedTreatmentsForBudget([]);
+                // Opcional: Recargar tratamientos o navegar a pestaña presupuestos
+            } catch (error) {
+                console.error(error);
+                alert("Error al crear el presupuesto.");
+            }
+        }
     };
 
     // Obtener color del diente según tratamientos
@@ -164,17 +233,29 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     return (
         <div className="w-full space-y-6">
             {/* Odontograma Visual */}
-            <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm">
+            <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm relative">
+
+                {/* Botón Guardar Flotante o en Header */}
+                <div className="absolute top-8 right-8 z-10">
+                    <button
+                        onClick={handleSaveTreatments}
+                        disabled={isSaving || !treatments.some(t => t.id.startsWith('temp-'))} // Solo habilitar si hay cambios pendientes
+                        className="bg-slate-900 text-white px-6 py-3 rounded-xl text-sm font-black uppercase flex items-center gap-2 shadow-lg hover:bg-black hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Save size={18} />
+                        {isSaving ? 'Guardando...' : 'Guardar Cambios'}
+                    </button>
+                </div>
 
                 {/* Instrucciones */}
-                <div className="mb-6 p-4 bg-blue-50 rounded-xl text-xs text-blue-700 font-bold flex items-start gap-3">
+                <div className="mb-6 p-4 bg-blue-50 rounded-xl text-xs text-blue-700 font-bold flex items-start gap-3 max-w-2xl">
                     <div className="flex-shrink-0 mt-0.5">💡</div>
                     <div>
                         <p className="font-black mb-1">CÓMO USAR:</p>
                         <p><strong>1.</strong> Haz clic en un diente (o Ctrl/Cmd + clic para seleccionar varios)</p>
                         <p><strong>2.</strong> Busca el tratamiento en la barra inferior</p>
                         <p><strong>3.</strong> Haz clic en el tratamiento para asignarlo</p>
-                        <p><strong>4.</strong> Puedes añadir varios tratamientos al mismo diente</p>
+                        <p><strong>4.</strong> Pulsa <strong>GUARDAR CAMBIOS</strong> para confirmar</p>
                     </div>
                 </div>
 

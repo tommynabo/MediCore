@@ -109,6 +109,28 @@ export const api = {
         }
     },
 
+    // Treatments
+    treatments: {
+        getByPatient: async (patientId: string) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/treatments`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch treatments');
+            return res.json();
+        },
+        createBatch: async (patientId: string, treatments: any[]) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/treatments/batch`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ treatments })
+            });
+            if (!res.ok) throw new Error('Failed to create treatments');
+            return res.json();
+        },
+        delete: async (id: string) => {
+            const res = await fetch(`${API_URL}/treatments/${id}`, { method: 'DELETE', headers });
+            if (!res.ok) throw new Error('Failed to delete treatment');
+        }
+    },
+
     // Budgets
     budget: {
         getByPatient: async (patientId: string) => {
