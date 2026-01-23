@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, User, CreditCard, FileText } from 'lucide-react';
 import { Appointment, Patient, Budget, Payment } from '../../types';
-import { OdontogramAdvanced } from '../components/OdontogramAdvanced';
+import { SimplifiedOdontogram } from '../components/SimplifiedOdontogram';
 import { PaymentModal } from '../components/PaymentModal';
 import { useAppContext } from '../context/AppContext';
 
@@ -146,8 +146,8 @@ export const AppointmentDetails: React.FC = () => {
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === tab
-                                        ? 'bg-slate-900 text-white shadow-lg'
-                                        : 'text-slate-400 hover:bg-white hover:text-slate-900'
+                                    ? 'bg-slate-900 text-white shadow-lg'
+                                    : 'text-slate-400 hover:bg-white hover:text-slate-900'
                                     }`}
                             >
                                 {tab === 'odontogram' ? '🦷 Odontograma' :
@@ -161,7 +161,7 @@ export const AppointmentDetails: React.FC = () => {
                     <div className="p-8 min-h-[600px]">
                         {activeTab === 'odontogram' && (
                             <div className="animate-in fade-in slide-in-from-bottom-4">
-                                <OdontogramAdvanced
+                                <SimplifiedOdontogram
                                     patientId={patient.id}
                                     isEditable={true}
                                     onTreatmentsChange={(treatments) => {

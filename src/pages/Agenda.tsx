@@ -82,6 +82,12 @@ const Agenda: React.FC = () => {
             return;
         }
 
+        // Validate doctor selection
+        if (!bookingDoctorId) {
+            alert("Por favor selecciona un doctor");
+            return;
+        }
+
         // Calculate Date
         let dateToSave = currentDate;
         if (viewMode === 'weekly') {
@@ -91,21 +97,13 @@ const Agenda: React.FC = () => {
             dateToSave.setDate(diff);
         }
 
-        // Get Treatment Details
-        const selectedTreatment = DENTAL_SERVICES.find(t => t.id === bookingTreatment);
-
         const newAppt: any = {
-            id: crypto.randomUUID(),
-            doctorId: bookingDoctorId || 'dr-1', // Fallback to dr-1 if forced but shouldn't happen with validation
-            patientId: patient.id,
             date: dateToSave.toISOString().split('T')[0],
             time: activeSlot.time,
-            treatmentId: bookingTreatment, // Send ID for backend validation
-            treatment: selectedTreatment ? selectedTreatment.name : 'Consulta General', // Legacy String
-            status: 'PENDING',
-            observations: bookingObservation,
-            price: bookingPrice,
-            duration: bookingDuration
+            patientId: patient.id,
+            doctorId: bookingDoctorId,
+            treatmentId: bookingTreatment || null,
+            status: 'Scheduled'
         };
 
         try {
@@ -121,7 +119,7 @@ const Agenda: React.FC = () => {
             alert("✅ Cita guardada correctamente.");
         } catch (e) {
             console.error(e);
-            alert("Error al guardar la cita.");
+            alert("Error al guardar la cita: " + (e.message || e));
         }
     };
 
@@ -327,11 +325,12 @@ const Agenda: React.FC = () => {
                                 value={apptSearch}
                                 onChange={(e) => setApptSearch(e.target.value)}
                             />
-                            {/* Suggestions */}
-                            {apptSearch.length > 0 && (
+                            {/* Suggestions - Solo mostrar si NO hay coincidencia exacta */}
+                            {apptSearch.length > 0 && !patients.find(p => p.name === apptSearch) && (
                                 <div className="mt-2 bg-white border border-slate-100 rounded-xl shadow-lg max-h-40 overflow-y-auto">
                                     {patients
                                         .filter(p => (p.name?.toLowerCase() || '').includes(apptSearch.toLowerCase()) || (p.dni || '').includes(apptSearch))
+                                        .slice(0, 5)
                                         .map(p => (
                                             <div
                                                 key={p.id}
