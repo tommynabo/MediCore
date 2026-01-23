@@ -208,22 +208,51 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 
         if (confirm(`¿Crear presupuesto con ${itemsToBudget.length} tratamientos?`)) {
             try {
-                // Preparar items para el presupuesto
-                const budgetItems = itemsToBudget.map(t => ({
+                // AUTO-SAVE: Verificar si hay tratamientos temporales y guardarlos
+                const tempItems = itemsToBudget.filter(t => t.id.startsWith('temp-'));
+                let finalItemsToBudget = itemsToBudget;
+
+                if (tempItems.length > 0) {
+                    setIsSaving(true);
+                    const treatmentsPayload = tempItems.map(({ id, ...rest }) => rest);
+                    // Guardar en batch
+                    await api.treatments.createBatch(patientId, treatmentsPayload);
+
+                    // Recargar de BD para obtener IDs reales
+                    const reloaded = await api.treatments.getByPatient(patientId);
+                    setTreatments(reloaded);
+                    onTreatmentsChange?.(reloaded);
+
+                    // Volver a calcular items a presupuestar basándonos en los nuevos datos (tomamos los pendientes)
+                    // Si había selección específica, intentamos recuperarla o simplificamos a 'todos los pendientes'
+                    // Dado que el usuario pidió 'presupuestar directamente', asumimos PENDIENTES.
+                    finalItemsToBudget = reloaded.filter(t => t.status === 'PENDIENTE');
+                    setIsSaving(false);
+                }
+
+                if (finalItemsToBudget.length === 0) {
+                    alert("No se pudieron recuperar los tratamientos guardados para presupuestar.");
+                    return;
+                }
+
+                // Preparar items para el presupuesto (ahora con IDs reales si existían)
+                const budgetItems = finalItemsToBudget.map(t => ({
                     id: crypto.randomUUID(),
                     name: `${t.serviceName} - Diente ${t.toothId || 'General'}`,
                     price: t.price,
-                    serviceId: t.serviceId
+                    serviceId: t.serviceId,
+                    treatmentId: t.id // Vincular ID real
                 }));
 
                 await api.budget.create(patientId, budgetItems);
 
-                alert(`✅ Presupuesto creado correctamente.`);
+                alert(`✅ Tratamientos guardados y Presupuesto creado correctamente.`);
                 setSelectedTreatmentsForBudget([]);
-                // Opcional: Recargar tratamientos o navegar a pestaña presupuestos
+
             } catch (error) {
                 console.error(error);
-                alert("Error al crear el presupuesto.");
+                alert("Error al procesar: " + (error.message || error));
+                setIsSaving(false);
             }
         }
     };

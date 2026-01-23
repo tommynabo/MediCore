@@ -3,11 +3,12 @@ import {
     Search, Plus, Filter, UserCheck, ShieldCheck, Mail, CheckCircle2, Edit, Check, Edit3, Trash2,
     ArrowUp, Activity, FileText, ClipboardCheck, Layers, DollarSign, PenTool, Smile, Calculator,
     Phone, Settings, Download, Zap, TrendingUp, CreditCard, Clock, FileText as FileTextIcon, // Alias for conflict
-    QrCode
+    QrCode, Wallet
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment } from '../../types';
 import { Odontogram } from '../components/Odontogram';
+import { PaymentModal } from '../components/PaymentModal';
 import { DOCTORS, DENTAL_SERVICES } from '../constants';
 
 const Patients: React.FC = () => {
@@ -65,6 +66,9 @@ const Patients: React.FC = () => {
     // Budget
     const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
     const [budgetForm, setBudgetForm] = useState({ title: '', totalPrice: '', installments: 1 });
+
+    // Wallet / Payment Modal
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
     // New Patient Form State
     const [newPatient, setNewPatient] = useState({ name: '', dni: '', email: '', phone: '' });
@@ -490,6 +494,28 @@ const Patients: React.FC = () => {
                         {patientTab === 'billing' && (
                             <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
                                 <h3 className="text-3xl font-black text-slate-900 tracking-tight">Caja y Facturación</h3>
+
+                                {/* Wallet Card */}
+                                <div className="bg-gradient-to-r from-slate-900 to-slate-800 p-8 rounded-[2rem] shadow-xl text-white relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                                    <div className="relative z-10 flex justify-between items-center">
+                                        <div>
+                                            <p className="text-sm font-bold uppercase tracking-wider text-slate-400 mb-1">Saldo en Monedero</p>
+                                            <h4 className="text-5xl font-black">{selectedPatient.wallet || 0}€</h4>
+                                            <p className="text-xs text-slate-400 mt-2 font-medium max-w-md">
+                                                Saldo disponible para futuros tratamientos. Los anticipos generan factura simplificada automáticamente.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setIsPaymentModalOpen(true)}
+                                            className="bg-white text-slate-900 px-8 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-50 transition-all flex items-center gap-3"
+                                        >
+                                            <Wallet size={20} />
+                                            Gestionar Pagos
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                                     <h4 className="text-lg font-black text-slate-900 mb-6">Historial de Facturas</h4>
                                     <div className="space-y-2">
@@ -598,6 +624,7 @@ const Patients: React.FC = () => {
                                         ) : (
                                             budgets.map((budget: any) => (
                                                 <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+                                                    {/* Budget Content */}
                                                     <div className="flex justify-between items-start mb-4">
                                                         <div>
                                                             <h4 className="text-xl font-black text-slate-900">{budget.title || `Presupuesto #${budget.id.substring(0, 6)}`}</h4>
@@ -930,7 +957,26 @@ const Patients: React.FC = () => {
                     </div>
                 )
             }
-        </div >
+            {/* Payment Modal */}
+            <PaymentModal
+                isOpen={isPaymentModalOpen}
+                onClose={() => setIsPaymentModalOpen(false)}
+                patient={selectedPatient || { id: '', name: '', wallet: 0 }}
+                budgets={budgets}
+                onPaymentComplete={(payment, invoice) => {
+                    if (selectedPatient) {
+                        // Recargar para ver nuevo saldo
+                        api.getPatients().then(setPatients);
+                        // Si es advance payment, actualizar wallet visualmente rapido si se pudiera,
+                        // pero mejor confiar en el reload.
+                        if (invoice) {
+                            api.invoices.getAll().then(setInvoices);
+                            setPatientTab('billing'); // Ir a billing para ver la factura
+                        }
+                    }
+                }}
+            />
+        </div>
     );
 };
 
