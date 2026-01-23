@@ -759,6 +759,320 @@ app.post('/api/budgets/:id/convert', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- PATIENT TREATMENTS (Tratamientos asignados a pacientes) ---
+app.get('/api/patients/:patientId/treatments', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { data, error } = await supabase
+            .from('PatientTreatment')
+            .select(`
+                *,
+                service:Treatment(id, name, price)
+            `)
+            .eq('patientId', req.params.patientId)
+            .order('createdAt', { ascending: false });
+
+        if (error) {
+            console.error("❌ Error fetching patient treatments:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        // Map data to include serviceName
+        const mapped = data.map(t => ({
+            ...t,
+            serviceName: t.service?.name || 'Unknown',
+            price: t.customPrice || t.service?.price || 0
+        }));
+
+        res.json(mapped);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/patients/:patientId/treatments', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { serviceId, toothId, customPrice, status, notes } = req.body;
+
+        if (!serviceId) {
+            return res.status(400).json({ error: 'serviceId is required' });
+        }
+
+        const { data, error } = await supabase
+            .from('PatientTreatment')
+            .insert([{
+                id: crypto.randomUUID(),
+                patientId: req.params.patientId,
+                serviceId,
+                toothId: toothId || null,
+                customPrice: customPrice || null,
+                status: status || 'PENDIENTE',
+                notes: notes || null,
+                createdAt: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (error) {
+            console.error("❌ Error creating patient treatment:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/patients/:patientId/treatments/batch', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { treatments } = req.body;
+
+        if (!treatments || !Array.isArray(treatments)) {
+            return res.status(400).json({ error: 'treatments array is required' });
+        }
+
+        const toInsert = treatments.map(t => ({
+            id: crypto.randomUUID(),
+            patientId: req.params.patientId,
+            serviceId: t.serviceId,
+            toothId: t.toothId || null,
+            customPrice: t.customPrice || null,
+            status: t.status || 'PENDIENTE',
+            notes: t.notes || null,
+            createdAt: new Date().toISOString()
+        }));
+
+        const { data, error } = await supabase
+            .from('PatientTreatment')
+            .insert(toInsert)
+            .select();
+
+        if (error) {
+            console.error("❌ Error creating batch treatments:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/treatments/:id', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { error } = await supabase
+            .from('PatientTreatment')
+            .delete()
+            .eq('id', req.params.id);
+
+        if (error) throw error;
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- PAYMENTS (Sistema de cobros y monedero virtual) ---
+app.post('/api/payments/create', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { patientId, budgetId, amount, method, type, notes } = req.body;
+
+        if (!patientId || !amount || !method || !type) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // 1. Crear registro de pago
+        const paymentId = crypto.randomUUID();
+        const { data: payment, error: paymentError } = await supabase
+            .from('Payment')
+            .insert([{
+                id: paymentId,
+                patientId,
+                budgetId: budgetId || null,
+                amount: parseFloat(amount),
+                method,
+                type,
+                notes: notes || null,
+                createdAt: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (paymentError) {
+            console.error("❌ Error creating payment:", paymentError);
+            return res.status(500).json({ error: paymentError.message });
+        }
+
+        // 2. Si es ADVANCE_PAYMENT, actualizar wallet del paciente
+        if (type === 'ADVANCE_PAYMENT') {
+            const { data: patient } = await supabase
+                .from('Patient')
+                .select('wallet')
+                .eq('id', patientId)
+                .single();
+
+            const currentWallet = patient?.wallet || 0;
+            const newWallet = currentWallet + parseFloat(amount);
+
+            await supabase
+                .from('Patient')
+                .update({ wallet: newWallet })
+                .eq('id', patientId);
+        }
+
+        // 3. Si es DIRECT_CHARGE y method es 'wallet', deducir del monedero
+        if (type === 'DIRECT_CHARGE' && method === 'wallet') {
+            const { data: patient } = await supabase
+                .from('Patient')
+                .select('wallet')
+                .eq('id', patientId)
+                .single();
+
+            const currentWallet = patient?.wallet || 0;
+            const newWallet = currentWallet - parseFloat(amount);
+
+            if (newWallet < 0) {
+                return res.status(400).json({ error: 'Insufficient wallet balance' });
+            }
+
+            await supabase
+                .from('Patient')
+                .update({ wallet: newWallet })
+                .eq('id', patientId);
+        }
+
+        // 4. Generar factura automáticamente
+        const invoiceNumber = `F-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+
+        let concept = '';
+        let items = [];
+
+        if (type === 'ADVANCE_PAYMENT') {
+            concept = 'Pago a Cuenta';
+            items = [{ name: 'Anticipo', price: parseFloat(amount) }];
+        } else if (budgetId) {
+            // Obtener items del presupuesto
+            const { data: budget } = await supabase
+                .from('Budget')
+                .select('*, items:BudgetLineItem(*)')
+                .eq('id', budgetId)
+                .single();
+
+            concept = `Cobro Presupuesto #${budgetId.substring(0, 6)}`;
+            items = budget?.items?.map(i => ({ name: i.name, price: i.price })) || [];
+        }
+
+        const { data: invoice, error: invoiceError } = await supabase
+            .from('Invoice')
+            .insert([{
+                id: crypto.randomUUID(),
+                invoiceNumber,
+                patientId,
+                amount: parseFloat(amount),
+                date: new Date().toISOString(),
+                status: 'issued',
+                paymentMethod: method,
+                concept,
+                relatedPaymentId: paymentId
+            }])
+            .select()
+            .single();
+
+        if (invoiceError) {
+            console.error("❌ Error creating invoice:", invoiceError);
+            // No fallar el pago si falla la factura
+        }
+
+        // 5. Crear items de factura
+        if (invoice && items.length > 0) {
+            const invoiceItems = items.map(item => ({
+                id: crypto.randomUUID(),
+                invoiceId: invoice.id,
+                name: item.name,
+                price: item.price
+            }));
+
+            await supabase.from('InvoiceItem').insert(invoiceItems);
+        }
+
+        // 6. Actualizar payment con invoiceId
+        if (invoice) {
+            await supabase
+                .from('Payment')
+                .update({ invoiceId: invoice.id })
+                .eq('id', paymentId);
+        }
+
+        res.json({
+            payment: { ...payment, invoiceId: invoice?.id },
+            invoice: invoice || null
+        });
+    } catch (e) {
+        console.error("❌ Payment creation error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/patients/:patientId/payments', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { data, error } = await supabase
+            .from('Payment')
+            .select('*')
+            .eq('patientId', req.params.patientId)
+            .order('createdAt', { ascending: false });
+
+        if (error) {
+            console.error("❌ Error fetching payments:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- INVOICES (Get all with enriched data) ---
+app.get('/api/invoices', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { data, error } = await supabase
+            .from('Invoice')
+            .select('*, items:InvoiceItem(*)')
+            .order('date', { ascending: false });
+
+        if (error) {
+            console.error("❌ Error fetching invoices:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
     app.listen(PORT, () => {

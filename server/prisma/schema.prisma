@@ -45,7 +45,9 @@ model Patient {
   odontogram     Odontogram?
   snapshots      DentalSnapshot[]
   balance        Float            @default(0.0) // Saldo a favor/contra
+  wallet         Float            @default(0.0) // Pagos adelantados (Monedero Virtual)
   createdAt      DateTime         @default(now())
+  payments       Payment[] // Historial de pagos
 }
 
 model Specialty {
@@ -71,6 +73,7 @@ model Doctor {
 }
 
 // --- MODULE 1: FINANCIAL & LIQUIDATION ---
+
 model Treatment {
   id             String   @id @default(uuid())
   name           String
@@ -83,7 +86,25 @@ model Treatment {
   items          InvoiceItem[]
   budgetItems    BudgetLineItem[]
   consumables    String?  // JSON String: e.g. [{"itemId": "uuid", "qty": 1}]
+  patientTreatments PatientTreatment[] // Instancias asignadas a pacientes
 }
+
+// Patient-specific treatment instances (tratamientos asignados)
+model PatientTreatment {
+  id          String   @id @default(uuid())
+  patientId   String
+  serviceId   String   // Referencia al catálogo Treatment
+  service     Treatment  @relation(fields: [serviceId], references: [id])
+  toothId     Int?     // Número del diente (ej: 21, 36)
+  customPrice Float?   // Precio personalizado si difiere del base
+  status      String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, COMPLETADO
+  notes       String?
+  createdAt   DateTime @default(now())
+  
+  @@index([patientId])
+  @@index([serviceId])
+}
+
 
 model Appointment {
   id          String    @id @default(uuid())
@@ -119,6 +140,22 @@ model Liquidation {
   createdAt       DateTime    @default(now())
 }
 
+model Payment {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [id])
+  budgetId    String?  // Si es cobro de un presupuesto
+  amount      Float
+  method      String   // "cash", "card", "wallet", "transfer"
+  type        String   // "DIRECT_CHARGE" (cobro directo) o "ADVANCE_PAYMENT" (pago a cuenta)
+  createdAt   DateTime @default(now())
+  invoiceId   String?  @unique // Factura generada al cobrar
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  notes       String?  // Descripción del pago
+  
+  @@index([patientId])
+}
+
 model Invoice {
   id             String        @id @default(uuid())
   invoiceNumber  String        @unique
@@ -127,9 +164,12 @@ model Invoice {
   amount         Float
   date           DateTime      @default(now())
   status         String
-  paymentMethod  String?       // "Credit Card", "Cash", "Transfer", "Balance"
+  paymentMethod  String?       // "Credit Card", "Cash", "Transfer", "Balance", "Wallet"
   url            String?       // Direct PDF Link
   items          InvoiceItem[]
+  concept        String?       // "Pago a Cuenta" | "Tratamiento: Endodoncia" etc
+  relatedPaymentId String?     @unique
+  relatedPayment Payment?
 }
 
 model InvoiceItem {

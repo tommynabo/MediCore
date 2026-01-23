@@ -28,7 +28,9 @@ export interface Patient {
   insurance?: string; // Mutua: 'Privado', 'Sanitas', 'Adeslas'
   assignedDoctorId?: string;
   prescriptions?: string[];
+  wallet?: number; // Monedero Virtual - Pagos adelantados
 }
+
 
 export interface Expense {
   id: string;
@@ -67,6 +69,19 @@ export interface Service {
   insurancePrice?: Record<string, number>; // Precios por mutua
 }
 
+// Tratamiento asignado a un paciente específico
+export interface PatientTreatment {
+  id: string;
+  patientId: string;
+  serviceId: string; // Referencia al catálogo de servicios
+  serviceName: string; // Nombre del servicio
+  toothId?: number; // Número del diente (ej: 21, 36)
+  price: number; // Precio (puede ser custom)
+  status: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO';
+  notes?: string;
+  createdAt: string;
+}
+
 export interface Budget {
   id: string;
   patientId: string;
@@ -84,14 +99,29 @@ export interface Invoice {
   tax: number;
   date: string;
   status: 'draft' | 'issued' | 'rectified';
-  paymentMethod: 'cash' | 'card';
+  paymentMethod: 'cash' | 'card' | 'wallet' | 'transfer';
   chainHash?: string;
   qrUrl?: string;
   url?: string; // Direct PDF Link
   items: { serviceId: string; name: string; price: number }[];
   isRectificative?: boolean;
   rectifiesId?: string;
+  concept?: string; // "Pago a Cuenta" | "Tratamiento: Endodoncia Diente 21"
+  relatedPaymentId?: string;
 }
+
+export interface Payment {
+  id: string;
+  patientId: string;
+  budgetId?: string; // Si es cobro de presupuesto
+  amount: number;
+  method: 'cash' | 'card' | 'wallet' | 'transfer';
+  type: 'DIRECT_CHARGE' | 'ADVANCE_PAYMENT'; // Cobro directo o pago a cuenta
+  createdAt: string;
+  invoiceId?: string; // Factura generada automáticamente
+  notes?: string;
+}
+
 
 export interface AIChatMessage {
   role: 'user' | 'assistant';
