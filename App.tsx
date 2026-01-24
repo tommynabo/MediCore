@@ -21,6 +21,7 @@ const App: React.FC = () => {
         <Routes>
           {/* Root Route is now Login */}
           <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
 
           {/* Protected Routes wrapped in Layout */}
           <Route element={<Layout />}>
