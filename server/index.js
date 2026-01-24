@@ -5,6 +5,7 @@ const express = require('express');
 const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
+const path = require('path');
 
 // Services
 const financeService = require('./services/financeService');
@@ -694,6 +695,33 @@ app.post('/api/finance/invoice', async (req, res) => {
 
                         if (itemError) console.error("❌ DB Error saving Invoice Items:", itemError);
                     }
+
+                    // 3. Update Patient Wallet if Advance Payment
+                    if (type === 'ADVANCE_PAYMENT') {
+                        console.log(`💰 Updating wallet for patient ${patient.id}, amount: ${totalAmount}`);
+
+                        // Try fetching current wallet first to ensure we have the latest
+                        const { data: pData, error: fetchErr } = await supabase
+                            .from('Patient')
+                            .select('wallet')
+                            .eq('id', patient.id)
+                            .single();
+
+                        if (!fetchErr && pData) {
+                            const currentWallet = pData.wallet || 0;
+                            const newWallet = currentWallet + totalAmount;
+
+                            const { error: updateErr } = await supabase
+                                .from('Patient')
+                                .update({ wallet: newWallet })
+                                .eq('id', patient.id);
+
+                            if (updateErr) console.error("❌ Failed to update wallet:", updateErr);
+                            else console.log(`✅ Wallet updated: ${currentWallet} -> ${newWallet}`);
+                        } else {
+                            console.error("❌ Failed to fetch patient for wallet update:", fetchErr);
+                        }
+                    }
                 }
             } catch (dbErr) {
                 console.error("❌ Unexpected DB Error during Invoice save:", dbErr);
@@ -1150,7 +1178,23 @@ app.get('/api/invoices', async (req, res) => {
     }
 });
 
-const PORT = process.env.PORT || 3000;
+// Serve static files from React app (Production Support)
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// The "catchall" handler: for any request that doesn't
+// match one above, send back React's index.html file.
+app.get('*', (req, res) => {
+    // Check if file exists, if not send error (debugging)
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    res.sendFile(indexPath, (err) => {
+        if (err) {
+            console.error("Error serving index.html:", err);
+            res.status(500).send("Server Error: Could not serve frontend.");
+        }
+    });
+});
+
+const PORT = process.env.PORT || 3001;
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);

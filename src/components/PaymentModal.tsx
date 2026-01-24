@@ -56,7 +56,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 patient,
                 items: [{ name: concept, price: amount }],
                 paymentMethod,
-                type: 'ordinary' // Regular invoice
+                type: 'ADVANCE_PAYMENT' // Flag for backend to update wallet
             };
 
             console.log('Generando factura para saldo...', invoiceData);
