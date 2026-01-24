@@ -295,22 +295,28 @@ app.post('/api/appointments', async (req, res) => {
     try {
         const { date, time, patientId, doctorId, treatmentId } = req.body;
 
+        console.log('📅 Creating appointment:', { date, time, patientId, doctorId, treatmentId });
+
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
 
         // Sanitization: Ensure empty strings become null for UUID fields
         const safeTreatmentId = (treatmentId && treatmentId.trim()) ? treatmentId : null;
+        const safeDoctorId = (doctorId && doctorId.trim()) ? doctorId : null;
 
-        // VALIDATION: Specialization Check
-        if (safeTreatmentId && doctorId) {
-            // Use safe queries
-            const { data: treatment } = await supabase.from('Treatment').select('specialtyId').eq('id', safeTreatmentId).single();
-            const { data: doctor } = await supabase.from('Doctor').select('specialtyId, name').eq('id', doctorId).single();
+        // VALIDATION: Specialization Check (Optional - skip if tables don't exist)
+        if (safeTreatmentId && safeDoctorId) {
+            try {
+                const { data: treatment } = await supabase.from('Treatment').select('specialtyId').eq('id', safeTreatmentId).maybeSingle();
+                const { data: doctor } = await supabase.from('Doctor').select('specialtyId, name').eq('id', safeDoctorId).maybeSingle();
 
-            if (treatment && doctor) {
-                if (treatment.specialtyId && doctor.specialtyId && treatment.specialtyId !== doctor.specialtyId) {
-                    return res.status(400).json({ error: `El Dr. ${doctor.name} no es especialista en el tratamiento seleccionado.` });
+                if (treatment && doctor) {
+                    if (treatment.specialtyId && doctor.specialtyId && treatment.specialtyId !== doctor.specialtyId) {
+                        return res.status(400).json({ error: `El Dr. ${doctor.name} no es especialista en el tratamiento seleccionado.` });
+                    }
                 }
+            } catch (validationErr) {
+                console.warn('⚠️ Specialization validation skipped:', validationErr.message);
             }
         }
 
@@ -320,7 +326,7 @@ app.post('/api/appointments', async (req, res) => {
                 date: new Date(date).toISOString(),
                 time,
                 patientId,
-                doctorId,
+                doctorId: safeDoctorId,
                 treatmentId: safeTreatmentId,
                 status: 'Scheduled'
             }])
@@ -328,8 +334,13 @@ app.post('/api/appointments', async (req, res) => {
             .single();
 
         if (error) {
-            console.error("❌ Supabase Insert Error (Appointment):", error);
-            return res.status(500).json({ error: `DB Error: ${error.message} (Hashes: ${error.details || ''})` });
+            console.error("❌ Supabase Insert Error (Appointment):", JSON.stringify(error, null, 2));
+            return res.status(500).json({
+                error: `DB Error: ${error.message}`,
+                details: error.details,
+                hint: error.hint,
+                code: error.code
+            });
         }
 
         console.log("✅ Appointment Created:", data.id);
@@ -645,8 +656,6 @@ app.post('/api/finance/invoice', async (req, res) => {
             type
         });
 
-        const { data: savedInvoice, error: invError } = await supabase
-            .from('Invoice')
         // SAVE TO DB (User Requirement)
         if (result.success) {
             try {

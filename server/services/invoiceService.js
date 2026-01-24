@@ -187,4 +187,54 @@ const exportBatchInvoices = async (invoices, date, res) => {
     }
 };
 
-module.exports = { generateInvoice, exportBatchInvoices };
+/**
+ * Get fresh PDF URL for an invoice from FacturaDirecta
+ * @param {string} invoiceNumber - The invoice number (e.g., "F-2023-00123")
+ * @returns {Promise<string|null>} Fresh PDF URL or null if failed
+ */
+const getFreshPdfUrl = async (invoiceNumber) => {
+    if (!FACTURA_DIRECTA_KEY || !FACTURA_DIRECTA_CID) {
+        console.warn('⚠️ FacturaDirecta credentials missing, cannot fetch fresh PDF URL');
+        return null;
+    }
+
+    try {
+        console.log(`🔄 Fetching fresh PDF URL for invoice: ${invoiceNumber}`);
+
+        const baseUrl = `https://app.facturadirecta.com/api/${FACTURA_DIRECTA_CID}`;
+        const headers = {
+            'facturadirecta-api-key': FACTURA_DIRECTA_KEY,
+            'Content-Type': 'application/json'
+        };
+
+        // First, search for the invoice by number to get its ID
+        const searchRes = await axios.get(`${baseUrl}/invoices?docNumber=${invoiceNumber}`, {
+            headers,
+            timeout: 5000
+        });
+
+        if (!searchRes.data.items || searchRes.data.items.length === 0) {
+            console.error(`❌ Invoice ${invoiceNumber} not found in FacturaDirecta`);
+            return null;
+        }
+
+        const invoice = searchRes.data.items[0];
+        const invoiceId = invoice.content?.uuid || invoice.id;
+
+        // Request fresh PDF generation
+        const pdfRes = await axios.put(`${baseUrl}/invoices/${invoiceId}/pdf`, {}, {
+            headers,
+            timeout: 10000
+        });
+
+        const freshUrl = pdfRes.data.url;
+        console.log(`✅ Fresh PDF URL obtained: ${freshUrl}`);
+        return freshUrl;
+
+    } catch (error) {
+        console.error('❌ Error fetching fresh PDF URL:', error.response?.data || error.message);
+        return null;
+    }
+};
+
+module.exports = { generateInvoice, exportBatchInvoices, getFreshPdfUrl };

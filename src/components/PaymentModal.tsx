@@ -76,7 +76,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 amount: amount,
                 method: paymentMethod,
                 type: 'ADVANCE_PAYMENT',
-                date: new Date().toISOString(),
                 notes: notes || undefined,
                 createdAt: new Date().toISOString()
             };
