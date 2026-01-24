@@ -515,7 +515,16 @@ app.post('/api/inventory/check', async (req, res) => {
 
 // --- USER AUTH & SEEDING (MODULE 3) ---
 
-const { createClient } = require('@supabase/supabase-js');
+let createClient;
+try {
+    ({ createClient } = require('@supabase/supabase-js'));
+} catch (e) {
+    console.error("⚠️ Failed to load @supabase/supabase-js:", e.message);
+    // Mock to allow server start, though login will fail later
+    createClient = () => ({
+        from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ error: { message: "Supabase client missing" } }) }) }) })
+    });
+}
 
 // Lazy Supabase Initializer to prevent startup crashes
 // Lazy Supabase Initializer to prevent startup crashes
