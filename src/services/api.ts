@@ -2,7 +2,7 @@ import { Patient, Appointment, Invoice, ClinicalRecord, InventoryItem } from '..
 
 // Use relative path in production (Vercel), localhost in dev
 // @ts-ignore - Vite env
-const API_URL = (import.meta.env?.MODE === 'production') ? '/api' : 'http://localhost:3000/api';
+const API_URL = (import.meta.env?.MODE === 'production') ? '/api' : 'http://localhost:3001/api';
 
 const headers = {
     'Content-Type': 'application/json',
