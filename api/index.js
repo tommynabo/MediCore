@@ -12,10 +12,17 @@ module.exports = async (req, res) => {
                 require('cors');
                 // Load the App
                 app = require('../server/index.js');
-                console.log("✅ Server Module Loaded Successfully");
+                console.log("✅ Server Module Loaded Successfully from ../server/index.js");
             } catch (loadError) {
-                console.error("❌ Failed to load server module:", loadError);
-                throw loadError; // Caught by outer block
+                console.error("❌ Failed to load server module from ../server/index.js. Checking path...");
+                console.error("Current __dirname:", __dirname);
+                try {
+                    console.log("Attempting fallback require './server/index.js'...");
+                    app = require('./server/index.js'); // Try alternate path if api/ is root
+                } catch (e2) {
+                    console.error("❌ Fallback failed:", e2.message);
+                    throw loadError;
+                }
             }
         }
         // Forward request to Express App (which is a function)

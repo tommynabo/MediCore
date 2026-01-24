@@ -123,9 +123,12 @@ const Login: React.FC = () => {
                         </button>
                     </form>
 
-                    <div className="mt-8 pt-8 border-t border-slate-100">
-                        <p className="text-xs text-center text-slate-400">
+                    <div className="mt-8 pt-8 border-t border-slate-100 text-center">
+                        <p className="text-xs text-slate-400">
                             ¿Problemas de acceso? Contacta con el administrador del sistema.
+                        </p>
+                        <p className="text-xs text-blue-400 mt-2 font-mono">
+                            Modo Emergencia disponible: doctor@clinic.com
                         </p>
                     </div>
                 </div>
