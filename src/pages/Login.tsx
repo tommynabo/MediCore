@@ -70,9 +70,9 @@ const Login: React.FC = () => {
                     </div>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-                            <Activity size={16} />
-                            {error}
+                        <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl text-sm font-medium border border-red-100 flex items-start gap-2 animate-in fade-in slide-in-from-top-2 break-all whitespace-pre-wrap">
+                            <Activity size={16} className="mt-1 shrink-0" />
+                            <span>{error}</span>
                         </div>
                     )}
 

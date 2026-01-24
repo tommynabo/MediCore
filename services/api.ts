@@ -77,7 +77,12 @@ export const api = {
             if (contentType && contentType.indexOf("application/json") !== -1) {
                 const data = await res.json();
                 if (res.status === 401) throw new Error("Credenciales inválidas (Usuario o contraseña incorrectos)");
-                if (!res.ok) throw new Error(data.error || "Error de conexión con el servidor");
+                // Combine error title with message/details/code/stack if available to give full context
+                if (!res.ok) {
+                    const details = data.details || data.message || data.stack || '';
+                    const errorMsg = data.error || "Error de conexión con el servidor";
+                    throw new Error(`${errorMsg}${details ? `: ${details}` : ''}`);
+                }
                 return data;
             } else {
                 const text = await res.text();
