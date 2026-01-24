@@ -1183,7 +1183,8 @@ app.use(express.static(path.join(__dirname, '../dist')));
 
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
-app.get('*', (req, res) => {
+// Note: Using regex pattern for Express 5 compatibility
+app.get(/^\/(?!api).*/, (req, res) => {
     // Check if file exists, if not send error (debugging)
     const indexPath = path.join(__dirname, '../dist/index.html');
     res.sendFile(indexPath, (err) => {
