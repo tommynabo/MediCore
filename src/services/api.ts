@@ -24,6 +24,32 @@ const headers = {
 };
 
 export const api = {
+    // Auth
+    login: async (email: string, password: string) => {
+        const res = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ email, password })
+        });
+
+        // Handle non-JSON responses (e.g. 500 error page)
+        const contentType = res.headers.get("content-type");
+        let data;
+        if (contentType && contentType.includes("application/json")) {
+            data = await res.json();
+        } else {
+            const text = await res.text();
+            console.error("Non-JSON login response:", text);
+            throw new Error("Server error (non-JSON response). Check console.");
+        }
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Error al iniciar sesión');
+        }
+
+        return data;
+    },
+
     // Invoices (Moved to top for visibility/debugging)
     invoices: {
         getAll: async (): Promise<Invoice[]> => {

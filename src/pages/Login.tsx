@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, Activity } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
+import { api } from '../services/api';
 
 const Login: React.FC = () => {
-    const { login, api } = useAppContext();
+    const { login } = useAppContext();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
