@@ -17,7 +17,7 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ patientId }) => {
     const loadBudgets = async () => {
         setLoading(true);
         try {
-            const data = await api.budget.getAll(patientId);
+            const data = await api.budget.getByPatient(patientId);
             setBudgets(data);
         } catch (e) {
             console.error("Failed to load budgets", e);

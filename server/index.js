@@ -8,13 +8,16 @@ const crypto = require('crypto');
 const path = require('path');
 
 // Services
-const financeService = require('./services/financeService');
-const orthoService = require('./services/orthoService');
-const inventoryService = require('./services/inventoryService');
-const invoiceService = require('./services/invoiceService');
-const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
-const budgetService = require('./services/budgetService');
-const templateService = require('./services/templateService');
+// Services
+let financeService, orthoService, inventoryService, invoiceService, aiAgent, budgetService, templateService;
+
+try { financeService = require('./services/financeService'); } catch (e) { console.error("⚠️ Failed to load financeService:", e.message); }
+try { orthoService = require('./services/orthoService'); } catch (e) { console.error("⚠️ Failed to load orthoService:", e.message); }
+try { inventoryService = require('./services/inventoryService'); } catch (e) { console.error("⚠️ Failed to load inventoryService:", e.message); }
+try { invoiceService = require('./services/invoiceService'); } catch (e) { console.error("⚠️ Failed to load invoiceService:", e.message); }
+try { aiAgent = require('./services/aiAgent'); } catch (e) { console.error("⚠️ Failed to load aiAgent:", e.message); }
+try { budgetService = require('./services/budgetService'); } catch (e) { console.error("⚠️ Failed to load budgetService:", e.message); }
+try { templateService = require('./services/templateService'); } catch (e) { console.error("⚠️ Failed to load templateService:", e.message); }
 
 const prisma = new PrismaClient({
     log: ['query', 'info', 'warn', 'error'],

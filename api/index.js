@@ -27,7 +27,8 @@ module.exports = async (req, res) => {
             error: "CRITICAL STARTUP ERROR",
             message: e.message,
             stack: e.stack,
-            type: e.code || 'Unknown'
+            code: e.code,
+            details: e.toString()
         });
     }
 };
