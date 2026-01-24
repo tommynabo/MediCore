@@ -1,16 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, User, Activity } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { api } from '../services/api';
 
 const Login: React.FC = () => {
-    const { login } = useAppContext();
+    const { login, isAuthenticated } = useAppContext();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // If already authenticated, go to dashboard
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/dashboard');
+        }
+    }, [isAuthenticated, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -23,7 +30,7 @@ const Login: React.FC = () => {
 
             // Login method in api.ts already throws if not ok
             login(data);
-            navigate('/');
+            navigate('/dashboard');
         } catch (err: any) {
             setError(err.message);
         } finally {

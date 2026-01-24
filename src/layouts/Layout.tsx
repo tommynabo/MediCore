@@ -14,11 +14,11 @@ const Layout: React.FC = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/login');
+        navigate('/');
     };
 
     const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: PieChart, path: '/' },
+        { id: 'dashboard', label: 'Dashboard', icon: PieChart, path: '/dashboard' },
         { id: 'patients', label: 'Pacientes', icon: Users, path: '/pacientes' },
         { id: 'agenda', label: 'Agenda', icon: Calendar, path: '/agenda' },
         { id: 'billing', label: 'Facturación', icon: Activity, path: '/billing' },
