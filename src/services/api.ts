@@ -2,7 +2,21 @@ import { Patient, Appointment, Invoice, ClinicalRecord, InventoryItem } from '..
 
 // Use relative path in production (Vercel), localhost in dev
 // @ts-ignore - Vite env
-const API_URL = (import.meta.env?.MODE === 'production') ? '/api' : 'http://localhost:3001/api';
+// Robust API URL detection
+const getApiUrl = () => {
+    // Check if running in browser
+    if (typeof window !== 'undefined') {
+        const hostname = window.location.hostname;
+        // If running locally (dev or local build), point to Backend Port 3001
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return 'http://localhost:3001/api';
+        }
+    }
+    // Production / Vercel: Use relative path
+    return '/api';
+};
+
+const API_URL = getApiUrl();
 
 const headers = {
     'Content-Type': 'application/json',
