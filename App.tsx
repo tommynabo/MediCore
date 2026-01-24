@@ -19,12 +19,9 @@ const App: React.FC = () => {
     <AppProvider>
       <BrowserRouter>
         <Routes>
-          {/* Root Route is now Login */}
-          <Route path="/" element={<Login />} />
           <Route path="/login" element={<Login />} />
-
-          {/* Protected Routes wrapped in Layout */}
-          <Route element={<Layout />}>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="agenda" element={<Agenda />} />
             <Route path="appointment/:appointmentId" element={<AppointmentDetails />} />
@@ -35,9 +32,8 @@ const App: React.FC = () => {
             <Route path="payroll" element={<Payroll />} />
             <Route path="settings" element={<Settings />} />
           </Route>
-
-          {/* Fallback route - Redirect to root (Login) */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Fallback route */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AppProvider>

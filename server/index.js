@@ -3,31 +3,18 @@ dotenv.config();
 
 const express = require('express');
 const cors = require('cors');
-let PrismaClient;
-try {
-    ({ PrismaClient } = require('@prisma/client'));
-} catch (e) {
-    console.warn("⚠️ Prisma Client not found - running in Supabase-only mode.");
-    // specific mock to prevent crash on instantiation
-    PrismaClient = class {
-        constructor() { return new Proxy({}, { get: () => async () => [] }); }
-        $connect() { return Promise.resolve(); }
-    };
-}
+const { PrismaClient } = require('@prisma/client');
 const crypto = require('crypto');
 const path = require('path');
 
 // Services
-// Services
-let financeService, orthoService, inventoryService, invoiceService, aiAgent, budgetService, templateService;
-
-try { financeService = require('./services/financeService'); } catch (e) { console.error("⚠️ Failed to load financeService:", e.message); }
-try { orthoService = require('./services/orthoService'); } catch (e) { console.error("⚠️ Failed to load orthoService:", e.message); }
-try { inventoryService = require('./services/inventoryService'); } catch (e) { console.error("⚠️ Failed to load inventoryService:", e.message); }
-try { invoiceService = require('./services/invoiceService'); } catch (e) { console.error("⚠️ Failed to load invoiceService:", e.message); }
-try { aiAgent = require('./services/aiAgent'); } catch (e) { console.error("⚠️ Failed to load aiAgent:", e.message); }
-try { budgetService = require('./services/budgetService'); } catch (e) { console.error("⚠️ Failed to load budgetService:", e.message); }
-try { templateService = require('./services/templateService'); } catch (e) { console.error("⚠️ Failed to load templateService:", e.message); }
+const financeService = require('./services/financeService');
+const orthoService = require('./services/orthoService');
+const inventoryService = require('./services/inventoryService');
+const invoiceService = require('./services/invoiceService');
+const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
+const budgetService = require('./services/budgetService');
+const templateService = require('./services/templateService');
 
 const prisma = new PrismaClient({
     log: ['query', 'info', 'warn', 'error'],
@@ -515,16 +502,7 @@ app.post('/api/inventory/check', async (req, res) => {
 
 // --- USER AUTH & SEEDING (MODULE 3) ---
 
-let createClient;
-try {
-    ({ createClient } = require('@supabase/supabase-js'));
-} catch (e) {
-    console.error("⚠️ Failed to load @supabase/supabase-js:", e.message);
-    // Mock to allow server start, though login will fail later
-    createClient = () => ({
-        from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ error: { message: "Supabase client missing" } }) }) }) })
-    });
-}
+const { createClient } = require('@supabase/supabase-js');
 
 // Lazy Supabase Initializer to prevent startup crashes
 // Lazy Supabase Initializer to prevent startup crashes
@@ -572,7 +550,7 @@ app.post('/api/auth/login', async (req, res) => {
         console.log(`✅ Login Success: ${user.name} (${user.role})`);
         res.json(user);
     } catch (e) {
-        console.error("🔥 Login Error:", e);
+        console.error("🔥 Critical Login Error:", e);
         res.status(500).json({ error: e.message });
     }
 });
