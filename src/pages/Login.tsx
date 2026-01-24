@@ -4,7 +4,7 @@ import { Lock, User, Activity } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 const Login: React.FC = () => {
-    const { login } = useAppContext();
+    const { login, api } = useAppContext();
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -17,18 +17,10 @@ const Login: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+            // Use centralized API method which uses robust API_URL
+            const data = await api.login(email, password);
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Error al iniciar sesión');
-            }
-
+            // Login method in api.ts already throws if not ok
             login(data);
             navigate('/');
         } catch (err: any) {
