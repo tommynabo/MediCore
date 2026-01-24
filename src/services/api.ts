@@ -138,6 +138,11 @@ export const api = {
             if (!res.ok) throw new Error('Failed to load budgets');
             return res.json();
         },
+        getAll: async (patientId: string) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/budgets`, { headers });
+            if (!res.ok) throw new Error('Failed to load budgets');
+            return res.json();
+        },
         create: async (patientId: string, items: any[]) => {
             const res = await fetch(`${API_URL}/patients/${patientId}/budgets`, {
                 method: 'POST',
@@ -145,6 +150,15 @@ export const api = {
                 body: JSON.stringify({ items })
             });
             if (!res.ok) throw new Error('Failed to create budget');
+            return res.json();
+        },
+        addItemToDraft: async (patientId: string, item: any) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/budgets/draft/items`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(item)
+            });
+            if (!res.ok) throw new Error('Failed to add item to draft');
             return res.json();
         },
         updateStatus: async (id: string, status: string) => {
@@ -164,10 +178,46 @@ export const api = {
             if (!res.ok) throw new Error('Failed to convert budget');
             return res.json();
         },
+        convertToInvoice: async (id: string) => {
+            const res = await fetch(`${API_URL}/budgets/${id}/convert`, {
+                method: 'POST',
+                headers
+            });
+            if (!res.ok) throw new Error('Failed to convert budget');
+            return res.json();
+        },
+        createFinancing: async (data: any) => {
+            const res = await fetch(`${API_URL}/finance/financing`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error('Failed to create financing plan');
+            return res.json();
+        },
         delete: async (id: string) => {
             const res = await fetch(`${API_URL}/budgets/${id}`, { method: 'DELETE', headers });
             if (!res.ok) throw new Error('Failed to delete budget');
         }
+    },
+
+    downloadBatchZip: async (invoices: any[], date: string) => {
+        const res = await fetch(`${API_URL}/finance/invoices/export/batch`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ invoices, date })
+        });
+        if (!res.ok) throw new Error('Failed to download ZIP');
+
+        // Trigger download
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `facturas_${date}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     },
 
 

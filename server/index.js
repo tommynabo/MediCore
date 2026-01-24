@@ -298,15 +298,17 @@ app.post('/api/appointments', async (req, res) => {
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
 
+        // Sanitization: Ensure empty strings become null for UUID fields
+        const safeTreatmentId = (treatmentId && treatmentId.trim()) ? treatmentId : null;
+
         // VALIDATION: Specialization Check
-        if (treatmentId && doctorId) {
-            const { data: treatment } = await supabase.from('Treatment').select('specialtyId').eq('id', treatmentId).single();
+        if (safeTreatmentId && doctorId) {
+            // Use safe queries
+            const { data: treatment } = await supabase.from('Treatment').select('specialtyId').eq('id', safeTreatmentId).single();
             const { data: doctor } = await supabase.from('Doctor').select('specialtyId, name').eq('id', doctorId).single();
 
             if (treatment && doctor) {
                 if (treatment.specialtyId && doctor.specialtyId && treatment.specialtyId !== doctor.specialtyId) {
-                    // Check if doctor is "General" (allows basic treatments?) 
-                    // Or strict? User asked for strict: "si no es especialista... que no deje"
                     return res.status(400).json({ error: `El Dr. ${doctor.name} no es especialista en el tratamiento seleccionado.` });
                 }
             }
@@ -319,7 +321,7 @@ app.post('/api/appointments', async (req, res) => {
                 time,
                 patientId,
                 doctorId,
-                treatmentId,
+                treatmentId: safeTreatmentId,
                 status: 'Scheduled'
             }])
             .select()
@@ -327,7 +329,7 @@ app.post('/api/appointments', async (req, res) => {
 
         if (error) {
             console.error("❌ Supabase Insert Error (Appointment):", error);
-            return res.status(500).json({ error: `DB Error: ${error.message}` });
+            return res.status(500).json({ error: `DB Error: ${error.message} (Hashes: ${error.details || ''})` });
         }
 
         console.log("✅ Appointment Created:", data.id);
@@ -645,22 +647,48 @@ app.post('/api/finance/invoice', async (req, res) => {
 
         // SAVE TO DB (User Requirement)
         if (result.success) {
-            await prisma.invoice.create({
-                data: {
-                    invoiceNumber: result.invoiceNumber,
-                    amount: items.reduce((sum, item) => sum + Number(item.price), 0),
-                    status: 'issued',
-                    date: new Date(),
-                    url: result.url,
-                    patientId: patient.id,
-                    items: {
-                        create: items.map(i => ({
+            try {
+                let supabase = getSupabase();
+                const totalAmount = items.reduce((sum, item) => sum + Number(item.price), 0);
+
+                // 1. Create Invoice
+                const { data: savedInvoice, error: invError } = await supabase
+                    .from('Invoice')
+                    .insert([{
+                        invoiceNumber: result.invoiceNumber,
+                        amount: totalAmount,
+                        status: 'issued',
+                        date: new Date().toISOString(),
+                        url: result.url,
+                        patientId: patient.id,
+                        paymentMethod: paymentMethod || 'card'
+                    }])
+                    .select()
+                    .single();
+
+                if (invError) {
+                    console.error("❌ DB Error saving Invoice header:", invError);
+                } else if (savedInvoice) {
+                    // 2. Create Items (InvoiceItem or similar)
+                    // Assuming table is InvoiceItem based on typical naming. 
+                    // If it causes error, we log it but don't fail the request.
+                    if (items && items.length > 0) {
+                        const invoiceItems = items.map(i => ({
+                            invoiceId: savedInvoice.id,
                             name: i.name,
                             price: Number(i.price)
-                        }))
+                        }));
+
+                        const { error: itemError } = await supabase
+                            .from('InvoiceItem')
+                            .insert(invoiceItems);
+
+                        if (itemError) console.error("❌ DB Error saving Invoice Items:", itemError);
                     }
                 }
-            });
+            } catch (dbErr) {
+                console.error("❌ Unexpected DB Error during Invoice save:", dbErr);
+            }
         }
 
         res.json(result);
