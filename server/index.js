@@ -645,10 +645,12 @@ app.post('/api/finance/invoice', async (req, res) => {
             type
         });
 
+        const { data: savedInvoice, error: invError } = await supabase
+            .from('Invoice')
         // SAVE TO DB (User Requirement)
         if (result.success) {
             try {
-                let supabase = getSupabase();
+                const supabase = getSupabase();
                 const totalAmount = items.reduce((sum, item) => sum + Number(item.price), 0);
 
                 // 1. Create Invoice
@@ -670,8 +672,6 @@ app.post('/api/finance/invoice', async (req, res) => {
                     console.error("❌ DB Error saving Invoice header:", invError);
                 } else if (savedInvoice) {
                     // 2. Create Items (InvoiceItem or similar)
-                    // Assuming table is InvoiceItem based on typical naming. 
-                    // If it causes error, we log it but don't fail the request.
                     if (items && items.length > 0) {
                         const invoiceItems = items.map(i => ({
                             invoiceId: savedInvoice.id,
@@ -694,6 +694,46 @@ app.post('/api/finance/invoice', async (req, res) => {
         res.json(result);
     } catch (e) {
         console.error("Invoice Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/finance/invoices/:id/download', async (req, res) => {
+    try {
+        const { id } = req.params;
+        // 1. Get Invoice Number from DB
+        let supabase = getSupabase();
+        let invoiceNumber = id; // Fallback if id IS the number
+
+        // Try to find by ID first
+        const { data: invById } = await supabase.from('Invoice').select('invoiceNumber, url').eq('id', id).single();
+        if (invById) invoiceNumber = invById.invoiceNumber;
+        else {
+            // Try to find by Number
+            const { data: invByNum } = await supabase.from('Invoice').select('invoiceNumber, url').eq('invoiceNumber', id).single();
+            if (invByNum) invoiceNumber = invByNum.invoiceNumber;
+            else {
+                // If not found in DB, maybe it exists in FD directly or it's a test ID
+                console.log(`⚠️ Invoice ${id} not found in DB, attempting to fetch from FD directly if possible.`);
+            }
+        }
+
+        // 2. Refresh URL via Service
+        // We'll call a new service method. If not implemented, we fallback to stored URL or return error.
+        // For now, let's implement a simple direct refresh logic here or in service.
+        // Best practice: Modify service.
+
+        const freshUrl = await invoiceService.getFreshPdfUrl(invoiceNumber);
+        if (freshUrl) {
+            // Update DB with new URL to cache it briefly? 
+            // Better not cache if it expires quickly.
+            res.json({ url: freshUrl });
+        } else {
+            // Return stored URL if refresh failed (though it might be expired)
+            res.json({ url: invById?.url || invById?.url || '' });
+        }
+    } catch (e) {
+        console.error("Download Error:", e);
         res.status(500).json({ error: e.message });
     }
 });
