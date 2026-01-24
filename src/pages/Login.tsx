@@ -127,9 +127,6 @@ const Login: React.FC = () => {
                         <p className="text-xs text-slate-400">
                             ¿Problemas de acceso? Contacta con el administrador del sistema.
                         </p>
-                        <p className="text-xs text-blue-400 mt-2 font-mono">
-                            Modo Emergencia disponible: doctor@clinic.com
-                        </p>
                     </div>
                 </div>
             </div>

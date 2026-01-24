@@ -7,10 +7,10 @@ let PrismaClient;
 try {
     ({ PrismaClient } = require('@prisma/client'));
 } catch (e) {
-    console.error("⚠️ Failed to require @prisma/client, using Mock Client");
-    // Mock Prisma Client to prevent crash
+    console.warn("⚠️ Prisma Client not found - running in Supabase-only mode.");
+    // specific mock to prevent crash on instantiation
     PrismaClient = class {
-        constructor() { this.appointment = { findMany: async () => [] }; this.patient = { findMany: async () => [] }; }
+        constructor() { return new Proxy({}, { get: () => async () => [] }); }
         $connect() { return Promise.resolve(); }
     };
 }
@@ -563,21 +563,7 @@ app.post('/api/auth/login', async (req, res) => {
         console.log(`✅ Login Success: ${user.name} (${user.role})`);
         res.json(user);
     } catch (e) {
-        console.error("🔥 Critical Login Error:", e);
-
-        // --- EMERGENCY FALLBACK: ALLOW LOGIN IF DB FAILS ---
-        console.log("⚠️ ATTEMPTING EMERGENCY MOCK LOGIN (DB FAILURE)");
-        if (email === 'doctor@clinic.com' || email === 'admin@clinic.com') {
-            return res.json({
-                id: 'mock-user-id',
-                email: email,
-                name: 'Modo Emergencia (Offline)',
-                role: 'ADMIN',
-                token: 'mock-token'
-            });
-        }
-        // ---------------------------------------------------
-
+        console.error("🔥 Login Error:", e);
         res.status(500).json({ error: e.message });
     }
 });
