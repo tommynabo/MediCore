@@ -14,7 +14,7 @@ const Layout: React.FC = () => {
 
     const handleLogout = () => {
         logout();
-        navigate('/');
+        navigate('/login');
     };
 
     const navItems = [
