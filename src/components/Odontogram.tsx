@@ -530,28 +530,17 @@ const Tooth: React.FC<{
                 </div>
             </div>
 
-            {/* Lista de Tratamientos "Apilados" */}
-            <div className="flex flex-col gap-1 w-full mt-6 px-1">
-                {treatments.map((t, idx) => (
-                    <div
-                        key={t.id || idx}
-                        className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-md p-1 shadow-sm text-[8px] leading-tight overflow-hidden"
-                        title={`${t.serviceName} (${t.status})`}
-                    >
-                        <input
-                            type="checkbox"
-                            checked={t.status === 'COMPLETADO'}
-                            readOnly
-                            className="w-2 h-2 rounded-sm border-slate-300 text-blue-600 focus:ring-0 cursor-default"
-                        />
-                        <span className="truncate flex-1 font-bold text-slate-700">
-                            {t.serviceName.slice(0, 8)}{t.serviceName.length > 8 ? '.' : ''}
-                        </span>
-                    </div>
-                ))}
-                {/* Placeholder invisible para mantener espacio si no hay tratamientos, opcional */}
-                {treatments.length === 0 && <div className="h-4"></div>}
-            </div>
+            {/* Estado Simplificado */}
+            {treatments.length > 0 && (
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 min-w-[max-content]">
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm border ${treatments[0].status === 'COMPLETADO' ? 'bg-green-100 text-green-700 border-green-200' :
+                            treatments[0].status === 'EN_PROCESO' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                'bg-amber-100 text-amber-700 border-amber-200'
+                        }`}>
+                        {treatments[0].status.slice(0, 3)}
+                    </span>
+                </div>
+            )}
         </div>
     );
 };

@@ -505,6 +505,30 @@ async function handleUpdateOdontogramAndBudget(supabase, { patientName, treatmen
         }
     }
 
+    // 4b. [NEW] Save to PatientTreatment table (Source of Truth for connection with Billing/History)
+    if (treatments.length > 0) {
+        const patientTreatments = treatments.map(t => {
+            const treatmentKey = t.treatmentType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const catalogEntry = TREATMENT_CATALOG[treatmentKey] || TREATMENT_CATALOG[t.treatmentType.toLowerCase()];
+            const name = catalogEntry?.name || t.treatmentType;
+            const price = catalogEntry?.price || 0;
+
+            return {
+                id: crypto.randomUUID(),
+                patientId: patient.id,
+                serviceName: name,
+                toothId: t.tooth,
+                price: price,
+                status: 'PENDIENTE', // Default status
+                notes: t.notes || 'Creado por AI Assistant',
+                createdAt: new Date().toISOString()
+            };
+        });
+
+        const { error: ptError } = await supabase.from('PatientTreatment').insert(patientTreatments);
+        if (ptError) console.error("Error creating PatientTreatments from AI:", ptError);
+    }
+
     // 5. Add clinical record
     const clinicalNote = `Tratamientos registrados:\n${results.join('\n')}`;
     await supabase.from('ClinicalRecord').insert([{
