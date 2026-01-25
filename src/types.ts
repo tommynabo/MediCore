@@ -113,3 +113,27 @@ export interface TreatmentPlan {
 }
 
 export type Specialization = 'General' | 'Odontología' | 'Ortodoncia' | 'Implantología';
+
+export interface PatientTreatment {
+    id: string;
+    patientId: string;
+    serviceId?: string;
+    serviceName: string;
+    toothId?: number;
+    price: number;
+    customPrice?: number;
+    status: string;
+    notes?: string;
+    createdAt: string;
+}
+
+export interface Payment {
+    id: string;
+    patientId: string;
+    amount: number;
+    method: 'card' | 'cash' | 'transfer' | 'other';
+    type: 'INVOICE' | 'ADVANCE_PAYMENT' | 'PAGO_A_CUENTA' | 'OTHER';
+    invoiceId?: string;
+    createdAt: string;
+    notes?: string;
+}
