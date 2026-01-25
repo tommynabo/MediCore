@@ -433,39 +433,79 @@ const Patients: React.FC = () => {
                                 </div>
                                 <div className="bg-white p-10 rounded-2xl border border-slate-200 shadow-sm text-center">
                                     <div className="grid grid-cols-12 gap-4 pb-4 border-b border-slate-100 text-slate-400 text-[10px] font-bold uppercase tracking-widest text-left">
-                                        <div className="col-span-1">Pieza</div>
+                                        <div className="col-span-1 text-center">Pieza(s)</div>
                                         <div className="col-span-4">Tratamiento</div>
                                         <div className="col-span-3">Estado</div>
-                                        <div className="col-span-3">Precio</div>
+                                        <div className="col-span-3">Precio (Total)</div>
                                         <div className="col-span-1 text-right">Acciones</div>
                                     </div>
                                     <div className="space-y-2 mt-4">
-                                        <div className="space-y-2 mt-4">
-                                            {treatments.length === 0 ? (
-                                                <div className="p-4 text-center text-slate-400 text-xs">No hay tratamientos activos.</div>
-                                            ) : (
-                                                treatments.map((treatment) => (
-                                                    <div key={treatment.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-600 border border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer text-left">
-                                                        <div className="col-span-1 border-r border-slate-200 pr-2 text-center text-slate-400">
-                                                            {treatment.toothId || '-'}
-                                                        </div>
-                                                        <div className="col-span-4 text-slate-900 line-clamp-1" title={treatment.serviceName}>
-                                                            {treatment.serviceName}
-                                                            {treatment.notes && <span className="block text-[9px] text-slate-400 normal-case">{treatment.notes}</span>}
-                                                        </div>
-                                                        <div className={`col-span-3 font-bold ${treatment.status === 'COMPLETED' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                                                            {treatment.status}
-                                                        </div>
-                                                        <div className="col-span-3 text-slate-900">
-                                                            {treatment.price}€
-                                                        </div>
-                                                        <div className="col-span-1 text-right">
-                                                            <button onClick={() => handleDeleteTreatment(treatment.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-                                                        </div>
+                                        {treatments.length === 0 ? (
+                                            <div className="p-4 text-center text-slate-400 text-xs">No hay tratamientos activos.</div>
+                                        ) : (
+                                            // Group treatments logic
+                                            Object.values(treatments.reduce((acc: any, t: any) => {
+                                                const key = `${t.serviceName}-${t.status}-${t.price}`;
+                                                if (!acc[key]) {
+                                                    acc[key] = { ...t, teeth: [t.toothId], count: 1, totalId: [t.id] };
+                                                } else {
+                                                    acc[key].teeth.push(t.toothId);
+                                                    acc[key].count += 1;
+                                                    acc[key].totalId.push(t.id);
+                                                    // acc[key].price += t.price; // Keep original price or sum? Usually price is per unit.
+                                                    // User wants grouped. Let's just show unit price or calculate total? 
+                                                    // Actually, if I grouped them, the total price is unit * count.
+                                                }
+                                                return acc;
+                                            }, {})).map((group: any) => (
+                                                <div key={group.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-600 border border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer text-left group relative">
+
+                                                    {/* Teeth Column with Popover interaction */}
+                                                    <div className="col-span-1 border-r border-slate-200 pr-2 text-center text-slate-400 relative group/tooth">
+                                                        {group.count > 1 ? (
+                                                            <span className="cursor-help bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px]">x{group.count}</span>
+                                                        ) : (
+                                                            group.teeth[0] || '-'
+                                                        )}
+
+                                                        {/* Mini Pop-up for Teeth */}
+                                                        {group.count > 1 && (
+                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-800 text-white text-[9px] p-2 rounded-lg opacity-0 group-hover/tooth:opacity-100 transition-opacity pointer-events-none w-max z-50">
+                                                                Piezas: {group.teeth.join(', ')}
+                                                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                ))
-                                            )}
-                                        </div>
+
+                                                    <div className="col-span-4 text-slate-900 line-clamp-1 flex flex-col" title={group.serviceName}>
+                                                        <span>{group.serviceName}</span>
+                                                        {group.notes && <span className="text-[9px] text-slate-400 normal-case">{group.notes}</span>}
+                                                    </div>
+
+                                                    <div className={`col-span-3 font-bold ${group.status === 'COMPLETED' ? 'text-emerald-600' : 'text-amber-500'}`}>
+                                                        {group.status}
+                                                    </div>
+
+                                                    <div className="col-span-3 text-slate-900">
+                                                        {group.price * group.count}€ {group.count > 1 && <span className="text-slate-400 text-[9px]">({group.price}€/u)</span>}
+                                                    </div>
+
+                                                    <div className="col-span-1 text-right">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm(`¿Borrar ${group.count} tratamientos de ${group.serviceName}?`)) {
+                                                                    group.totalId.forEach((id: string) => handleDeleteTreatment(id));
+                                                                }
+                                                            }}
+                                                            className="text-slate-400 hover:text-red-500 transition-colors"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -1017,20 +1057,25 @@ const Patients: React.FC = () => {
                 budgets={budgets}
                 onPaymentComplete={(payment, invoice) => {
                     if (selectedPatient) {
-                        // Recargar para ver nuevo saldo
+                        // 1. Immediate Update (Optimistic/Server-Confirmed)
+                        if (invoice && typeof invoice.newWalletBalance === 'number') {
+                            setSelectedPatient(prev => ({ ...prev, wallet: invoice.newWalletBalance }));
+                        }
+
+                        // 2. Background Refresh (Safety)
                         api.getPatients().then(newPatients => {
                             setPatients(newPatients);
-                            // Update selectedPatient to reflect new wallet balance
+                            // Only update if we didn't just do it, or to sync other fields
                             const updated = newPatients.find(p => p.id === selectedPatient.id);
-                            if (updated) setSelectedPatient(updated);
+                            if (updated && !invoice?.newWalletBalance) setSelectedPatient(updated);
                         });
-                        // Si es advance payment, actualizar wallet visualmente rapido si se pudiera,
-                        // pero mejor confiar en el reload.
+
                         if (invoice) {
                             api.invoices.getAll().then(setInvoices);
-                            setPatientTab('billing'); // Ir a billing para ver la factura
+                            setPatientTab('billing');
                         }
                     }
+                    setIsPaymentModalOpen(false);
                 }}
             />
         </div>
