@@ -302,18 +302,31 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
         const actionKeywords = ['añade', 'añadir', 'crear', 'crea', 'marcar', 'marca', 'registra', 'registrar',
             'modifica', 'modificar', 'actualiza', 'actualizar', 'extraccion', 'extracción',
             'presupuesto', 'odontograma', 'historia', 'cita', 'receta',
-            'elimina', 'eliminar', 'borra', 'borrar', 'cambia', 'cambiar', 'corrige', 'corregir'];
+            'elimina', 'eliminar', 'borra', 'borrar', 'cambia', 'cambiar', 'corrige', 'corregir',
+            'mismo paciente', 'al mismo', 'además', 'también'];
         const queryLower = userQuery.toLowerCase();
         const isActionRequest = actionKeywords.some(kw => queryLower.includes(kw));
 
-        // 4. Call OpenAI
+        // 4. Build messages array with chat history for context continuity
+        const messages = [{ role: "system", content: context }];
+
+        // Add previous chat history if provided (for patient context)
+        if (extraContext.chatHistory && Array.isArray(extraContext.chatHistory)) {
+            for (const msg of extraContext.chatHistory.slice(-8)) { // Last 8 messages
+                if (msg.role === 'user' || msg.role === 'assistant') {
+                    messages.push({ role: msg.role, content: msg.content });
+                }
+            }
+        } else {
+            // Just add current query
+            messages.push({ role: "user", content: userQuery });
+        }
+
+        // 5. Call OpenAI with conversation history
         const aiClient = getOpenAI();
         const response = await aiClient.chat.completions.create({
             model: "gpt-4o",
-            messages: [
-                { role: "system", content: context },
-                { role: "user", content: userQuery }
-            ],
+            messages: messages,
             tools: tools,
             tool_choice: isActionRequest ? "required" : "auto"  // Force tool use for actions
         });

@@ -13,18 +13,18 @@ const AI: React.FC = () => {
         if (!aiInput.trim()) return;
 
         const userMsg = aiInput;
-        setChatHistory(prev => [...prev, { role: 'user', content: userMsg }]);
+        const newHistory = [...chatHistory, { role: 'user' as const, content: userMsg }];
+        setChatHistory(newHistory);
         setAiInput('');
         setIsProcessing(true);
 
         try {
-            // Using backend API Agent (Omniscient Mode)
-            const response = await api.ai.query(userMsg);
+            // Pass chat history to backend for context continuity
+            const response = await api.ai.query(userMsg, undefined, {
+                chatHistory: newHistory.slice(-10) // Last 10 messages for context
+            });
 
-            // Backend returns { type: 'text' | 'error', content: '...' } or just content
-            // Need to handle response structure
             const content = response.content || response.answer || JSON.stringify(response);
-
             setChatHistory(prev => [...prev, { role: 'assistant', content: content }]);
         } catch (error) {
             setChatHistory(prev => [...prev, { role: 'assistant', content: "Lo siento, hubo un error al procesar tu consulta." }]);
@@ -72,14 +72,28 @@ const AI: React.FC = () => {
                     )}
                 </div>
                 <form onSubmit={handleAiQuery} className="p-8 bg-white border-t border-slate-100 flex gap-4">
-                    <input
-                        type="text"
+                    <textarea
                         value={aiInput}
                         onChange={e => setAiInput(e.target.value)}
-                        placeholder="Ej: ¿Qué pacientes vinieron hoy?"
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-8 py-5 text-sm font-bold outline-none focus:ring-4 focus:ring-blue-100 transition-all"
+                        onKeyDown={e => {
+                            // Submit on Enter, but allow Shift+Enter for new line
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleAiQuery(e);
+                            }
+                        }}
+                        placeholder="Ej: ¿Qué pacientes vinieron hoy? (Enter para enviar, Shift+Enter nueva línea)"
+                        className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-8 py-5 text-sm font-bold outline-none focus:ring-4 focus:ring-blue-100 transition-all resize-none min-h-[60px] max-h-[200px] overflow-y-auto"
+                        rows={1}
+                        style={{ height: 'auto' }}
+                        ref={(textarea) => {
+                            if (textarea) {
+                                textarea.style.height = 'auto';
+                                textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+                            }
+                        }}
                     />
-                    <button type="submit" disabled={isProcessing} className="bg-blue-600 text-white px-8 rounded-2xl hover:bg-blue-700 transition shadow-xl disabled:opacity-50">
+                    <button type="submit" disabled={isProcessing} className="bg-blue-600 text-white px-8 rounded-2xl hover:bg-blue-700 transition shadow-xl disabled:opacity-50 self-end h-[60px]">
                         <Send size={24} />
                     </button>
                 </form>
