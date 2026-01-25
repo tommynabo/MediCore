@@ -1,16 +1,23 @@
--- Migration: Add serviceName and price columns to PatientTreatment
--- This allows storing treatment data without requiring FK to Treatment table
+-- Complete migration for PatientTreatment table
 -- Run this in Supabase SQL Editor
+-- This creates the table from scratch with all needed columns
 
--- Add serviceName column to store treatment name directly
-ALTER TABLE "PatientTreatment" ADD COLUMN IF NOT EXISTS "serviceName" TEXT;
+-- Create PatientTreatment table (tratamientos asignados a pacientes desde el odontograma)
+CREATE TABLE IF NOT EXISTS "PatientTreatment" (
+  "id" TEXT PRIMARY KEY,
+  "patientId" TEXT NOT NULL,
+  "serviceId" TEXT,  -- NULL allowed - we store serviceName directly instead
+  "serviceName" TEXT NOT NULL,  -- Nombre del tratamiento
+  "toothId" INTEGER,
+  "price" DOUBLE PRECISION DEFAULT 0,  -- Precio del tratamiento
+  "customPrice" DOUBLE PRECISION,  
+  "status" TEXT DEFAULT 'PENDIENTE',
+  "notes" TEXT,
+  "createdAt" TIMESTAMP DEFAULT NOW()
+);
 
--- Add price column to store treatment price directly
-ALTER TABLE "PatientTreatment" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION DEFAULT 0;
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS "PatientTreatment_patientId_idx" ON "PatientTreatment"("patientId");
 
--- Make serviceId nullable (remove FK constraint requirement)
--- Note: The FK might already allow NULL, but ensure the column accepts NULL
-ALTER TABLE "PatientTreatment" ALTER COLUMN "serviceId" DROP NOT NULL;
-
-COMMENT ON COLUMN "PatientTreatment"."serviceName" IS 'Nombre del tratamiento (almacenado directamente sin necesidad de FK)';
-COMMENT ON COLUMN "PatientTreatment"."price" IS 'Precio del tratamiento (almacenado directamente)';
+-- Add comment
+COMMENT ON TABLE "PatientTreatment" IS 'Tratamientos asignados a pacientes desde el odontograma';
