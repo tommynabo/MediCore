@@ -688,6 +688,8 @@ app.post('/api/finance/invoice', async (req, res) => {
                 if (invError) {
                     console.error("❌ DB Error saving Invoice header:", invError);
                 } else if (savedInvoice) {
+                    console.log(`✅ Invoice saved: ${savedInvoice.invoiceNumber} (ID: ${savedInvoice.id})`);
+
                     // 2. Create Items (InvoiceItem or similar)
                     if (items && items.length > 0) {
                         const invoiceItems = items.map(i => ({
@@ -703,11 +705,33 @@ app.post('/api/finance/invoice', async (req, res) => {
                         if (itemError) console.error("❌ DB Error saving Invoice Items:", itemError);
                     }
 
-                    // 3. Update Patient Wallet if Advance Payment
-                    if (type === 'ADVANCE_PAYMENT') {
+                    // 3. Create Payment record for history
+                    const paymentId = crypto.randomUUID();
+                    const { error: paymentError } = await supabase
+                        .from('Payment')
+                        .insert([{
+                            id: paymentId,
+                            patientId: patient.id,
+                            amount: totalAmount,
+                            method: paymentMethod || 'card',
+                            type: type || 'INVOICE',
+                            invoiceId: savedInvoice.id,
+                            createdAt: new Date().toISOString(),
+                            notes: `Factura ${savedInvoice.invoiceNumber}`
+                        }]);
+
+                    if (paymentError) {
+                        console.error("❌ DB Error saving Payment:", paymentError);
+                    } else {
+                        console.log(`✅ Payment recorded: ${totalAmount}€ (${paymentMethod})`);
+                    }
+
+                    // 4. Update Patient Wallet (saldo a cuenta)
+                    // For ADVANCE_PAYMENT: add to wallet
+                    // For regular invoice: could also track debt/credit
+                    if (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') {
                         console.log(`💰 Updating wallet for patient ${patient.id}, amount: ${totalAmount}`);
 
-                        // Try fetching current wallet first to ensure we have the latest
                         const { data: pData, error: fetchErr } = await supabase
                             .from('Patient')
                             .select('wallet')
@@ -877,12 +901,10 @@ app.get('/api/patients/:patientId/treatments', async (req, res) => {
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
 
+        // Fetch treatments - serviceName and price are stored directly in PatientTreatment
         const { data, error } = await supabase
             .from('PatientTreatment')
-            .select(`
-                *,
-                service:Treatment(id, name, price)
-            `)
+            .select('*')
             .eq('patientId', req.params.patientId)
             .order('createdAt', { ascending: false });
 
@@ -891,15 +913,23 @@ app.get('/api/patients/:patientId/treatments', async (req, res) => {
             return res.status(500).json({ error: error.message });
         }
 
-        // Map data to include serviceName
-        const mapped = data.map(t => ({
-            ...t,
-            serviceName: t.service?.name || 'Unknown',
-            price: t.customPrice || t.service?.price || 0
+        // Map data to ensure correct format for frontend
+        const mapped = (data || []).map(t => ({
+            id: t.id,
+            patientId: t.patientId,
+            serviceId: t.serviceId,
+            serviceName: t.serviceName || 'Tratamiento',
+            toothId: t.toothId,
+            price: t.price || t.customPrice || 0,
+            customPrice: t.customPrice,
+            status: t.status || 'PENDIENTE',
+            notes: t.notes,
+            createdAt: t.createdAt
         }));
 
         res.json(mapped);
     } catch (e) {
+        console.error("❌ GET treatments error:", e);
         res.status(500).json({ error: e.message });
     }
 });
