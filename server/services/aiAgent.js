@@ -448,7 +448,9 @@ async function handleUpdateOdontogramAndBudget(supabase, { patientName, treatmen
         teethState = {};
     }
 
-    // 2. Process each treatment
+    // 2. Process each treatment & Grouping Logic
+    const groupedTreatments = {}; // { key: { name, price, status, quantity, teeth: [] } }
+
     for (const t of treatments) {
         try {
             const treatmentKey = t.treatmentType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -460,33 +462,47 @@ async function handleUpdateOdontogramAndBudget(supabase, { patientName, treatmen
 
             // Validate Tooth
             const toothNum = parseInt(t.tooth);
-            if (isNaN(toothNum) || toothNum < 11 || toothNum > 85) { // Basic valid range check
+            if (isNaN(toothNum) || toothNum < 11 || toothNum > 85) {
                 console.warn(`Skipping invalid tooth number: ${t.tooth}`);
-                results.push(`⚠️ Diente ${t.tooth} inválido o desconocido. Ignorado.`);
                 continue;
             }
 
-            // Update tooth state
+            // Update tooth state (Odontogram always individual)
             teethState[t.tooth.toString()] = {
                 status: status,
                 notes: t.notes || '',
                 updatedAt: new Date().toISOString()
             };
 
-            // Add to budget items
-            budgetItems.push({
-                name: name,
-                price: price,
-                tooth: t.tooth.toString(),
-                quantity: 1
-            });
+            // Grouping for Budget/Treatments
+            if (!groupedTreatments[treatmentKey]) {
+                groupedTreatments[treatmentKey] = {
+                    name: name,
+                    price: price, // Single unit price
+                    status: status,
+                    quantity: 0,
+                    teeth: []
+                };
+            }
+            groupedTreatments[treatmentKey].quantity += 1;
+            groupedTreatments[treatmentKey].teeth.push(t.tooth);
 
             results.push(`• Diente ${t.tooth}: ${name} (${status})`);
         } catch (err) {
             console.error(`Error processing treatment for tooth ${t.tooth}:`, err);
-            results.push(`❌ Error procesando diente ${t.tooth}.`);
         }
     }
+
+    // Convert grouped items to budgetItems
+    Object.values(groupedTreatments).forEach(group => {
+        budgetItems.push({
+            name: group.name,
+            price: group.price * group.quantity, // Total price for the group
+            tooth: group.teeth.join(', '), // List of teeth
+            quantity: group.quantity,
+            unitPrice: group.price
+        });
+    });
 
     // 3. Save odontogram
     const teethStateJson = JSON.stringify(teethState);

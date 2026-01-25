@@ -648,32 +648,55 @@ const Patients: React.FC = () => {
                                             <div className="p-10 text-center opacity-50 font-bold uppercase">No hay presupuestos registrados</div>
                                         ) : (
                                             budgets.map((budget: any) => (
-                                                <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-                                                    {/* Budget Content */}
-                                                    <div className="flex justify-between items-start mb-4">
+                                                <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                                                    {/* Budget Header */}
+                                                    <div className="flex justify-between items-start mb-6">
                                                         <div>
-                                                            <h4 className="text-xl font-black text-slate-900">{budget.title || `Presupuesto #${budget.id.substring(0, 6)}`}</h4>
-                                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{new Date(budget.createdAt).toLocaleDateString()}</p>
+                                                            <h4 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                                                {budget.title || `Presupuesto #${budget.id.substring(0, 6)}`}
+                                                            </h4>
+                                                            <p className="text-[10px] font-bold text-slate-400 uppercase mt-1">{new Date(budget.createdAt).toLocaleDateString()}</p>
                                                         </div>
-                                                        <div className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase ${budget.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
-                                                            {budget.status || 'BORRADOR'}
+                                                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider ${budget.status === 'ACCEPTED' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                                                            {budget.status || 'DRAFT'}
                                                         </div>
                                                     </div>
-                                                    <div className="space-y-2 mb-4 bg-slate-50 p-4 rounded-xl">
+
+                                                    {/* Items List - Gray Container */}
+                                                    <div className="bg-slate-50 rounded-xl p-4 space-y-3 mb-6">
                                                         {budget.items?.map((item: any, idx: number) => (
-                                                            <div key={idx} className="flex justify-between text-[11px] font-bold text-slate-600 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
-                                                                <div className="flex gap-2">
-                                                                    <span className="text-slate-400">x{item.quantity || 1}</span>
-                                                                    <span>{item.name}</span>
-                                                                    {item.tooth && <span className="bg-slate-200 px-1.5 rounded text-[9px] text-slate-500">Diente {item.tooth}</span>}
+                                                            <div key={idx} className="flex justify-between items-center text-sm font-bold text-slate-700">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-xs font-black text-slate-400 border border-slate-100 shadow-sm">
+                                                                        x{item.quantity || 1}
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <span>{item.name}</span>
+                                                                        {item.tooth && <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide">Diente(s): {item.tooth}</span>}
+                                                                    </div>
                                                                 </div>
-                                                                <span>{item.price}€</span>
+                                                                <span className="font-black text-slate-900">{item.price}€</span>
                                                             </div>
                                                         ))}
+                                                        {(!budget.items || budget.items.length === 0) && (
+                                                            <div className="text-center text-xs text-slate-400 italic py-2">Sin conceptos</div>
+                                                        )}
                                                     </div>
-                                                    <div className="flex justify-end gap-2">
-                                                        <button onClick={() => handleDeleteBudget(budget.id)} className="text-xs font-bold text-red-500 bg-red-50 px-3 py-2 rounded-lg hover:bg-red-100 transition-colors flex items-center gap-1"><Trash2 size={12} /> Borrar</button>
-                                                        <button onClick={() => handleConvertToInvoice(budget)} className="text-xs font-bold text-purple-600 bg-purple-50 px-3 py-2 rounded-lg hover:bg-purple-100 transition-colors">Convertir a Factura</button>
+
+                                                    {/* Footer Actions */}
+                                                    <div className="flex justify-end gap-3 pt-2 border-t border-slate-50">
+                                                        <button
+                                                            onClick={() => handleDeleteBudget(budget.id)}
+                                                            className="px-4 py-2 rounded-xl bg-red-50 text-red-500 text-xs font-bold uppercase hover:bg-red-100 transition-colors flex items-center gap-2"
+                                                        >
+                                                            <Trash2 size={14} /> Borrar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleConvertToInvoice(budget)}
+                                                            className="px-6 py-2 rounded-xl bg-purple-50 text-purple-600 text-xs font-black uppercase hover:bg-purple-100 transition-colors flex items-center gap-2"
+                                                        >
+                                                            Convertir a Factura
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))

@@ -783,6 +783,15 @@ app.post('/api/finance/invoice', async (req, res) => {
         if (!result.success) {
             return res.status(500).json(result);
         }
+
+        // Return updated wallet if available
+        if (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') {
+            const { data: pData } = await getSupabase().from('Patient').select('wallet').eq('id', patient.id).single();
+            if (pData) {
+                result.newWalletBalance = pData.wallet;
+            }
+        }
+
         res.json(result);
     } catch (e) {
         console.error("Invoice Error:", e);
