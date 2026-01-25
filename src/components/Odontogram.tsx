@@ -503,13 +503,8 @@ const Tooth: React.FC<{
 }> = ({ id, treatments, isSelected, onClick }) => {
     const shape = getToothShape(id);
 
-    // Determinar color resumen
-    let color = '#e2e8f0'; // Sano default
-    if (treatments.length > 0) {
-        if (treatments.some(t => t.status === 'PENDIENTE')) color = '#f59e0b'; // Pendiente (Amber)
-        else if (treatments.some(t => t.status === 'EN_PROCESO')) color = '#3b82f6'; // En proceso (Blue)
-        else color = '#10b981'; // Completado (Green)
-    }
+    // Always use white color for teeth
+    const color = '#ffffff';
 
     return (
         <div className="flex flex-col items-center group cursor-pointer w-[60px]" onClick={onClick}>
