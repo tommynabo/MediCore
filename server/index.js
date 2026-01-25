@@ -482,9 +482,16 @@ app.get('/api/patients/:patientId/alerts', async (req, res) => {
 app.post('/api/ai/query', async (req, res) => {
     try {
         const { message, context } = req.body;
-        const response = await aiAgent.processQuery(prisma, message, req.user.role, context);
+        // Pass user info for role-based filtering (new Supabase-based agent)
+        const userInfo = {
+            id: req.user.id,
+            role: req.user.role,
+            doctorId: req.user.doctorId || null // Linked doctor profile if user is a doctor
+        };
+        const response = await aiAgent.processQuery(message, userInfo, context);
         res.json(response);
     } catch (error) {
+        console.error("AI Query Error:", error);
         res.status(500).json({ error: error.message });
     }
 });
