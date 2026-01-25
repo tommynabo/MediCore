@@ -659,10 +659,14 @@ const Patients: React.FC = () => {
                                                             {budget.status || 'BORRADOR'}
                                                         </div>
                                                     </div>
-                                                    <div className="space-y-2 mb-4">
+                                                    <div className="space-y-2 mb-4 bg-slate-50 p-4 rounded-xl">
                                                         {budget.items?.map((item: any, idx: number) => (
-                                                            <div key={idx} className="flex justify-between text-xs font-bold text-slate-600 border-b border-slate-50 pb-1">
-                                                                <span>{item.name}</span>
+                                                            <div key={idx} className="flex justify-between text-[11px] font-bold text-slate-600 border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                                                <div className="flex gap-2">
+                                                                    <span className="text-slate-400">x{item.quantity || 1}</span>
+                                                                    <span>{item.name}</span>
+                                                                    {item.tooth && <span className="bg-slate-200 px-1.5 rounded text-[9px] text-slate-500">Diente {item.tooth}</span>}
+                                                                </div>
                                                                 <span>{item.price}€</span>
                                                             </div>
                                                         ))}

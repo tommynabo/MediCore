@@ -100,6 +100,15 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
         DEBES usar la herramienta correspondiente. NUNCA respondas "no encontré al paciente" sin antes intentar usar la herramienta.
         Las herramientas hacen su propia búsqueda del paciente - NO necesitas verificar si el paciente existe primero.
         
+        FORMATO DE RESPUESTA:
+        - Usa SIEMPRE listas Markdown (-) para enumerar acciones, tratamientos o datos.
+        - Usa **negrita** para resaltar precios, nombres de pacientes y conceptos clave.
+        - Si hay múltiples pasos, sepáralos claramente.
+        
+        MANEJO DE ERRORES:
+        - Si el usuario indica un número de diente inválido (ej: "diente 1"), asume que es un error tipográfico y corrígelo si es obvio (ej: "1" -> "11" o "21" según contexto, o ignóralo advirtiendo al usuario).
+        - Si hay errores tipográficos en los comandos (ej: "losdientes"), intenta interpretarlos lógicamente.
+
         INSTRUCCIONES:
         1. Para EXTRACCIONES + PRESUPUESTO: Usa "update_odontogram_and_create_budget" con el tipo "extraccion"
         2. Para AÑADIR NOTAS: Usa "add_clinical_record"
@@ -441,29 +450,42 @@ async function handleUpdateOdontogramAndBudget(supabase, { patientName, treatmen
 
     // 2. Process each treatment
     for (const t of treatments) {
-        const treatmentKey = t.treatmentType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const catalogEntry = TREATMENT_CATALOG[treatmentKey] || TREATMENT_CATALOG[t.treatmentType.toLowerCase()];
+        try {
+            const treatmentKey = t.treatmentType.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const catalogEntry = TREATMENT_CATALOG[treatmentKey] || TREATMENT_CATALOG[t.treatmentType.toLowerCase()];
 
-        const status = catalogEntry?.status || t.treatmentType.toUpperCase();
-        const price = catalogEntry?.price || 50;
-        const name = catalogEntry?.name || t.treatmentType;
+            const status = catalogEntry?.status || t.treatmentType.toUpperCase();
+            const price = catalogEntry?.price || 50;
+            const name = catalogEntry?.name || t.treatmentType;
 
-        // Update tooth state
-        teethState[t.tooth.toString()] = {
-            status: status,
-            notes: t.notes || '',
-            updatedAt: new Date().toISOString()
-        };
+            // Validate Tooth
+            const toothNum = parseInt(t.tooth);
+            if (isNaN(toothNum) || toothNum < 11 || toothNum > 85) { // Basic valid range check
+                console.warn(`Skipping invalid tooth number: ${t.tooth}`);
+                results.push(`⚠️ Diente ${t.tooth} inválido o desconocido. Ignorado.`);
+                continue;
+            }
 
-        // Add to budget items
-        budgetItems.push({
-            name: name,
-            price: price,
-            tooth: t.tooth.toString(),
-            quantity: 1
-        });
+            // Update tooth state
+            teethState[t.tooth.toString()] = {
+                status: status,
+                notes: t.notes || '',
+                updatedAt: new Date().toISOString()
+            };
 
-        results.push(`• Diente ${t.tooth}: ${name} (${status})`);
+            // Add to budget items
+            budgetItems.push({
+                name: name,
+                price: price,
+                tooth: t.tooth.toString(),
+                quantity: 1
+            });
+
+            results.push(`• Diente ${t.tooth}: ${name} (${status})`);
+        } catch (err) {
+            console.error(`Error processing treatment for tooth ${t.tooth}:`, err);
+            results.push(`❌ Error procesando diente ${t.tooth}.`);
+        }
     }
 
     // 3. Save odontogram
