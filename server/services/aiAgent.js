@@ -263,13 +263,46 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
                         required: ["patientName"]
                     }
                 }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "modify_clinical_record",
+                    description: "Modificar una nota o registro existente en la historia clínica del paciente. Usa esto cuando el usuario pida cambiar, actualizar o corregir algo en la historia.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            patientName: { type: "string", description: "Nombre del paciente" },
+                            searchText: { type: "string", description: "Texto a buscar en las notas existentes para identificar cuál modificar" },
+                            newContent: { type: "string", description: "Nuevo contenido que reemplazará o actualizará la nota" },
+                            action: { type: "string", enum: ["replace", "append", "delete"], description: "Acción: replace=reemplazar contenido, append=añadir al final, delete=eliminar la nota" }
+                        },
+                        required: ["patientName", "searchText", "newContent"]
+                    }
+                }
+            },
+            {
+                type: "function",
+                function: {
+                    name: "delete_clinical_record",
+                    description: "Eliminar una nota clínica específica de un paciente.",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            patientName: { type: "string", description: "Nombre del paciente" },
+                            searchText: { type: "string", description: "Texto que identifica la nota a eliminar" }
+                        },
+                        required: ["patientName", "searchText"]
+                    }
+                }
             }
         ];
 
         // 3. Detect if query is an action request - force tool usage
         const actionKeywords = ['añade', 'añadir', 'crear', 'crea', 'marcar', 'marca', 'registra', 'registrar',
             'modifica', 'modificar', 'actualiza', 'actualizar', 'extraccion', 'extracción',
-            'presupuesto', 'odontograma', 'historia', 'cita', 'receta'];
+            'presupuesto', 'odontograma', 'historia', 'cita', 'receta',
+            'elimina', 'eliminar', 'borra', 'borrar', 'cambia', 'cambiar', 'corrige', 'corregir'];
         const queryLower = userQuery.toLowerCase();
         const isActionRequest = actionKeywords.some(kw => queryLower.includes(kw));
 
@@ -317,6 +350,12 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
                         break;
                     case "search_patient_info":
                         result = await handleSearchPatientInfo(supabase, args, userInfo);
+                        break;
+                    case "modify_clinical_record":
+                        result = await handleModifyClinicalRecord(supabase, args, userInfo);
+                        break;
+                    case "delete_clinical_record":
+                        result = await handleDeleteClinicalRecord(supabase, args, userInfo);
                         break;
                     default:
                         result = { type: 'error', content: `Herramienta desconocida: ${toolCall.function.name}` };
@@ -671,6 +710,85 @@ async function handleSearchPatientInfo(supabase, { patientName }, userInfo) {
     }
 
     return { type: 'text', content: response };
+}
+
+async function handleModifyClinicalRecord(supabase, { patientName, searchText, newContent, action = 'replace' }, userInfo) {
+    const { patient, error } = await findPatient(supabase, patientName, userInfo);
+    if (error) return { type: 'error', content: error };
+
+    // Find matching clinical records
+    const { data: records } = await supabase
+        .from('ClinicalRecord')
+        .select('*')
+        .eq('patientId', patient.id)
+        .order('date', { ascending: false });
+
+    if (!records || records.length === 0) {
+        return { type: 'error', content: `No se encontraron notas clínicas para ${patient.name}` };
+    }
+
+    // Search for the record containing the search text
+    let targetRecord = null;
+    for (const record of records) {
+        let text = record.text;
+        try {
+            const parsed = JSON.parse(record.text);
+            text = parsed.observation || parsed.treatment || record.text;
+        } catch (e) { }
+
+        if (text.toLowerCase().includes(searchText.toLowerCase())) {
+            targetRecord = record;
+            break;
+        }
+    }
+
+    if (!targetRecord) {
+        return { type: 'error', content: `No se encontró ninguna nota que contenga "${searchText}"` };
+    }
+
+    // Parse current content
+    let currentData = {};
+    try {
+        currentData = JSON.parse(targetRecord.text);
+    } catch (e) {
+        currentData = { observation: targetRecord.text };
+    }
+
+    // Apply the action
+    if (action === 'delete') {
+        const { error: deleteError } = await supabase
+            .from('ClinicalRecord')
+            .delete()
+            .eq('id', targetRecord.id);
+
+        if (deleteError) {
+            return { type: 'error', content: `Error al eliminar: ${deleteError.message}` };
+        }
+        return { type: 'action_completed', content: `✅ Nota clínica eliminada de ${patient.name}` };
+    }
+
+    // Update content
+    if (action === 'append') {
+        currentData.observation = (currentData.observation || '') + '\n' + newContent;
+    } else {
+        // Replace
+        currentData.observation = newContent;
+    }
+
+    const { error: updateError } = await supabase
+        .from('ClinicalRecord')
+        .update({ text: JSON.stringify(currentData) })
+        .eq('id', targetRecord.id);
+
+    if (updateError) {
+        return { type: 'error', content: `Error al actualizar: ${updateError.message}` };
+    }
+
+    return { type: 'action_completed', content: `✅ Historia clínica de ${patient.name} actualizada:\n📝 ${newContent}` };
+}
+
+async function handleDeleteClinicalRecord(supabase, { patientName, searchText }, userInfo) {
+    return handleModifyClinicalRecord(supabase, { patientName, searchText, newContent: '', action: 'delete' }, userInfo);
 }
 
 module.exports = { processQuery };

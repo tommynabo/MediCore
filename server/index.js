@@ -952,12 +952,17 @@ app.post('/api/patients/:patientId/treatments/batch', async (req, res) => {
             return res.status(400).json({ error: 'treatments array is required' });
         }
 
+        console.log('📝 Creating batch treatments:', JSON.stringify(treatments, null, 2));
+
+        // Build insert data - serviceId is now optional, we store serviceName and price directly
         const toInsert = treatments.map(t => ({
             id: crypto.randomUUID(),
             patientId: req.params.patientId,
-            serviceId: t.serviceId,
+            serviceId: t.serviceId && !t.serviceId.startsWith('srv-') ? t.serviceId : null, // Only use real UUIDs
+            serviceName: t.serviceName || 'Tratamiento',
             toothId: t.toothId || null,
-            customPrice: t.customPrice || null,
+            price: t.price || t.customPrice || 0,
+            customPrice: t.customPrice || t.price || null,
             status: t.status || 'PENDIENTE',
             notes: t.notes || null,
             createdAt: new Date().toISOString()
@@ -973,8 +978,10 @@ app.post('/api/patients/:patientId/treatments/batch', async (req, res) => {
             return res.status(500).json({ error: error.message });
         }
 
+        console.log(`✅ Created ${data.length} treatments`);
         res.json(data);
     } catch (e) {
+        console.error("❌ Batch treatments error:", e);
         res.status(500).json({ error: e.message });
     }
 });
