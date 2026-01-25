@@ -9,6 +9,8 @@ import { useAppContext } from '../context/AppContext';
 import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment, PatientTreatment } from '../../types';
 import { Odontogram } from '../components/Odontogram';
 import { PaymentModal } from '../components/PaymentModal';
+import { TreatmentsList } from '../components/TreatmentsList';
+import { PaymentsList } from '../components/PaymentsList';
 import { DOCTORS, DENTAL_SERVICES } from '../constants';
 
 const Patients: React.FC = () => {
@@ -61,6 +63,16 @@ const Patients: React.FC = () => {
             api.treatments.getByPatient(selectedPatient.id)
                 .then(setTreatments)
                 .catch(err => console.error("Failed to load treatments", err));
+        }
+    }, [selectedPatient, patientTab]);
+
+    // Payments State (New)
+    const [payments, setPayments] = useState<any[]>([]);
+    React.useEffect(() => {
+        if (selectedPatient && patientTab === 'billing') {
+            api.payments.getByPatient(selectedPatient.id)
+                .then(setPayments)
+                .catch(err => console.error("Failed to load payments", err));
         }
     }, [selectedPatient, patientTab]);
 
@@ -439,74 +451,7 @@ const Patients: React.FC = () => {
                                         <div className="col-span-3">Precio (Total)</div>
                                         <div className="col-span-1 text-right">Acciones</div>
                                     </div>
-                                    <div className="space-y-2 mt-4">
-                                        {treatments.length === 0 ? (
-                                            <div className="p-4 text-center text-slate-400 text-xs">No hay tratamientos activos.</div>
-                                        ) : (
-                                            // Group treatments logic
-                                            Object.values(treatments.reduce((acc: any, t: any) => {
-                                                const key = `${t.serviceName}-${t.status}-${t.price}`;
-                                                if (!acc[key]) {
-                                                    acc[key] = { ...t, teeth: [t.toothId], count: 1, totalId: [t.id] };
-                                                } else {
-                                                    acc[key].teeth.push(t.toothId);
-                                                    acc[key].count += 1;
-                                                    acc[key].totalId.push(t.id);
-                                                    // acc[key].price += t.price; // Keep original price or sum? Usually price is per unit.
-                                                    // User wants grouped. Let's just show unit price or calculate total? 
-                                                    // Actually, if I grouped them, the total price is unit * count.
-                                                }
-                                                return acc;
-                                            }, {})).map((group: any) => (
-                                                <div key={group.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-600 border border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer text-left group relative">
-
-                                                    {/* Teeth Column with Popover interaction */}
-                                                    <div className="col-span-1 border-r border-slate-200 pr-2 text-center text-slate-400 relative group/tooth">
-                                                        {group.count > 1 ? (
-                                                            <span className="cursor-help bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px]">x{group.count}</span>
-                                                        ) : (
-                                                            group.teeth[0] || '-'
-                                                        )}
-
-                                                        {/* Mini Pop-up for Teeth */}
-                                                        {group.count > 1 && (
-                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-slate-800 text-white text-[9px] p-2 rounded-lg opacity-0 group-hover/tooth:opacity-100 transition-opacity pointer-events-none w-max z-50">
-                                                                Piezas: {group.teeth.join(', ')}
-                                                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    <div className="col-span-4 text-slate-900 line-clamp-1 flex flex-col" title={group.serviceName}>
-                                                        <span>{group.serviceName}</span>
-                                                        {group.notes && <span className="text-[9px] text-slate-400 normal-case">{group.notes}</span>}
-                                                    </div>
-
-                                                    <div className={`col-span-3 font-bold ${group.status === 'COMPLETED' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                                                        {group.status}
-                                                    </div>
-
-                                                    <div className="col-span-3 text-slate-900">
-                                                        {group.price * group.count}€ {group.count > 1 && <span className="text-slate-400 text-[9px]">({group.price}€/u)</span>}
-                                                    </div>
-
-                                                    <div className="col-span-1 text-right">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (confirm(`¿Borrar ${group.count} tratamientos de ${group.serviceName}?`)) {
-                                                                    group.totalId.forEach((id: string) => handleDeleteTreatment(id));
-                                                                }
-                                                            }}
-                                                            className="text-slate-400 hover:text-red-500 transition-colors"
-                                                        >
-                                                            <Trash2 size={12} />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
+                                    <TreatmentsList patientId={selectedPatient.id} />
                                 </div>
                             </div>
                         )}
@@ -581,59 +526,70 @@ const Patients: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
-                                    <h4 className="text-lg font-black text-slate-900 mb-6">Historial de Facturas</h4>
-                                    <div className="space-y-2">
-                                        {invoices.filter(i => i.patientId === selectedPatient.id).length === 0 ? (
-                                            <p className="text-xs text-slate-500 font-bold opacity-50">No hay facturas emitidas.</p>
-                                        ) : (
-                                            invoices.filter(i => i.patientId === selectedPatient.id).map(inv => (
-                                                <div key={inv.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                                                    <div>
-                                                        <p className="text-sm font-black text-slate-900">{inv.invoiceNumber}</p>
-                                                        <p className="text-[10px] font-bold text-slate-400">{new Date(inv.date).toLocaleDateString()}</p>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <p className="text-sm font-black text-slate-900">{inv.amount}€</p>
-                                                        <div className="flex gap-2">
-                                                            <a
-                                                                href={`https://facturadirecta2.s3.amazonaws.com/tmp/com_sandbox_1_9ed0e047-4306-4b22-be3d-9bc0564ddc20/ad5f4c02-0638-40f4-b95d-20941941f005/factura_2026_01_22_test00000010_print.html`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                                                title="Descargar Factura (S3 Link)"
-                                                            >
-                                                                <Download size={14} />
-                                                            </a >
-                                                            <button
-                                                                onClick={() => {
-                                                                    alert(`📧 Factura ${inv.invoiceNumber} enviada a ${selectedPatient.email || 'correo del paciente'}.`);
-                                                                }}
-                                                                className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
-                                                                title="Enviar por Email al Paciente"
-                                                            >
-                                                                <Mail size={14} />
-                                                            </button>
-                                                            {
-                                                                inv.qrUrl && (
-                                                                    <a
-                                                                        href={inv.qrUrl}
-                                                                        target="_blank"
-                                                                        rel="noopener noreferrer"
-                                                                        className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
-                                                                        title="Ver/Descargar código QR Veri*Factu"
-                                                                    >
-                                                                        <QrCode size={14} />
-                                                                    </a>
-                                                                )
-                                                            }
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Invoices List */}
+                                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                                        <h4 className="text-lg font-black text-slate-900 mb-6">Historial de Facturas</h4>
+                                        <div className="space-y-2">
+                                            {invoices.filter(i => i.patientId === selectedPatient.id).length === 0 ? (
+                                                <p className="text-xs text-slate-500 font-bold opacity-50">No hay facturas emitidas.</p>
+                                            ) : (
+                                                invoices.filter(i => i.patientId === selectedPatient.id).map(inv => (
+                                                    <div key={inv.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                                                        <div>
+                                                            <p className="text-sm font-black text-slate-900">{inv.invoiceNumber}</p>
+                                                            <p className="text-[10px] font-bold text-slate-400">{new Date(inv.date).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <div className="flex items-center gap-4">
+                                                            <p className="text-sm font-black text-slate-900">{inv.amount}€</p>
+                                                            <div className="flex gap-2">
+                                                                <a
+                                                                    href={inv.url || '#'}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                                    title="Descargar Factura (S3 Link)"
+                                                                >
+                                                                    <Download size={14} />
+                                                                </a >
+                                                                <button
+                                                                    onClick={() => {
+                                                                        alert(`📧 Factura ${inv.invoiceNumber} enviada a ${selectedPatient.email || 'correo del paciente'}.`);
+                                                                    }}
+                                                                    className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+                                                                    title="Enviar por Email al Paciente"
+                                                                >
+                                                                    <Mail size={14} />
+                                                                </button>
+                                                                {
+                                                                    inv.qrUrl && (
+                                                                        <a
+                                                                            href={inv.qrUrl}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-colors"
+                                                                            title="Ver/Descargar código QR Veri*Factu"
+                                                                        >
+                                                                            <QrCode size={14} />
+                                                                        </a>
+                                                                    )
+                                                                }
+                                                            </div >
                                                         </div >
                                                     </div >
-                                                </div >
-                                            ))
-                                        )}
+                                                ))
+                                            )}
+                                        </div >
                                     </div >
-                                </div >
+
+                                    {/* Payments History (New) */}
+                                    <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
+                                        <h4 className="text-lg font-black text-slate-900 mb-6 flex items-center gap-2"><CreditCard size={20} /> Historial de Pagos</h4>
+                                        <div className="space-y-2 h-[500px] overflow-y-auto">
+                                            <PaymentsList patientId={selectedPatient.id} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div >
                         )}
 
