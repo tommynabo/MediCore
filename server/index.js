@@ -649,6 +649,27 @@ app.post('/api/seed', async (req, res) => {
 });
 
 // --- MODULE 6: EXTERNAL INVOICING (FACTURADIRECTA / VERI*FACTU) ---
+app.get('/api/finance/invoices', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        // Join with Patient to get names
+        const { data: invoices, error } = await supabase
+            .from('Invoice')
+            .select('*, patient:Patient(name, dni)')
+            .order('date', { ascending: false });
+
+        if (error) {
+            console.error("❌ Error fetching invoices:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        res.json(invoices);
+    } catch (e) {
+        console.error("GET Invoices Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/finance/invoice', async (req, res) => {
     try {
         const { patient, items, paymentMethod, type } = req.body;
@@ -759,6 +780,9 @@ app.post('/api/finance/invoice', async (req, res) => {
             }
         }
 
+        if (!result.success) {
+            return res.status(500).json(result);
+        }
         res.json(result);
     } catch (e) {
         console.error("Invoice Error:", e);

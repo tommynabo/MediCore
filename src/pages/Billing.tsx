@@ -15,6 +15,11 @@ const Billing: React.FC = () => {
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
     const [exportDate, setExportDate] = useState('');
 
+    // Refresh patients on mount to ensure search works with latest data
+    useEffect(() => {
+        refreshPatients();
+    }, []);
+
     // Invoice Creation State
     const [selectedPatientId, setSelectedPatientId] = useState('');
     const [invoiceItems, setInvoiceItems] = useState<{ name: string, price: number }[]>([{ name: 'Consulta General', price: 50.0 }]);
@@ -58,7 +63,7 @@ const Billing: React.FC = () => {
                 patient: patient,
                 items: invoiceItems,
                 paymentMethod: paymentMethod, // Use state
-                type: invoiceType // Use state
+                type: paymentMethod === 'ADVANCE_PAYMENT' ? 'ADVANCE_PAYMENT' : invoiceType // Override type for wallet update
             };
 
             const data = await api.invoices.create(payload) as any;
@@ -481,6 +486,7 @@ const Billing: React.FC = () => {
                                         <option value="card">Tarjeta</option>
                                         <option value="cash">Efectivo</option>
                                         <option value="transfer">Transferencia</option>
+                                        <option value="ADVANCE_PAYMENT">Pago a Cuenta (Saldo)</option>
                                     </select>
                                 </div>
 

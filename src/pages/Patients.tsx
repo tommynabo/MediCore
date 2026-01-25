@@ -6,7 +6,7 @@ import {
     QrCode, Wallet
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
-import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment } from '../../types';
+import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment, PatientTreatment } from '../../types';
 import { Odontogram } from '../components/Odontogram';
 import { PaymentModal } from '../components/PaymentModal';
 import { DOCTORS, DENTAL_SERVICES } from '../constants';
@@ -53,6 +53,28 @@ const Patients: React.FC = () => {
     const [treatmentSearch, setTreatmentSearch] = useState('');
     const [treatmentForm, setTreatmentForm] = useState({ name: '', price: '', status: 'Pendiente' });
     const [isTreatmentSearchFocused, setIsTreatmentSearchFocused] = useState(false);
+    const [treatments, setTreatments] = useState<PatientTreatment[]>([]); // NEW: Source of Truth
+
+    // Fetch Treatments when tab active
+    React.useEffect(() => {
+        if (selectedPatient && patientTab === 'treatments') {
+            api.treatments.getByPatient(selectedPatient.id)
+                .then(setTreatments)
+                .catch(err => console.error("Failed to load treatments", err));
+        }
+    }, [selectedPatient, patientTab]);
+
+    const handleDeleteTreatment = async (id: string) => {
+        if (confirm("¿Seguro que quieres borrar este tratamiento?")) {
+            try {
+                await api.treatments.delete(id);
+                setTreatments(prev => prev.filter(t => t.id !== id));
+            } catch (e) {
+                alert("Error borrando el tratamiento.");
+                console.error(e);
+            }
+        }
+    };
 
     // Prescriptions
     const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
@@ -418,29 +440,32 @@ const Patients: React.FC = () => {
                                         <div className="col-span-1 text-right">Acciones</div>
                                     </div>
                                     <div className="space-y-2 mt-4">
-                                        {clinicalRecords.filter(r => r.patientId === selectedPatient?.id).length === 0 ? (
-                                            <div className="p-4 text-center text-slate-400 text-xs">No hay tratamientos activos.</div>
-                                        ) : (
-                                            clinicalRecords.filter(r => r.patientId === selectedPatient?.id).map((record, idx) => (
-                                                <div key={idx} className="grid grid-cols-12 gap-4 items-center p-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-600 border border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer text-left">
-                                                    <div className="col-span-1 border-r border-slate-200 pr-2 text-center text-slate-400">
-                                                        {record.clinicalData.treatment.includes('Diente') ? record.clinicalData.treatment.split('Diente ')[1] : '-'}
+                                        <div className="space-y-2 mt-4">
+                                            {treatments.length === 0 ? (
+                                                <div className="p-4 text-center text-slate-400 text-xs">No hay tratamientos activos.</div>
+                                            ) : (
+                                                treatments.map((treatment) => (
+                                                    <div key={treatment.id} className="grid grid-cols-12 gap-4 items-center p-3 bg-slate-50 rounded-xl text-[10px] font-black uppercase text-slate-600 border border-slate-100 hover:bg-blue-50 transition-colors cursor-pointer text-left">
+                                                        <div className="col-span-1 border-r border-slate-200 pr-2 text-center text-slate-400">
+                                                            {treatment.toothId || '-'}
+                                                        </div>
+                                                        <div className="col-span-4 text-slate-900 line-clamp-1" title={treatment.serviceName}>
+                                                            {treatment.serviceName}
+                                                            {treatment.notes && <span className="block text-[9px] text-slate-400 normal-case">{treatment.notes}</span>}
+                                                        </div>
+                                                        <div className={`col-span-3 font-bold ${treatment.status === 'COMPLETED' ? 'text-emerald-600' : 'text-amber-500'}`}>
+                                                            {treatment.status}
+                                                        </div>
+                                                        <div className="col-span-3 text-slate-900">
+                                                            {treatment.price}€
+                                                        </div>
+                                                        <div className="col-span-1 text-right">
+                                                            <button onClick={() => handleDeleteTreatment(treatment.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
+                                                        </div>
                                                     </div>
-                                                    <div className="col-span-4 text-slate-900 line-clamp-1" title={record.clinicalData.treatment}>
-                                                        {record.clinicalData.treatment}
-                                                    </div>
-                                                    <div className="col-span-3 text-emerald-600">
-                                                        Realizado
-                                                    </div>
-                                                    <div className="col-span-3 text-slate-900">
-                                                        {record.clinicalData.price ? record.clinicalData.price + '€' : '-'}
-                                                    </div>
-                                                    <div className="col-span-1 text-right">
-                                                        <button onClick={() => handleDeleteRecord(record.id)} className="text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={12} /></button>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -966,7 +991,12 @@ const Patients: React.FC = () => {
                 onPaymentComplete={(payment, invoice) => {
                     if (selectedPatient) {
                         // Recargar para ver nuevo saldo
-                        api.getPatients().then(setPatients);
+                        api.getPatients().then(newPatients => {
+                            setPatients(newPatients);
+                            // Update selectedPatient to reflect new wallet balance
+                            const updated = newPatients.find(p => p.id === selectedPatient.id);
+                            if (updated) setSelectedPatient(updated);
+                        });
                         // Si es advance payment, actualizar wallet visualmente rapido si se pudiera,
                         // pero mejor confiar en el reload.
                         if (invoice) {
