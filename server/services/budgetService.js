@@ -24,7 +24,7 @@ const createBudget = async (supabase, patientId, items = []) => {
         const lineItems = items.map(item => ({
             id: crypto.randomUUID(),
             budgetId: budget.id,
-            name: item.name,
+            name: item.tooth ? `${item.name} - Diente ${item.tooth}` : item.name,
             price: Number(item.price),
             quantity: Number(item.quantity) || 1,
             tooth: item.tooth ? String(item.tooth) : null,
@@ -137,7 +137,7 @@ const addItemToDraftBudget = async (supabase, patientId, item) => {
         .from('BudgetLineItem')
         .insert([{
             budgetId: budget.id,
-            name: item.name,
+            name: item.tooth ? `${item.name} - Diente ${item.tooth}` : item.name,
             price: Number(item.price),
             quantity: Number(item.quantity) || 1,
             tooth: item.tooth ? String(item.tooth) : null,

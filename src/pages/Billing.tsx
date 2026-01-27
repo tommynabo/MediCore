@@ -8,7 +8,7 @@ import { api as apiService } from '../services/api'; // Direct import to avoid c
 import { Invoice, Expense } from '../../types';
 
 const Billing: React.FC = () => {
-    const { patients, invoices, setInvoices, expenses, setExpenses, currentUserRole, refreshPatients } = useAppContext();
+    const { patients, setPatients, invoices, setInvoices, expenses, setExpenses, currentUserRole, refreshPatients } = useAppContext();
     const api = apiService; // Use direct import
 
     const [billingTab, setBillingTab] = useState<'overview' | 'invoices' | 'expenses'>('overview');
@@ -85,7 +85,11 @@ const Billing: React.FC = () => {
             setInvoices(prev => [newInvoice, ...prev]);
             await refreshPatients(); // Refresh to update wallet balance
 
-            // Success
+            // REFRESH PATIENTS TO UPDATE WALLET
+            api.getPatients().then(pts => {
+                if (Array.isArray(pts)) setPatients(pts);
+            }).catch(e => console.error("Error refreshing patients after invoice:", e));
+
             alert(`✅ Factura ${data.invoiceNumber || data.invoice_number} emitida con éxito!`);
 
             // Open PDF only if URL exists

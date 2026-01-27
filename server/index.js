@@ -496,6 +496,26 @@ app.post('/api/ai/query', async (req, res) => {
     }
 });
 
+// --- MISSING ENDPOINT: PAYMENTS ---
+app.get('/api/finance/payments', async (req, res) => {
+    try {
+        const { patientId } = req.query;
+        let supabase = getSupabase();
+
+        let query = supabase.from('Payment').select('*').order('createdAt', { ascending: false });
+        if (patientId) query = query.eq('patientId', patientId);
+
+        const { data, error } = await query;
+        if (error) {
+            console.error("❌ Error fetching payments:", error);
+            return res.status(500).json({ error: error.message });
+        }
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- MODULE 5: INVENTORY INTELLIGENCE ---
 app.post('/api/inventory/check', async (req, res) => {
     try {
@@ -751,7 +771,7 @@ app.post('/api/finance/invoice', async (req, res) => {
                     // For ADVANCE_PAYMENT: add to wallet
                     // For regular invoice: could also track debt/credit
                     if (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') {
-                        console.log(`💰 Updating wallet for patient ${patient.id}, amount: ${totalAmount}`);
+                        console.log(`💰 [WALLET] Updating wallet for patient ${patient.id}, amount: ${totalAmount}. Current Type: ${type}`);
 
                         const { data: pData, error: fetchErr } = await supabase
                             .from('Patient')
@@ -762,16 +782,17 @@ app.post('/api/finance/invoice', async (req, res) => {
                         if (!fetchErr && pData) {
                             const currentWallet = pData.wallet || 0;
                             const newWallet = currentWallet + totalAmount;
+                            console.log(`💰 [WALLET] Current: ${currentWallet}, Adding: ${totalAmount}, New: ${newWallet}`);
 
                             const { error: updateErr } = await supabase
                                 .from('Patient')
                                 .update({ wallet: newWallet })
                                 .eq('id', patient.id);
 
-                            if (updateErr) console.error("❌ Failed to update wallet:", updateErr);
-                            else console.log(`✅ Wallet updated: ${currentWallet} -> ${newWallet}`);
+                            if (updateErr) console.error("❌ [WALLET] Failed to update wallet:", updateErr);
+                            else console.log(`✅ [WALLET] Wallet updated successfully: ${currentWallet} -> ${newWallet}`);
                         } else {
-                            console.error("❌ Failed to fetch patient for wallet update:", fetchErr);
+                            console.error("❌ [WALLET] Failed to fetch patient for wallet update:", fetchErr);
                         }
                     }
                 }
@@ -1017,17 +1038,34 @@ app.post('/api/patients/:patientId/treatments/batch', async (req, res) => {
 
         console.log('📝 Creating batch treatments:', JSON.stringify(treatments, null, 2));
 
+        // Fetch Default Doctor (Admin) for Payroll Attribution
+        let defaultDoctorId = null;
+        try {
+            // Try to find a user with role ADMIN/DOCTOR
+            const { data: adminUser } = await supabase.from('User').select('id').eq('role', 'ADMIN').limit(1).maybeSingle();
+            if (adminUser) defaultDoctorId = adminUser.id; // Assuming User.id maps to Doctor.id (often 1:1 in this schema)
+
+            // Fallback: Just get first doctor
+            if (!defaultDoctorId) {
+                const { data: firstDoc } = await supabase.from('Doctor').select('id').limit(1).maybeSingle();
+                if (firstDoc) defaultDoctorId = firstDoc.id;
+            }
+        } catch (e) {
+            console.warn("⚠️ Could not fetch default doctor for batch attribution", e);
+        }
+
         // Build insert data - serviceId is now optional, we store serviceName and price directly
         const toInsert = treatments.map(t => ({
             id: crypto.randomUUID(),
             patientId: req.params.patientId,
-            serviceId: t.serviceId && !t.serviceId.startsWith('srv-') ? t.serviceId : null, // Only use real UUIDs
+            serviceId: t.serviceId && !t.serviceId.startsWith('srv-') ? t.serviceId : null,
             serviceName: t.serviceName || 'Tratamiento',
             toothId: t.toothId || null,
             price: t.price || t.customPrice || 0,
             customPrice: t.customPrice || t.price || null,
             status: t.status || 'PENDIENTE',
             notes: t.notes || null,
+            doctorId: t.doctorId || defaultDoctorId || null, // ASSIGN DOCTOR
             createdAt: new Date().toISOString()
         }));
 
