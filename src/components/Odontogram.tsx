@@ -62,8 +62,10 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         if (patientId && api?.treatments?.getByPatient) {
             api.treatments.getByPatient(patientId)
                 .then((data: PatientTreatment[]) => {
-                    setTreatments(data || []);
-                    onTreatmentsChange?.(data || []);
+                    // Filter out already budgeted items as requested by user ("que se elimine de la sección de presupuestar cualquier pasado")
+                    const visible = (data || []).filter(t => t.status !== 'PRESUPUESTADO');
+                    setTreatments(visible);
+                    onTreatmentsChange?.(visible);
                 })
                 .catch(err => console.error("Error cargando tratamientos:", err));
         }
@@ -534,8 +536,8 @@ const Tooth: React.FC<{
             {treatments.length > 0 && (
                 <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 min-w-[max-content]">
                     <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm border ${treatments[0].status === 'COMPLETADO' ? 'bg-green-100 text-green-700 border-green-200' :
-                            treatments[0].status === 'EN_PROCESO' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                'bg-amber-100 text-amber-700 border-amber-200'
+                        treatments[0].status === 'EN_PROCESO' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                            'bg-amber-100 text-amber-700 border-amber-200'
                         }`}>
                         {treatments[0].status.slice(0, 3)}
                     </span>

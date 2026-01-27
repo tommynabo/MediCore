@@ -30,7 +30,7 @@ export interface Appointment {
     date: string; // ISO string
     time: string;
     treatment: string;
-    status: 'PENDING' | 'COMPLETED' | 'CANCELLED';
+    status: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO' | 'PRESUPUESTADO' | 'Scheduled';
 }
 
 export interface Invoice {
@@ -122,7 +122,7 @@ export interface PatientTreatment {
     toothId?: number;
     price: number;
     customPrice?: number;
-    status: string;
+    status: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO' | 'PRESUPUESTADO';
     notes?: string;
     createdAt: string;
 }

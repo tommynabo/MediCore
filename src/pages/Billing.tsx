@@ -27,7 +27,7 @@ const Billing: React.FC = () => {
     const [paymentMethod, setPaymentMethod] = useState<'card' | 'cash' | 'transfer'>('card');
 
     // New State for Invoice Type
-    const [invoiceType, setInvoiceType] = useState<'ordinary' | 'rectificative'>('ordinary');
+    const [invoiceType, setInvoiceType] = useState<'ordinary' | 'rectificative' | 'ADVANCE_PAYMENT'>('ordinary');
     const [invoiceStep, setInvoiceStep] = useState<1 | 2>(1); // Step 1: Type & Patient, Step 2: Items & Emit
 
     const [isEmitting, setIsEmitting] = useState(false);
@@ -388,6 +388,21 @@ const Billing: React.FC = () => {
                                             <span className="block text-sm font-black text-slate-900 uppercase">Rectificativa</span>
                                             <span className="text-[10px] text-slate-400 font-bold">Corrección / Devolución</span>
                                         </button>
+                                    </div>
+
+                                    {/* WALLET DEPOSIT OPTION */}
+                                    <div className="mt-2 bg-emerald-50 p-4 rounded-xl border border-emerald-100 flex items-center gap-3">
+                                        <input
+                                            type="checkbox"
+                                            id="addToWallet"
+                                            className="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500"
+                                            checked={invoiceType === 'ADVANCE_PAYMENT'}
+                                            onChange={(e) => setInvoiceType(e.target.checked ? 'ADVANCE_PAYMENT' : 'ordinary')}
+                                        />
+                                        <label htmlFor="addToWallet" className="cursor-pointer">
+                                            <span className="block text-sm font-black text-slate-900 uppercase">Añadir Importe al Monedero</span>
+                                            <span className="text-[10px] text-slate-500 font-bold">El total de esta factura se sumará al saldo del paciente.</span>
+                                        </label>
                                     </div>
                                 </div>
 

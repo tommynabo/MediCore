@@ -37,6 +37,19 @@ const createBudget = async (supabase, patientId, items = []) => {
             .insert(lineItems);
 
         if (itemsError) console.error("Error adding budget items:", itemsError);
+
+        // NEW: Update status of source treatments to 'PRESUPUESTADO'
+        const treatmentIds = items.map(i => i.treatmentId).filter(id => id && !id.startsWith('temp-'));
+        if (treatmentIds.length > 0) {
+            console.log("Updating status for treatments:", treatmentIds);
+            const { error: updateError } = await supabase
+                .from('PatientTreatment')
+                .update({ status: 'PRESUPUESTADO' })
+                .in('id', treatmentIds);
+
+            if (updateError) console.error("Error updating treatment status to PRESUPUESTADO:", updateError);
+            else console.log("✅ Treatments marked as PRESUPUESTADO");
+        }
     }
 
     // 3. Add to Clinical History (Shadow Record)
