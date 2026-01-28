@@ -377,6 +377,27 @@ app.get('/api/appointments', async (req, res) => {
     }
 });
 
+app.get('/api/appointments/:id', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { data, error } = await supabase
+            .from('Appointment')
+            .select('*, treatment:Treatment(*), doctor:Doctor(*)')
+            .eq('id', req.params.id)
+            .single();
+
+        if (error) {
+            console.error("❌ Supabase Fetch Error (Single Appointment):", error);
+            return res.status(404).json({ error: "Appointment not found" });
+        }
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- ODONTOGRAM (Module 2) ---
 app.get('/api/patients/:patientId/odontogram', async (req, res) => {
     try {
@@ -1094,8 +1115,8 @@ const calculateWalletBalance = async (supabase, patientId) => {
             if (p.type === 'ADVANCE_PAYMENT') {
                 balance += (p.amount || 0);
             }
-            // Subtract if paid WITH wallet
-            if (p.method === 'wallet' && p.type !== 'ADVANCE_PAYMENT') {
+            // Subtract if paid WITH wallet (method can be 'wallet' or 'ADVANCE_PAYMENT' due to legacy frontend mapping)
+            if ((p.method === 'wallet' || p.method === 'ADVANCE_PAYMENT') && p.type !== 'ADVANCE_PAYMENT') {
                 balance -= (p.amount || 0);
             }
             // Subtract if direct charge from wallet (e.g. manual adjustment)

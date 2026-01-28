@@ -125,6 +125,11 @@ export const api = {
             if (!res.ok) throw new Error('Failed to fetch appointments');
             return res.json();
         },
+        getById: async (id: string): Promise<Appointment> => {
+            const res = await fetch(`${API_URL}/appointments/${id}`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch appointment');
+            return res.json();
+        },
         create: async (appointment: Partial<Appointment>): Promise<Appointment> => {
             const res = await fetch(`${API_URL}/appointments`, {
                 method: 'POST',
