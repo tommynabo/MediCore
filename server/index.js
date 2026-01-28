@@ -382,18 +382,24 @@ app.get('/api/appointments/:id', async (req, res) => {
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
 
+        console.log(`📅 Fetching appointment ${req.params.id}`);
+
+        // Simplified query without joins to avoid foreign key issues
         const { data, error } = await supabase
             .from('Appointment')
-            .select('*, treatment:Treatment(*), doctor:Doctor(*)')
+            .select('*')
             .eq('id', req.params.id)
             .single();
 
         if (error) {
-            console.error("❌ Supabase Fetch Error (Single Appointment):", error);
-            return res.status(404).json({ error: "Appointment not found" });
+            console.error("❌ Supabase Fetch Error (Single Appointment):", JSON.stringify(error, null, 2));
+            return res.status(404).json({ error: `Appointment not found: ${error.message}` });
         }
+
+        console.log(`✅ Appointment found: ${data.id}`);
         res.json(data);
     } catch (e) {
+        console.error("❌ Unexpected error fetching appointment:", e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -720,6 +726,12 @@ app.get('/api/finance/invoices', async (req, res) => {
 app.post('/api/finance/invoice', async (req, res) => {
     try {
         const { patient, items, paymentMethod, type } = req.body;
+
+        console.log('💸 ========== INVOICE CREATION START ==========');
+        console.log(`Patient: ${patient?.id} (${patient?.name})`);
+        console.log(`Items: ${items?.length} items`);
+        console.log(`Payment Method: ${paymentMethod}`);
+        console.log(`Type: ${type}`);
 
         if (!patient || !items || !items.length) {
             return res.status(400).json({ error: 'Faltan datos del paciente o servicios.' });
