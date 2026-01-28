@@ -325,9 +325,11 @@ app.post('/api/appointments', async (req, res) => {
             }
         }
 
+        const appointmentId = crypto.randomUUID();
         const { data, error } = await supabase
             .from('Appointment')
             .insert([{
+                id: appointmentId, // Explicitly generate ID
                 date: new Date(date).toISOString(),
                 time,
                 patientId,
