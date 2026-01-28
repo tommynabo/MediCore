@@ -774,31 +774,38 @@ app.post('/api/finance/invoice', async (req, res) => {
                     }
 
                     // 3. Create Payment record for history
+                    console.log("[INVOICE] Creating Payment Record...");
                     const paymentId = crypto.randomUUID();
-                    const { error: paymentError } = await supabase
+                    // Explicitly use req.body.type if available, otherwise default
+                    // Ensure type matches enum/string expected by frontend: 'ADVANCE_PAYMENT' or 'INVOICE'
+                    const paymentType = (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') ? 'ADVANCE_PAYMENT' : 'INVOICE';
+
+                    const { error: paymentError, data: savedPayment } = await supabase
                         .from('Payment')
                         .insert([{
                             id: paymentId,
                             patientId: patient.id,
                             amount: totalAmount,
                             method: paymentMethod || 'card',
-                            type: type || 'INVOICE',
+                            type: paymentType,
                             invoiceId: savedInvoice.id,
                             createdAt: new Date().toISOString(),
                             notes: `Factura ${savedInvoice.invoiceNumber}`
-                        }]);
+                        }])
+                        .select()
+                        .single();
 
                     if (paymentError) {
-                        console.error("❌ DB Error saving Payment:", paymentError);
+                        console.error("❌ DB Error saving Payment:", JSON.stringify(paymentError, null, 2));
                     } else {
-                        console.log(`✅ Payment recorded: ${totalAmount}€ (${paymentMethod})`);
-                    }
+                        console.log(`✅ Payment recorded: ${totalAmount}€ (${paymentMethod}) Type: ${paymentType}`);
 
-                    // 4. Update Patient Wallet (saldo a cuenta)
-                    // For ADVANCE_PAYMENT: add to wallet (recalculate from ledger)
-                    if (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') {
-                        console.log(`💰 [WALLET] trigger recalculation for patient ${patient.id}`);
-                        await calculateWalletBalance(supabase, patient.id);
+                        // 4. Update Patient Wallet (saldo a cuenta)
+                        // Trigger if it is an advance payment
+                        if (paymentType === 'ADVANCE_PAYMENT') {
+                            console.log(`💰 [WALLET] trigger recalculation for patient ${patient.id}`);
+                            await calculateWalletBalance(supabase, patient.id);
+                        }
                     }
                 }
             } catch (dbErr) {

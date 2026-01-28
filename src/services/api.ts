@@ -126,8 +126,13 @@ export const api = {
             return res.json();
         },
         getById: async (id: string): Promise<Appointment> => {
+            console.log(`fetching appointment: ${API_URL}/appointments/${id}`);
             const res = await fetch(`${API_URL}/appointments/${id}`, { headers });
-            if (!res.ok) throw new Error('Failed to fetch appointment');
+            if (!res.ok) {
+                const text = await res.text();
+                console.error(`Fetch failed ${res.status}: ${text}`);
+                throw new Error(`Failed to fetch appointment: ${res.status} ${text}`);
+            }
             return res.json();
         },
         create: async (appointment: Partial<Appointment>): Promise<Appointment> => {
