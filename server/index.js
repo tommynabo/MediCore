@@ -301,9 +301,13 @@ app.post('/api/appointments', async (req, res) => {
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
 
-        // Sanitization: Ensure empty strings become null for UUID fields
-        const safeTreatmentId = (treatmentId && treatmentId.trim()) ? treatmentId : null;
-        const safeDoctorId = (doctorId && doctorId.trim()) ? doctorId : null;
+        // Sanitization: Ensure empty strings become null for UUID fields to prevent invalid input syntax
+        // DB expects UUID or NULL. Empty string "" is not a valid UUID.
+        // Sanitization: Ensure empty strings become null for UUID fields to prevent invalid input syntax
+        // DB expects UUID or NULL. Empty string "" is not a valid UUID.
+        // Also handle "undefined" string literal just in case
+        const safeTreatmentId = (treatmentId && treatmentId !== 'undefined' && treatmentId.trim().length > 0) ? treatmentId : null;
+        const safeDoctorId = (doctorId && doctorId !== 'undefined' && doctorId.trim().length > 0) ? doctorId : null;
 
         // VALIDATION: Specialization Check (Optional - skip if tables don't exist)
         if (safeTreatmentId && safeDoctorId) {
@@ -768,32 +772,10 @@ app.post('/api/finance/invoice', async (req, res) => {
                     }
 
                     // 4. Update Patient Wallet (saldo a cuenta)
-                    // For ADVANCE_PAYMENT: add to wallet
-                    // For regular invoice: could also track debt/credit
+                    // For ADVANCE_PAYMENT: add to wallet (recalculate from ledger)
                     if (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') {
-                        console.log(`💰 [WALLET] Updating wallet for patient ${patient.id}, amount: ${totalAmount}. Current Type: ${type}`);
-
-                        const { data: pData, error: fetchErr } = await supabase
-                            .from('Patient')
-                            .select('wallet')
-                            .eq('id', patient.id)
-                            .single();
-
-                        if (!fetchErr && pData) {
-                            const currentWallet = pData.wallet || 0;
-                            const newWallet = currentWallet + totalAmount;
-                            console.log(`💰 [WALLET] Current: ${currentWallet}, Adding: ${totalAmount}, New: ${newWallet}`);
-
-                            const { error: updateErr } = await supabase
-                                .from('Patient')
-                                .update({ wallet: newWallet })
-                                .eq('id', patient.id);
-
-                            if (updateErr) console.error("❌ [WALLET] Failed to update wallet:", updateErr);
-                            else console.log(`✅ [WALLET] Wallet updated successfully: ${currentWallet} -> ${newWallet}`);
-                        } else {
-                            console.error("❌ [WALLET] Failed to fetch patient for wallet update:", fetchErr);
-                        }
+                        console.log(`💰 [WALLET] trigger recalculation for patient ${patient.id}`);
+                        await calculateWalletBalance(supabase, patient.id);
                     }
                 }
             } catch (dbErr) {
@@ -1038,36 +1020,24 @@ app.post('/api/patients/:patientId/treatments/batch', async (req, res) => {
 
         console.log('📝 Creating batch treatments:', JSON.stringify(treatments, null, 2));
 
-        // Fetch Default Doctor (Admin) for Payroll Attribution
-        let defaultDoctorId = null;
-        try {
-            // Try to find a user with role ADMIN/DOCTOR
-            const { data: adminUser } = await supabase.from('User').select('id').eq('role', 'ADMIN').limit(1).maybeSingle();
-            if (adminUser) defaultDoctorId = adminUser.id; // Assuming User.id maps to Doctor.id (often 1:1 in this schema)
-
-            // Fallback: Just get first doctor
-            if (!defaultDoctorId) {
-                const { data: firstDoc } = await supabase.from('Doctor').select('id').limit(1).maybeSingle();
-                if (firstDoc) defaultDoctorId = firstDoc.id;
-            }
-        } catch (e) {
-            console.warn("⚠️ Could not fetch default doctor for batch attribution", e);
-        }
-
-        // Build insert data - serviceId is now optional, we store serviceName and price directly
-        const toInsert = treatments.map(t => ({
-            id: crypto.randomUUID(),
-            patientId: req.params.patientId,
-            serviceId: t.serviceId && !t.serviceId.startsWith('srv-') ? t.serviceId : null,
-            serviceName: t.serviceName || 'Tratamiento',
-            toothId: t.toothId || null,
-            price: t.price || t.customPrice || 0,
-            customPrice: t.customPrice || t.price || null,
-            status: t.status || 'PENDIENTE',
-            notes: t.notes || null,
-            doctorId: t.doctorId || defaultDoctorId || null, // ASSIGN DOCTOR
-            createdAt: new Date().toISOString()
-        }));
+        // Build insert data
+        const toInsert = treatments.map(t => {
+            // Validate and sanitize inputs
+            // If serviceId is temporary (starts with srv-), send NULL so DB doesn't fail FK constraint
+            // Ensure price is a number
+            return {
+                id: crypto.randomUUID(),
+                patientId: req.params.patientId,
+                serviceId: (t.serviceId && !t.serviceId.toString().startsWith('srv-')) ? t.serviceId : null,
+                serviceName: t.serviceName || 'Tratamiento',
+                toothId: t.toothId || null,
+                price: Number(t.price) || Number(t.customPrice) || 0,
+                customPrice: Number(t.customPrice) || Number(t.price) || null,
+                status: t.status || 'PENDIENTE',
+                notes: t.notes || null,
+                createdAt: new Date().toISOString()
+            };
+        });
 
         const { data, error } = await supabase
             .from('PatientTreatment')
@@ -1075,8 +1045,8 @@ app.post('/api/patients/:patientId/treatments/batch', async (req, res) => {
             .select();
 
         if (error) {
-            console.error("❌ Error creating batch treatments:", error);
-            return res.status(500).json({ error: error.message });
+            console.error("❌ Error creating batch treatments:", JSON.stringify(error, null, 2));
+            return res.status(500).json({ error: `DB Error: ${error.message} - ${error.details || ''}` });
         }
 
         console.log(`✅ Created ${data.length} treatments`);
@@ -1106,6 +1076,42 @@ app.delete('/api/treatments/:id', async (req, res) => {
 });
 
 // --- PAYMENTS (Sistema de cobros y monedero virtual) ---
+// --- HELPER: Wallet Calculation (Ledger System) ---
+const calculateWalletBalance = async (supabase, patientId) => {
+    try {
+        const { data: payments, error } = await supabase
+            .from('Payment')
+            .select('amount, type, method')
+            .eq('patientId', patientId);
+
+        if (error) throw error;
+
+        let balance = 0;
+        payments.forEach(p => {
+            // Add if it's an advance payment (deposit)
+            if (p.type === 'ADVANCE_PAYMENT') {
+                balance += (p.amount || 0);
+            }
+            // Subtract if paid WITH wallet
+            if (p.method === 'wallet' && p.type !== 'ADVANCE_PAYMENT') {
+                balance -= (p.amount || 0);
+            }
+            // Subtract if direct charge from wallet (e.g. manual adjustment)
+            if (p.type === 'DIRECT_CHARGE' && p.method === 'wallet') {
+                balance -= (p.amount || 0);
+            }
+        });
+
+        // Update Patient Record
+        await supabase.from('Patient').update({ wallet: balance }).eq('id', patientId);
+        console.log(`💰 [WALLET] Updated balance for ${patientId}: ${balance.toFixed(2)}€`);
+        return balance;
+    } catch (e) {
+        console.error("❌ Error calculating wallet:", e);
+        return 0;
+    }
+};
+
 app.post('/api/payments/create', async (req, res) => {
     try {
         let supabase;
@@ -1139,42 +1145,9 @@ app.post('/api/payments/create', async (req, res) => {
             return res.status(500).json({ error: paymentError.message });
         }
 
-        // 2. Si es ADVANCE_PAYMENT, actualizar wallet del paciente
-        if (type === 'ADVANCE_PAYMENT') {
-            const { data: patient } = await supabase
-                .from('Patient')
-                .select('wallet')
-                .eq('id', patientId)
-                .single();
-
-            const currentWallet = patient?.wallet || 0;
-            const newWallet = currentWallet + parseFloat(amount);
-
-            await supabase
-                .from('Patient')
-                .update({ wallet: newWallet })
-                .eq('id', patientId);
-        }
-
-        // 3. Si es DIRECT_CHARGE y method es 'wallet', deducir del monedero
-        if (type === 'DIRECT_CHARGE' && method === 'wallet') {
-            const { data: patient } = await supabase
-                .from('Patient')
-                .select('wallet')
-                .eq('id', patientId)
-                .single();
-
-            const currentWallet = patient?.wallet || 0;
-            const newWallet = currentWallet - parseFloat(amount);
-
-            if (newWallet < 0) {
-                return res.status(400).json({ error: 'Insufficient wallet balance' });
-            }
-
-            await supabase
-                .from('Patient')
-                .update({ wallet: newWallet })
-                .eq('id', patientId);
+        // 2 & 3. Recalculate Wallet (Single Source of Truth)
+        if (type === 'ADVANCE_PAYMENT' || (type === 'DIRECT_CHARGE' && method === 'wallet')) {
+            await calculateWalletBalance(supabase, patientId);
         }
 
         // 4. Generar factura automáticamente

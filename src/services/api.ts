@@ -131,7 +131,10 @@ export const api = {
                 headers,
                 body: JSON.stringify(appointment)
             });
-            if (!res.ok) throw new Error('Failed to create appointment');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to create appointment');
+            }
             return res.json();
         }
     },
@@ -171,7 +174,10 @@ export const api = {
                 headers,
                 body: JSON.stringify({ treatments })
             });
-            if (!res.ok) throw new Error('Failed to create treatments');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to create treatments');
+            }
             return res.json();
         },
         delete: async (id: string) => {
