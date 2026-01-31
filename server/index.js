@@ -15,6 +15,8 @@ const invoiceService = require('./services/invoiceService');
 const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
 const budgetService = require('./services/budgetService');
 const templateService = require('./services/templateService');
+const whatsappService = require('./services/whatsappService');
+const schedulerService = require('./services/schedulerService');
 
 const prisma = new PrismaClient({
     log: ['query', 'info', 'warn', 'error'],
@@ -54,6 +56,10 @@ app.use(authMiddleware);
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date(), env: process.env.NODE_ENV });
 });
+
+// --- WHATSAPP INIT ---
+whatsappService.initialize();
+schedulerService.startScheduler(prisma);
 
 // --- MODULE 1: FINANCIAL ENGINE ---
 app.post('/api/treatments/:appointmentId/complete', async (req, res) => {
@@ -1303,6 +1309,69 @@ app.get('/api/invoices', async (req, res) => {
         }
 
         res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// --- MODULE 7: WHATSAPP INTEGRATION ---
+app.get('/api/whatsapp/status', (req, res) => {
+    res.json(whatsappService.getStatus());
+});
+
+app.post('/api/whatsapp/send-test', async (req, res) => {
+    try {
+        const { phone, message } = req.body;
+        const response = await whatsappService.sendMessage(phone, message || 'Test message from CRM Medico');
+        res.json(response);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/whatsapp/logout', async (req, res) => {
+    const result = await whatsappService.logout();
+    res.json(result);
+});
+
+app.get('/api/whatsapp/templates', async (req, res) => {
+    try {
+        const templates = await prisma.whatsAppTemplate.findMany();
+        res.json(templates);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/whatsapp/templates', async (req, res) => {
+    try {
+        const { name, content, triggerType, triggerOffset } = req.body;
+        const t = await prisma.whatsAppTemplate.create({
+            data: { name, content, triggerType, triggerOffset }
+        });
+        res.json(t);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/whatsapp/templates/:id', async (req, res) => {
+    try {
+        await prisma.whatsAppTemplate.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/whatsapp/logs', async (req, res) => {
+    try {
+        const logs = await prisma.whatsAppLog.findMany({
+            orderBy: { sentAt: 'desc' },
+            take: 100,
+            include: { patient: true }
+        });
+        res.json(logs);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

@@ -48,6 +48,7 @@ model Patient {
   wallet         Float            @default(0.0) // Pagos adelantados (Monedero Virtual)
   createdAt      DateTime         @default(now())
   payments       Payment[] // Historial de pagos
+  whatsAppLogs   WhatsAppLog[]
 }
 
 model Specialty {
@@ -93,8 +94,8 @@ model Treatment {
 model PatientTreatment {
   id          String   @id @default(uuid())
   patientId   String
-  serviceId   String   // Referencia al catálogo Treatment
-  service     Treatment  @relation(fields: [serviceId], references: [id])
+  serviceId   String?   // Referencia al catálogo Treatment
+  service     Treatment?  @relation(fields: [serviceId], references: [id])
   toothId     Int?     // Número del diente (ej: 21, 36)
   customPrice Float?   // Precio personalizado si difiere del base
   status      String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, COMPLETADO
@@ -276,4 +277,37 @@ model DentalSnapshot {
   date      DateTime @default(now())
   imageUrl  String   // Base64 or URL
   description String?
+}
+
+// --- WHATSAPP ---
+
+enum WhatsAppLogStatus {
+  SENT
+  FAILED
+  PENDING
+}
+
+enum WhatsAppTriggerType {
+  APPOINTMENT_REMINDER
+  TREATMENT_FOLLOWUP
+}
+
+model WhatsAppTemplate {
+  id            String              @id @default(uuid())
+  name          String
+  content       String              // Base64 or Text
+  triggerType   WhatsAppTriggerType
+  triggerOffset String              // e.g., "12h" or "6m"
+  createdAt     DateTime            @default(now())
+}
+
+model WhatsAppLog {
+  id        String              @id @default(uuid())
+  patientId String
+  patient   Patient             @relation(fields: [patientId], references: [id])
+  type      WhatsAppTriggerType
+  status    WhatsAppLogStatus   @default(PENDING)
+  content   String
+  error     String?
+  sentAt    DateTime            @default(now())
 }

@@ -1,13 +1,21 @@
-import React, { useState, useRef } from 'react';
-import { Search, UserPlus, Download, Plus, Minus, Package, AlertTriangle, CheckCircle2, FileText as FileTextIcon } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Search, UserPlus, Download, Plus, Minus, Package, AlertTriangle, CheckCircle2, FileText as FileTextIcon, MessageSquare, QrCode, History, Send, RefreshCw, Trash2, Smartphone } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { DocumentTemplate } from '../../types';
+import { api } from '../services/api';
 
 const Settings: React.FC = () => {
     const { stock, setStock, currentUserRole } = useAppContext();
-    const [settingsTab, setSettingsTab] = useState<'templates' | 'stock'>('templates');
+    const [settingsTab, setSettingsTab] = useState<'templates' | 'stock' | 'whatsapp'>('templates');
     const [templateSearch, setTemplateSearch] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // WhatsApp State
+    const [waStatus, setWaStatus] = useState<{ status: string; qrCode: string | null }>({ status: 'DISCONNECTED', qrCode: null });
+    const [waTemplates, setWaTemplates] = useState<any[]>([]);
+    const [waLogs, setWaLogs] = useState<any[]>([]);
+    const [waActiveTab, setWaActiveTab] = useState<'dashboard' | 'connection' | 'templates'>('dashboard');
+    const [newWaTemplate, setNewWaTemplate] = useState({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
 
     // TEMPLATES DATA - Restored complete list
     const [templates, setTemplates] = useState<DocumentTemplate[]>([
@@ -19,6 +27,25 @@ const Settings: React.FC = () => {
         { id: '4', title: 'FICHA DE PRIMERA VISITA', category: 'Administración', date: '01/05/2025', size: '0.05 MB', type: 'docx' },
         { id: '3', title: 'PRESUPUESTO GENERAL TIPO', category: 'Administración', date: '01/05/2025', size: '0.05 MB', type: 'docx' },
     ]);
+
+    useEffect(() => {
+        if (settingsTab === 'whatsapp') {
+            refreshWhatsApp();
+        }
+    }, [settingsTab, waActiveTab]);
+
+    const refreshWhatsApp = async () => {
+        try {
+            const status = await api.whatsapp.getStatus();
+            setWaStatus(status);
+            const tmpls = await api.whatsapp.getTemplates();
+            setWaTemplates(tmpls);
+            const logs = await api.whatsapp.getLogs();
+            setWaLogs(logs);
+        } catch (e) {
+            console.error(e);
+        }
+    };
 
     const handleUploadTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -45,6 +72,15 @@ const Settings: React.FC = () => {
         }));
     };
 
+    const handleCreateWaTemplate = async () => {
+        if (!newWaTemplate.name || !newWaTemplate.content) return;
+        try {
+            await api.whatsapp.saveTemplate(newWaTemplate);
+            setNewWaTemplate({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
+            refreshWhatsApp();
+        } catch (e) { alert('Error creando plantilla'); }
+    };
+
     return (
         <div className="flex h-full overflow-hidden bg-slate-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* SETTINGS SIDEBAR */}
@@ -56,10 +92,186 @@ const Settings: React.FC = () => {
                 <button onClick={() => setSettingsTab('stock')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'stock' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}>
                     Inventario
                 </button>
+                <button onClick={() => setSettingsTab('whatsapp')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'whatsapp' ? 'bg-green-50 text-green-600' : 'text-slate-400 hover:bg-slate-50'}`}>
+                    WhatsApp & CRM
+                </button>
             </div>
 
             {/* SETTINGS CONTENT */}
             <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+                {settingsTab === 'whatsapp' && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="flex justify-between items-end mb-6">
+                            <div>
+                                <h3 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                                    <Smartphone className="text-green-500" size={32} />
+                                    WhatsApp Manager
+                                </h3>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2">Automatización y Recordatorios</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => setWaActiveTab('dashboard')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase ${waActiveTab === 'dashboard' ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 border'}`}>Dashboard</button>
+                                <button onClick={() => setWaActiveTab('connection')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase ${waActiveTab === 'connection' ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 border'}`}>Conexión</button>
+                                <button onClick={() => setWaActiveTab('templates')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase ${waActiveTab === 'templates' ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 border'}`}>Plantillas</button>
+                            </div>
+                        </div>
+
+                        {waActiveTab === 'dashboard' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* CARD 1: Recordatorios (Reminders) */}
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h4 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <History size={18} className="text-blue-500" />
+                                        Recordatorios (Últimos Enviados)
+                                    </h4>
+                                    <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+                                        {waLogs.filter(l => l.type === 'APPOINTMENT_REMINDER').map(log => (
+                                            <div key={log.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                <div className={`w-2 h-2 rounded-full mt-2 ${log.status === 'SENT' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-xs font-bold text-slate-700">{log.patient?.name || 'Paciente'}</span>
+                                                        <span className="text-[10px] text-slate-400">{new Date(log.sentAt).toLocaleString()}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{log.content}</p>
+                                                    {log.error && <p className="text-[10px] text-red-500 mt-1">{log.error}</p>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {waLogs.filter(l => l.type === 'APPOINTMENT_REMINDER').length === 0 && <p className="text-center text-xs text-slate-400 py-4">No hay recordatorios recientes.</p>}
+                                    </div>
+                                </div>
+
+                                {/* CARD 2: Seguimientos (Follow ups) */}
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h4 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                                        <RefreshCw size={18} className="text-purple-500" />
+                                        Seguimientos (Follow-up)
+                                    </h4>
+                                    <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+                                        {waLogs.filter(l => l.type === 'TREATMENT_FOLLOWUP').map(log => (
+                                            <div key={log.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                                <div className={`w-2 h-2 rounded-full mt-2 ${log.status === 'SENT' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-xs font-bold text-slate-700">{log.patient?.name || 'Paciente'}</span>
+                                                        <span className="text-[10px] text-slate-400">{new Date(log.sentAt).toLocaleString()}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 mt-1 line-clamp-2">{log.content}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {waLogs.filter(l => l.type === 'TREATMENT_FOLLOWUP').length === 0 && <p className="text-center text-xs text-slate-400 py-4">No hay seguimientos registrados.</p>}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {waActiveTab === 'connection' && (
+                            <div className="flex flex-col items-center justify-center bg-white p-12 rounded-2xl border border-slate-200 shadow-sm min-h-[400px]">
+                                {waStatus.status === 'READY' || waStatus.status === 'AUTHENTICATED' ? (
+                                    <div className="text-center animate-in zoom-in duration-300">
+                                        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                            <CheckCircle2 size={48} className="text-green-600" />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-slate-900">WhatsApp Conectado</h3>
+                                        <p className="text-slate-500 mb-8">El servicio está activo y enviando mensajes.</p>
+                                        <button onClick={() => api.whatsapp.logout().then(refreshWhatsApp)} className="px-6 py-3 bg-red-50 text-red-600 rounded-xl font-bold text-xs uppercase hover:bg-red-100 transition-colors">
+                                            Desconectar Sesión
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="text-center">
+                                        <h3 className="text-xl font-bold text-slate-900 mb-6">Escanea el código QR</h3>
+                                        <div className="bg-white p-4 rounded-xl border-2 border-slate-900 inline-block mb-6 shadow-xl">
+                                            {waStatus.qrCode ? (
+                                                <img src={waStatus.qrCode} alt="WhatsApp QR" className="w-64 h-64 object-contain" />
+                                            ) : (
+                                                <div className="w-64 h-64 flex items-center justify-center bg-slate-50 text-slate-400">
+                                                    {waStatus.status === 'DISCONNECTED' ? 'Iniciando cliente...' : 'Cargando QR...'}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-medium max-w-sm mx-auto">
+                                            Abre WhatsApp en tu teléfono {'>'} Dispositivos Vinculados {'>'} Vincular un dispositivo
+                                        </p>
+                                        <button onClick={refreshWhatsApp} className="mt-8 text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline">
+                                            Actualizar Estado
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {waActiveTab === 'templates' && (
+                            <div className="space-y-6">
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h4 className="text-sm font-bold text-slate-900 uppercase mb-4">Nueva Plantilla</h4>
+                                    <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <input
+                                            placeholder="Nombre de la plantilla"
+                                            value={newWaTemplate.name}
+                                            onChange={e => setNewWaTemplate({ ...newWaTemplate, name: e.target.value })}
+                                            className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100"
+                                        />
+                                        <div className="flex gap-2">
+                                            <select
+                                                value={newWaTemplate.triggerType}
+                                                onChange={e => setNewWaTemplate({ ...newWaTemplate, triggerType: e.target.value })}
+                                                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 flex-1"
+                                            >
+                                                <option value="APPOINTMENT_REMINDER">Recordatorio de Cita</option>
+                                                <option value="TREATMENT_FOLLOWUP">Seguimiento Tratamiento</option>
+                                            </select>
+                                            <input
+                                                placeholder="Offset (ej: 12h, 6m)"
+                                                value={newWaTemplate.triggerOffset}
+                                                onChange={e => setNewWaTemplate({ ...newWaTemplate, triggerOffset: e.target.value })}
+                                                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 w-32"
+                                            />
+                                        </div>
+                                    </div>
+                                    <textarea
+                                        placeholder="Contenido del mensaje... Usa {{PATIENT_NAME}}, {{DATE}}, {{TIME}}"
+                                        value={newWaTemplate.content}
+                                        onChange={e => setNewWaTemplate({ ...newWaTemplate, content: e.target.value })}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 min-h-[100px] mb-4"
+                                    />
+                                    <div className="flex justify-end">
+                                        <button onClick={handleCreateWaTemplate} className="bg-slate-900 text-white px-6 py-2 rounded-xl text-xs font-bold uppercase hover:bg-slate-800">
+                                            Guardar Plantilla
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {waTemplates.map(t => (
+                                        <div key={t.id} className="bg-white p-5 rounded-xl border border-slate-200 hover:shadow-md transition-shadow relative group">
+                                            <button
+                                                onClick={async () => { await api.whatsapp.deleteTemplate(t.id); refreshWhatsApp(); }}
+                                                className="absolute top-4 right-4 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <MessageSquare size={16} className="text-blue-500" />
+                                                <h5 className="font-bold text-slate-900">{t.name}</h5>
+                                            </div>
+                                            <div className="flex gap-2 mb-3">
+                                                <span className="text-[10px] font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded">{t.triggerType}</span>
+                                                <span className="text-[10px] font-bold uppercase bg-blue-50 text-blue-600 px-2 py-1 rounded">{t.triggerOffset}</span>
+                                            </div>
+                                            <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                {t.content}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {settingsTab === 'templates' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
                         <div className="flex justify-between items-end">

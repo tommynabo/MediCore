@@ -337,5 +337,42 @@ export const api = {
             if (!res.ok) return [];
             return res.json();
         }
+    },
+
+    // WhatsApp
+    whatsapp: {
+        getStatus: async () => {
+            const res = await fetch(`${API_URL}/whatsapp/status`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch status');
+            return res.json();
+        },
+        logout: async () => {
+            const res = await fetch(`${API_URL}/whatsapp/logout`, { method: 'POST', headers });
+            if (!res.ok) throw new Error('Failed to logout');
+            return res.json();
+        },
+        getTemplates: async () => {
+            const res = await fetch(`${API_URL}/whatsapp/templates`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch templates');
+            return res.json();
+        },
+        saveTemplate: async (data: any) => {
+            const res = await fetch(`${API_URL}/whatsapp/templates`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error('Failed to save template');
+            return res.json();
+        },
+        deleteTemplate: async (id: string) => {
+            const res = await fetch(`${API_URL}/whatsapp/templates/${id}`, { method: 'DELETE', headers });
+            if (!res.ok) throw new Error('Failed to delete template');
+        },
+        getLogs: async () => {
+            const res = await fetch(`${API_URL}/whatsapp/logs`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch logs');
+            return res.json();
+        }
     }
 };
