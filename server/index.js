@@ -58,7 +58,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- WHATSAPP INIT ---
-whatsappService.initialize();
+// whatsappService.initialize(); // Disabled for debugging "Critical Startup Error"
 schedulerService.startScheduler(prisma);
 
 // --- MODULE 1: FINANCIAL ENGINE ---
