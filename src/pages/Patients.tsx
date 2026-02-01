@@ -1133,101 +1133,72 @@ const Patients: React.FC = () => {
                     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6">
                         <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
                             <h3 className="text-2xl font-black text-slate-900 mb-6">Programar WhatsApp</h3>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-400">Plantilla</label>
-                                    <select
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none"
-                                        onChange={e => {
-                                            const t = whatsappTemplates.find(t => t.id === e.target.value);
-                                            if (t) {
-                                                // Pre-fill content with patient data
-                                                let content = t.content
-                                                    .replace('{{PACIENTE}}', selectedPatient?.name || '')
-                                                    .replace('{{PATIENT_NAME}}', selectedPatient?.name || '') // Legacy
-                                                    .replace('{{DOCTOR}}', 'Dr. General') // Placeholder
-                                                    .replace('{{DOCTOR_NAME}}', 'Dr. General') // Legacy
-                                                    .replace('{{DNI}}', selectedPatient?.dni || '')
-                                                    .replace('{{FECHA}}', new Date().toLocaleDateString('es-ES'))
-                                                    .replace('{{DATE}}', new Date().toLocaleDateString('es-ES')) // Legacy
-                                                    .replace('{{HORA}}', new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
-                                                    .replace('{{TIME}}', new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })); // Legacy
 
-                                                setWhatsAppForm({ ...whatsAppForm, templateId: t.id, content });
+                            <div>
+                                <label className="text-[10px] font-black uppercase text-slate-400">Fecha de Envío</label>
+                                <input
+                                    type="datetime-local"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none"
+                                    onChange={e => setWhatsAppForm({ ...whatsAppForm, scheduledDate: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Contenido</label>
+                                    <button
+                                        onClick={async () => {
+                                            if (!whatsAppForm.content) return alert("Escribe algo primero (ej: 'recordatorio revisión').");
+                                            setIsGeneratingAI(true);
+                                            try {
+                                                const improved = await api.ai.improveMessage(whatsAppForm.content, selectedPatient?.name);
+                                                setWhatsAppForm(prev => ({ ...prev, content: improved }));
+                                            } catch (e: any) {
+                                                alert("Error AI: " + e.message);
+                                            } finally {
+                                                setIsGeneratingAI(false);
                                             }
                                         }}
+                                        disabled={isGeneratingAI}
+                                        className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
                                     >
-                                        <option value="">Seleccionar Plantilla...</option>
-                                        {whatsappTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                    </select>
+                                        {isGeneratingAI ? '✨ Escribiendo...' : '✨ Mejorar con IA'}
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-400">Fecha de Envío</label>
-                                    <input
-                                        type="datetime-local"
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none"
-                                        onChange={e => setWhatsAppForm({ ...whatsAppForm, scheduledDate: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <div className="flex justify-between items-center mb-1">
-                                        <label className="text-[10px] font-black uppercase text-slate-400">Contenido</label>
-                                        <button
-                                            onClick={async () => {
-                                                if (!whatsAppForm.content) return alert("Escribe algo primero (ej: 'recordatorio revisión').");
-                                                setIsGeneratingAI(true);
-                                                try {
-                                                    const improved = await api.ai.improveMessage(whatsAppForm.content, selectedPatient?.name);
-                                                    setWhatsAppForm(prev => ({ ...prev, content: improved }));
-                                                } catch (e: any) {
-                                                    alert("Error AI: " + e.message);
-                                                } finally {
-                                                    setIsGeneratingAI(false);
-                                                }
-                                            }}
-                                            disabled={isGeneratingAI}
-                                            className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
-                                        >
-                                            {isGeneratingAI ? '✨ Escribiendo...' : '✨ Mejorar con IA'}
-                                        </button>
-                                    </div>
-                                    <textarea
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32 resize-none focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
-                                        value={whatsAppForm.content}
-                                        placeholder="Escribe tu mensaje aquí o selecciona una plantilla..."
-                                        onChange={e => setWhatsAppForm({ ...whatsAppForm, content: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex gap-4 mt-6">
-                                <button onClick={() => setIsWhatsAppModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl">Cancelar</button>
-                                <button
-                                    onClick={async () => {
-                                        if (!whatsAppForm.scheduledDate || !whatsAppForm.content) return alert("Falta fecha o contenido.");
-                                        try {
-                                            await api.whatsapp.scheduleMessage({
-                                                patientId: selectedPatient!.id,
-                                                scheduledDate: whatsAppForm.scheduledDate,
-                                                content: whatsAppForm.content
-                                            });
-                                            alert('✅ Mensaje programado correctamente');
-                                            setIsWhatsAppModalOpen(false);
-                                            // Refresh logs
-                                            const logs = await api.whatsapp.getLogs(selectedPatient!.id);
-                                            setWhatsappLogs(logs);
-                                        } catch (e: any) { alert('Error: ' + e.message); }
-                                    }}
-                                    className="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-bold uppercase shadow-lg hover:bg-emerald-600 transition-colors"
-                                >
-                                    Programar
-                                </button>
+                                <textarea
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32 resize-none focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
+                                    value={whatsAppForm.content}
+                                    placeholder="Escribe tu mensaje aquí o selecciona una plantilla..."
+                                    onChange={e => setWhatsAppForm({ ...whatsAppForm, content: e.target.value })}
+                                />
                             </div>
                         </div>
+                        <div className="flex gap-4 mt-6">
+                            <button onClick={() => setIsWhatsAppModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl">Cancelar</button>
+                            <button
+                                onClick={async () => {
+                                    if (!whatsAppForm.scheduledDate || !whatsAppForm.content) return alert("Falta fecha o contenido.");
+                                    try {
+                                        await api.whatsapp.scheduleMessage({
+                                            patientId: selectedPatient!.id,
+                                            scheduledDate: whatsAppForm.scheduledDate,
+                                            content: whatsAppForm.content
+                                        });
+                                        alert('✅ Mensaje programado correctamente');
+                                        setIsWhatsAppModalOpen(false);
+                                        // Refresh logs
+                                        const logs = await api.whatsapp.getLogs(selectedPatient!.id);
+                                        setWhatsappLogs(logs);
+                                    } catch (e: any) { alert('Error: ' + e.message); }
+                                }}
+                                className="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-bold uppercase shadow-lg hover:bg-emerald-600 transition-colors"
+                            >
+                                Programar
+                            </button>
+                        </div>
                     </div>
-
                 )
             }
-        </div >
+        </div>
     );
 };
 

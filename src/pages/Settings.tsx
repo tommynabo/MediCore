@@ -89,7 +89,7 @@ const Settings: React.FC = () => {
 
             const offsetString = `${newWaTemplate.triggerOffsetValue}${newWaTemplate.triggerOffsetUnit}`;
 
-            await api.whatsapp.saveTemplate({
+            await api.whatsapp.createTemplate({
                 ...newWaTemplate,
                 triggerOffset: offsetString
             });
@@ -278,11 +278,14 @@ const Settings: React.FC = () => {
                                     </div>
 
                                     <textarea
-                                        placeholder="Contenido del mensaje... Usa {{PACIENTE}}, {{FECHA}}, {{HORA}}, {{DOCTOR}}, {{TRATAMIENTO}}"
+                                        placeholder="Contenido del mensaje..."
                                         value={newWaTemplate.content}
                                         onChange={e => setNewWaTemplate({ ...newWaTemplate, content: e.target.value })}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 min-h-[100px] mb-4"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 min-h-[100px] mb-2"
                                     />
+                                    <p className="text-[10px] text-slate-400 font-medium mb-4">
+                                        Variables disponibles: <span className="font-bold text-slate-600">{"{{PACIENTE}}"}</span>, <span className="font-bold text-slate-600">{"{{CITA}}"}</span>, <span className="font-bold text-slate-600">{"{{DOCTOR}}"}</span>, <span className="font-bold text-slate-600">{"{{FECHA}}"}</span>, <span className="font-bold text-slate-600">{"{{HORA}}"}</span>, <span className="font-bold text-slate-600">{"{{TRATAMIENTO}}"}</span>
+                                    </p>
                                     <div className="flex justify-end">
                                         <button onClick={handleCreateWaTemplate} className="bg-slate-900 text-white px-6 py-2 rounded-xl text-xs font-bold uppercase hover:bg-slate-800">
                                             Guardar Plantilla
