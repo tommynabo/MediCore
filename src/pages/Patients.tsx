@@ -1202,8 +1202,11 @@ const Patients: React.FC = () => {
                             </div>
                         </div>
                     </div>
-            </div>
-    )
-}
+
+                )
+            }
+        </div >
+    );
+};
 
 export default Patients;
