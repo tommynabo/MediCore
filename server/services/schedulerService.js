@@ -66,10 +66,15 @@ const startScheduler = (prisma) => {
 
                 // Format Message
                 let msg = template.content
-                    .replace('{{PATIENT_NAME}}', appt.patient.name)
+                    .replace('{{PACIENTE}}', appt.patient.name)
+                    .replace('{{PATIENT_NAME}}', appt.patient.name) // Legacy support just in case
+                    .replace('{{DOCTOR}}', appt.doctor.name)
                     .replace('{{DOCTOR_NAME}}', appt.doctor.name)
+                    .replace('{{FECHA}}', new Date(appt.date).toLocaleDateString('es-ES'))
                     .replace('{{DATE}}', new Date(appt.date).toLocaleDateString('es-ES'))
+                    .replace('{{HORA}}', appt.time)
                     .replace('{{TIME}}', appt.time)
+                    .replace('{{TRATAMIENTO}}', appt.treatment?.name || 'Consulta')
                     .replace('{{TREATMENT}}', appt.treatment?.name || 'Consulta');
 
                 try {

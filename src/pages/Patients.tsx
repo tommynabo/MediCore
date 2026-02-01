@@ -620,12 +620,17 @@ const Patients: React.FC = () => {
                                                 key={idx}
                                                 onClick={() => {
                                                     setSelectedDocTemplate(doc.title);
-                                                    // Simple variable replacement
+                                                    // Pre-fill content with patient data
                                                     let content = doc.text
-                                                        .replace('{{PACIENTE}}', selectedPatient.name)
-                                                        .replace('{{DNI}}', selectedPatient.dni)
-                                                        .replace('{{FECHA}}', new Date().toLocaleDateString())
-                                                        .replace('{{HORA}}', new Date().toLocaleTimeString());
+                                                        .replace('{{PACIENTE}}', selectedPatient?.name || '')
+                                                        .replace('{{PATIENT_NAME}}', selectedPatient?.name || '') // Legacy
+                                                        .replace('{{DOCTOR}}', 'Dr. General') // Placeholder
+                                                        .replace('{{DOCTOR_NAME}}', 'Dr. General') // Legacy
+                                                        .replace('{{DNI}}', selectedPatient?.dni || '')
+                                                        .replace('{{FECHA}}', new Date().toLocaleDateString('es-ES'))
+                                                        .replace('{{DATE}}', new Date().toLocaleDateString('es-ES')) // Legacy
+                                                        .replace('{{HORA}}', new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
+                                                        .replace('{{TIME}}', new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })); // Legacy
                                                     setDocContent(content);
                                                     setIsDocModalOpen(true);
                                                 }}

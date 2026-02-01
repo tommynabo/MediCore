@@ -15,7 +15,7 @@ const Settings: React.FC = () => {
     const [waTemplates, setWaTemplates] = useState<any[]>([]);
     const [waLogs, setWaLogs] = useState<any[]>([]);
     const [waActiveTab, setWaActiveTab] = useState<'dashboard' | 'connection' | 'templates'>('dashboard');
-    const [newWaTemplate, setNewWaTemplate] = useState({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
+    const [newWaTemplate, setNewWaTemplate] = useState({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffsetValue: '12', triggerOffsetUnit: 'h', triggerOffsetDirection: 'before' });
 
     // TEMPLATES DATA - Restored complete list
     const [templates, setTemplates] = useState<DocumentTemplate[]>([
@@ -75,8 +75,25 @@ const Settings: React.FC = () => {
     const handleCreateWaTemplate = async () => {
         if (!newWaTemplate.name || !newWaTemplate.content) return;
         try {
-            await api.whatsapp.saveTemplate(newWaTemplate);
-            setNewWaTemplate({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
+            // Construct triggerOffset string based on inputs
+            // Example: 12h (default before), or we might need specific logic later.
+            // For now, backend expects short strings like "24h" or "6mo".
+            // If user selects "After", we might not be handling that in backend fully yet unless logic exists.
+            // But let's save what the backend expects.
+
+            // Standard convention: "12h" -> 12 hours before. 
+            // If "After", maybe we just trust the trigger type handles the logic?
+            // Appointment Reminder is ALWAYS before.
+            // Treatment Followup is ALWAYS after.
+            // So we mostly care about Value + Unit.
+
+            const offsetString = `${newWaTemplate.triggerOffsetValue}${newWaTemplate.triggerOffsetUnit}`;
+
+            await api.whatsapp.saveTemplate({
+                ...newWaTemplate,
+                triggerOffset: offsetString
+            });
+            setNewWaTemplate({ ...newWaTemplate, name: '', content: '' }); // Reset fields but keep settings
             refreshWhatsApp();
         } catch (e) { alert('Error creando plantilla'); }
     };
@@ -223,16 +240,45 @@ const Settings: React.FC = () => {
                                                 <option value="APPOINTMENT_REMINDER">Recordatorio de Cita</option>
                                                 <option value="TREATMENT_FOLLOWUP">Seguimiento Tratamiento</option>
                                             </select>
-                                            <input
-                                                placeholder="Offset (ej: 12h, 6m)"
-                                                value={newWaTemplate.triggerOffset}
-                                                onChange={e => setNewWaTemplate({ ...newWaTemplate, triggerOffset: e.target.value })}
-                                                className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 w-32"
-                                            />
+
                                         </div>
                                     </div>
+                                    {/* Structured Offset Input */}
+                                    <div className="flex gap-2 mb-4 items-center">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-black uppercase text-slate-400">Cuándo enviar</label>
+                                            <div className="flex bg-slate-50 border border-slate-200 rounded-xl overflow-hidden mt-1">
+                                                <input
+                                                    type="number"
+                                                    value={newWaTemplate.triggerOffsetValue}
+                                                    onChange={e => setNewWaTemplate({ ...newWaTemplate, triggerOffsetValue: e.target.value })}
+                                                    className="w-16 px-3 py-2 text-sm font-bold bg-transparent outline-none text-center"
+                                                />
+                                                <div className="w-px bg-slate-200"></div>
+                                                <select
+                                                    value={newWaTemplate.triggerOffsetUnit}
+                                                    onChange={e => setNewWaTemplate({ ...newWaTemplate, triggerOffsetUnit: e.target.value })}
+                                                    className="flex-1 px-3 py-2 text-xs font-bold bg-transparent outline-none uppercase"
+                                                >
+                                                    <option value="h">Horas</option>
+                                                    <option value="d">Días</option>
+                                                    <option value="mo">Meses</option>
+                                                </select>
+                                                <div className="w-px bg-slate-200"></div>
+                                                <select
+                                                    value={newWaTemplate.triggerOffsetDirection}
+                                                    onChange={e => setNewWaTemplate({ ...newWaTemplate, triggerOffsetDirection: e.target.value })}
+                                                    className="flex-1 px-3 py-2 text-xs font-bold bg-transparent outline-none uppercase"
+                                                >
+                                                    <option value="before">Antes de la cita</option>
+                                                    <option value="after">Después de la cita</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <textarea
-                                        placeholder="Contenido del mensaje... Usa {{PATIENT_NAME}}, {{DATE}}, {{TIME}}"
+                                        placeholder="Contenido del mensaje... Usa {{PACIENTE}}, {{FECHA}}, {{HORA}}, {{DOCTOR}}, {{TRATAMIENTO}}"
                                         value={newWaTemplate.content}
                                         onChange={e => setNewWaTemplate({ ...newWaTemplate, content: e.target.value })}
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 min-h-[100px] mb-4"
@@ -379,7 +425,7 @@ const Settings: React.FC = () => {
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 
