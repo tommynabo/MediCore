@@ -308,7 +308,13 @@ export const api = {
                 headers,
                 body: JSON.stringify({ text, patientName, type })
             });
-            if (!res.ok) throw new Error('Failed to improve text');
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                console.error("AI Service Error:", errData);
+                throw new Error(errData.error || `Error ${res.status}: Failed to improve text`);
+            }
+
             const data = await res.json();
             return data.text;
         }

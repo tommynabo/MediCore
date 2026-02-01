@@ -1455,6 +1455,11 @@ const PORT = process.env.PORT || 3001;
 if (require.main === module) {
     app.listen(PORT, () => {
         console.log(`🚀 Server running on port ${PORT}`);
+        if (!process.env.OPENAI_API_KEY) {
+            console.warn("⚠️  WARNING: OPENAI_API_KEY is missing. AI features will fail.");
+        } else {
+            console.log("✅ AI Agent initialized with API Key.");
+        }
     });
 }
 

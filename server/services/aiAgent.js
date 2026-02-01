@@ -466,6 +466,9 @@ async function improveMessage(text, patientName, type = 'whatsapp') {
         return response.choices[0].message.content;
     } catch (e) {
         console.error("AI Improve Error:", e);
+        if (!process.env.OPENAI_API_KEY) {
+            console.error("CRITICAL: OPENAI_API_KEY is missing in environment variables.");
+        }
         throw e;
     }
 }
