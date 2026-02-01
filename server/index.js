@@ -582,6 +582,7 @@ const getSupabase = () => {
 
 app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
+    // FORCE DEPLOY: Restored Login Logic from Backup v1
     try {
         console.log(`🔐 Login Attempt (Supabase Native): ${email}`);
 
