@@ -1,58 +1,73 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+let Client, LocalAuth;
 const qrcode = require('qrcode');
 
 let client;
 let qrCodeData = null;
-let status = 'DISCONNECTED'; // DISCONNECTED, QR_READY, AUTHENTICATED, READY
+let status = 'DISCONNECTED'; // DISCONNECTED, QR_READY, AUTHENTICATED, READY, DISABLED
 
 const initialize = () => {
     console.log('🔄 Initializing WhatsApp Client...');
 
-    client = new Client({
-        authStrategy: new LocalAuth({
-            dataPath: './.wwebjs_auth'
-        }),
-        puppeteer: {
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            headless: true
-        }
-    });
+    try {
+        // LAZY LOAD to avoid Vercel/Serverless crashes
+        const wwebjs = require('whatsapp-web.js');
+        Client = wwebjs.Client;
+        LocalAuth = wwebjs.LocalAuth;
+    } catch (e) {
+        console.warn('⚠️ WhatsApp Web JS not found or failed to load. Service disabled (likely Vercel environment).');
+        status = 'DISABLED';
+        return;
+    }
 
-    client.on('qr', async (qr) => {
-        console.log('📸 WhatsApp QR Code received');
-        try {
-            qrCodeData = await qrcode.toDataURL(qr);
-            status = 'QR_READY';
-        } catch (err) {
-            console.error('Error generating QR code:', err);
-        }
-    });
+    try {
+        client = new Client({
+            authStrategy: new LocalAuth({
+                dataPath: './.wwebjs_auth'
+            }),
+            puppeteer: {
+                args: ['--no-sandbox', '--disable-setuid-sandbox'],
+                headless: true
+            }
+        });
 
-    client.on('ready', () => {
-        console.log('✅ WhatsApp Client is ready!');
-        status = 'READY';
-        qrCodeData = null;
-    });
+        client.on('qr', async (qr) => {
+            console.log('📸 WhatsApp QR Code received');
+            try {
+                qrCodeData = await qrcode.toDataURL(qr);
+                status = 'QR_READY';
+            } catch (err) {
+                console.error('Error generating QR code:', err);
+            }
+        });
 
-    client.on('authenticated', () => {
-        console.log('🔐 WhatsApp Authenticated');
-        status = 'AUTHENTICATED';
-        qrCodeData = null;
-    });
+        client.on('ready', () => {
+            console.log('✅ WhatsApp Client is ready!');
+            status = 'READY';
+            qrCodeData = null;
+        });
 
-    client.on('auth_failure', (msg) => {
-        console.error('❌ WhatsApp Auth Failure:', msg);
-        status = 'DISCONNECTED';
-    });
+        client.on('authenticated', () => {
+            console.log('🔐 WhatsApp Authenticated');
+            status = 'AUTHENTICATED';
+            qrCodeData = null;
+        });
 
-    client.on('disconnected', (reason) => {
-        console.log('❌ WhatsApp Disconnected:', reason);
-        status = 'DISCONNECTED';
-        client = null;
-        // Optional: Auto-reconnect logic could go here
-    });
+        client.on('auth_failure', (msg) => {
+            console.error('❌ WhatsApp Auth Failure:', msg);
+            status = 'DISCONNECTED';
+        });
 
-    client.initialize();
+        client.on('disconnected', (reason) => {
+            console.log('❌ WhatsApp Disconnected:', reason);
+            status = 'DISCONNECTED';
+            client = null;
+        });
+
+        client.initialize();
+    } catch (initError) {
+        console.error('❌ WhatsApp Client Init Failed:', initError);
+        status = 'DISABLED';
+    }
 };
 
 const getStatus = () => {
@@ -70,18 +85,17 @@ const logout = async () => {
 };
 
 const sendMessage = async (to, message) => {
+    if (status === 'DISABLED') {
+        throw new Error('WhatsApp service is disabled in this environment.');
+    }
     if (status !== 'READY') {
         throw new Error('WhatsApp client is not ready. Please scan QR code in Settings.');
     }
 
     try {
         // whatsapp-web.js expects numbers in format '1234567890@c.us'
-        // We need to sanitize the number. Assuming international format without + or 00
-        // Ideally, stored phones should be normalized. Here we do basic cleaning.
         let chatId = to.replace(/[^0-9]/g, '');
 
-        // Basic check for Spain length (9 digits) -> Add prefix 34
-        // Logic: if length is 9, assume ES (+34). If > 9, assume it has prefix.
         if (chatId.length === 9) {
             chatId = '34' + chatId;
         }

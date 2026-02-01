@@ -15,7 +15,7 @@ const invoiceService = require('./services/invoiceService');
 const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
 const budgetService = require('./services/budgetService');
 const templateService = require('./services/templateService');
-// const whatsappService = require('./services/whatsappService');
+const whatsappService = require('./services/whatsappService');
 const schedulerService = require('./services/schedulerService');
 
 const prisma = new PrismaClient({
@@ -58,7 +58,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- WHATSAPP INIT ---
-// whatsappService.initialize(); // Disabled for debugging "Critical Startup Error"
+whatsappService.initialize();
 schedulerService.startScheduler(prisma);
 
 // --- MODULE 1: FINANCIAL ENGINE ---
