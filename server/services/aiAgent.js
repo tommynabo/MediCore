@@ -407,6 +407,37 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
     }
 }
 
+async function improveMessage(text, patientName) {
+    try {
+        const aiClient = getOpenAI();
+        const response = await aiClient.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+                {
+                    role: "system",
+                    content: `Eres un asistente experto en comunicación clínica. 
+                    Tu tarea es reescribir borradores de mensajes de WhatsApp para pacientes de forma profesional, cordial y clara.
+                    
+                    El mensaje es para el paciente: ${patientName || 'el paciente'}.
+                    
+                    Reglas:
+                    1. Mantén un tono cercano pero profesional.
+                    2. Sé conciso y directo (es WhatsApp).
+                    3. Corrige ortografía y gramática.
+                    4. Si el texto original es muy informal o incompleto, complétalo lógicamente.
+                    5. NO uses saludos genéricos como "Estimado paciente", usa su nombre si lo tienes o sé neutro.
+                    6. Devuelve SOLAMENTE el texto mejorado, sin introducciones ni comillas.`
+                },
+                { role: "user", content: text }
+            ]
+        });
+        return response.choices[0].message.content;
+    } catch (e) {
+        console.error("AI Improve Error:", e);
+        throw e;
+    }
+}
+
 // ==================== TOOL HANDLERS ====================
 
 async function findPatient(supabase, patientName, userInfo) {
@@ -866,4 +897,7 @@ async function handleDeleteClinicalRecord(supabase, { patientName, searchText },
     return handleModifyClinicalRecord(supabase, { patientName, searchText, newContent: '', action: 'delete' }, userInfo);
 }
 
-module.exports = { processQuery };
+module.exports = {
+    processQuery,
+    improveMessage
+};

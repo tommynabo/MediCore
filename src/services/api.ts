@@ -300,6 +300,17 @@ export const api = {
             });
             if (!res.ok) throw new Error('AI query failed');
             return res.json();
+        },
+
+        improveMessage: async (text: string, patientName?: string) => {
+            const res = await fetch(`${API_URL}/ai/improve`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ text, patientName })
+            });
+            if (!res.ok) throw new Error('Failed to improve text');
+            const data = await res.json();
+            return data.text;
         }
     },
 
@@ -351,31 +362,32 @@ export const api = {
             if (!res.ok) throw new Error('Failed to logout');
             return res.json();
         },
+        getLogs: async (patientId?: string) => {
+            const url = patientId ? `${API_URL}/whatsapp/logs?patientId=${patientId}` : `${API_URL}/whatsapp/logs`;
+            const res = await fetch(url, { headers });
+            if (!res.ok) throw new Error('Failed to fetch logs');
+            return res.json();
+        },
         getTemplates: async () => {
             const res = await fetch(`${API_URL}/whatsapp/templates`, { headers });
             if (!res.ok) throw new Error('Failed to fetch templates');
             return res.json();
         },
-        saveTemplate: async (data: any) => {
+        createTemplate: async (data: any) => {
             const res = await fetch(`${API_URL}/whatsapp/templates`, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify(data)
             });
-            if (!res.ok) throw new Error('Failed to save template');
+            if (!res.ok) throw new Error('Failed to create template');
             return res.json();
         },
         deleteTemplate: async (id: string) => {
             const res = await fetch(`${API_URL}/whatsapp/templates/${id}`, { method: 'DELETE', headers });
             if (!res.ok) throw new Error('Failed to delete template');
-        },
-        getLogs: async (patientId?: string) => {
-            const query = patientId ? `?patientId=${patientId}` : '';
-            const res = await fetch(`${API_URL}/whatsapp/logs${query}`, { headers });
-            if (!res.ok) throw new Error('Failed to fetch logs');
             return res.json();
         },
-        scheduleMessage: async (data: { patientId: string, scheduledDate: string, content: string }) => {
+        scheduleMessage: async (data: { patientId: string, templateId?: string, scheduledDate: string, content: string }) => {
             const res = await fetch(`${API_URL}/whatsapp/schedule`, {
                 method: 'POST',
                 headers,
@@ -386,3 +398,5 @@ export const api = {
         }
     }
 };
+
+

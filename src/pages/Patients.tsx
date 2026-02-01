@@ -111,7 +111,8 @@ const Patients: React.FC = () => {
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
     const [whatsAppForm, setWhatsAppForm] = useState({ templateId: '', scheduledDate: '', content: '' });
     const [whatsappTemplates, setWhatsappTemplates] = useState<any[]>([]);
-    const [whatsappLogs, setWhatsappLogs] = useState<any[]>([]); // New state for history
+    const [whatsappLogs, setWhatsappLogs] = useState<any[]>([]);
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false); // New AI State // New state for history
 
     // Fetch templates and logs when modal or tab opens
     React.useEffect(() => {
@@ -1169,10 +1170,31 @@ const Patients: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[10px] font-black uppercase text-slate-400">Contenido</label>
+                                    <div className="flex justify-between items-center mb-1">
+                                        <label className="text-[10px] font-black uppercase text-slate-400">Contenido</label>
+                                        <button
+                                            onClick={async () => {
+                                                if (!whatsAppForm.content) return alert("Escribe algo primero (ej: 'recordatorio revisión').");
+                                                setIsGeneratingAI(true);
+                                                try {
+                                                    const improved = await api.ai.improveMessage(whatsAppForm.content, selectedPatient?.name);
+                                                    setWhatsAppForm(prev => ({ ...prev, content: improved }));
+                                                } catch (e: any) {
+                                                    alert("Error AI: " + e.message);
+                                                } finally {
+                                                    setIsGeneratingAI(false);
+                                                }
+                                            }}
+                                            disabled={isGeneratingAI}
+                                            className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-lg font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                                        >
+                                            {isGeneratingAI ? '✨ Escribiendo...' : '✨ Mejorar con IA'}
+                                        </button>
+                                    </div>
                                     <textarea
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32 resize-none"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32 resize-none focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all"
                                         value={whatsAppForm.content}
+                                        placeholder="Escribe tu mensaje aquí o selecciona una plantilla..."
                                         onChange={e => setWhatsAppForm({ ...whatsAppForm, content: e.target.value })}
                                     />
                                 </div>

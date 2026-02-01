@@ -1407,6 +1407,20 @@ app.use(express.static(path.join(__dirname, '../dist')));
 
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
+// --- MODULE 9: AI ----
+app.post('/api/ai/improve', async (req, res) => {
+    try {
+        const { text, patientName } = req.body;
+        if (!text) return res.status(400).json({ error: 'Text is required' });
+
+        const improved = await aiAgent.improveMessage(text, patientName);
+        res.json({ text: improved });
+    } catch (e) {
+        console.error("AI Endpoint Error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Note: Using regex pattern for Express 5 compatibility
 app.get(/^\/(?!api).*/, (req, res) => {
     // Check if file exists, if not send error (debugging)
