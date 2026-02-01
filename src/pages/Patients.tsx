@@ -194,18 +194,17 @@ const Patients: React.FC = () => {
         if (!medication) return;
         setIsProcessing(true);
         try {
-            const prompt = `Genera una receta médica formal válida en España para el paciente ${selectedPatient?.name} (DNI: ${selectedPatient?.dni}) para el medicamento: ${medication}. Incluye posología estándar, fechas y formato de firma.`;
-            const response = await api.ai.query(prompt, selectedPatient?.id);
-            const generatedText = response.answer || response.message || response.content || "No se pudo generar la receta.";
+            const prompt = `Genera una receta completa para: ${medication}`;
+            const generatedText = await api.ai.improveMessage(prompt, selectedPatient?.name, 'prescription');
             setPrescriptionText(generatedText);
 
             // Explicitly save the generated prescription to clinical history to ensure it is recorded
             if (selectedPatient && generatedText) {
                 await api.clinicalRecords.create({
                     patientId: selectedPatient.id,
-                    date: new Date().toISOString(),
-                    text: `[RECETA] ${medication} \n\n${generatedText} `,
-                    type: 'prescription'
+                    treatment: 'Receta Médica',
+                    observation: generatedText, // Prescription text
+                    specialization: 'General' // Default
                 });
 
                 // Refresh records
@@ -863,18 +862,15 @@ const Patients: React.FC = () => {
                                         <button
                                             onClick={async () => {
                                                 if (!newEntryForm.observation) return alert("Escribe algo primero...");
-                                                console.log("AI Request:", newEntryForm.observation);
                                                 setIsProcessing(true);
                                                 try {
-                                                    const prompt = `Reescribe y estructura profesionalmente la siguiente nota clínica odontológica, organizándola por puntos clave (Motivo, Observación, Plan): "${newEntryForm.observation}"`;
-                                                    const res = await api.ai.query(prompt, selectedPatient?.id);
-                                                    console.log("AI Response:", res);
-                                                    if (res && (res.answer || res.message || res.content)) {
-                                                        setNewEntryForm(prev => ({ ...prev, observation: res.answer || res.message || res.content }));
+                                                    const improved = await api.ai.improveMessage(newEntryForm.observation, selectedPatient?.name, 'clinical_note');
+                                                    if (improved) {
+                                                        setNewEntryForm(prev => ({ ...prev, observation: improved }));
                                                     } else {
-                                                        alert("La IA no devolvió respuesta válida.");
+                                                        alert("La IA no devolvió respuesta.");
                                                     }
-                                                } catch (e) { console.error(e); alert("Error conectando con IA: " + e.message); }
+                                                } catch (e) { console.error(e); alert("Error conectando con IA."); }
                                                 setIsProcessing(false);
                                             }}
                                             className="text-xs bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-200"
@@ -1150,7 +1146,7 @@ const Patients: React.FC = () => {
                                             if (!whatsAppForm.content) return alert("Escribe algo primero (ej: 'recordatorio revisión').");
                                             setIsGeneratingAI(true);
                                             try {
-                                                const improved = await api.ai.improveMessage(whatsAppForm.content, selectedPatient?.name);
+                                                const improved = await api.ai.improveMessage(whatsAppForm.content, selectedPatient?.name, 'whatsapp');
                                                 setWhatsAppForm(prev => ({ ...prev, content: improved }));
                                             } catch (e: any) {
                                                 alert("Error AI: " + e.message);

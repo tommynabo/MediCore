@@ -1428,10 +1428,10 @@ app.use(express.static(path.join(__dirname, '../dist')));
 // --- MODULE 9: AI ----
 app.post('/api/ai/improve', async (req, res) => {
     try {
-        const { text, patientName } = req.body;
+        const { text, patientName, type } = req.body;
         if (!text) return res.status(400).json({ error: 'Text is required' });
 
-        const improved = await aiAgent.improveMessage(text, patientName);
+        const improved = await aiAgent.improveMessage(text, patientName, type);
         res.json({ text: improved });
     } catch (e) {
         console.error("AI Endpoint Error:", e);

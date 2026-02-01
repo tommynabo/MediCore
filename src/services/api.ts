@@ -302,11 +302,11 @@ export const api = {
             return res.json();
         },
 
-        improveMessage: async (text: string, patientName?: string) => {
+        improveMessage: async (text: string, patientName?: string, type: 'whatsapp' | 'clinical_note' | 'prescription' = 'whatsapp') => {
             const res = await fetch(`${API_URL}/ai/improve`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ text, patientName })
+                body: JSON.stringify({ text, patientName, type })
             });
             if (!res.ok) throw new Error('Failed to improve text');
             const data = await res.json();

@@ -407,27 +407,59 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
     }
 }
 
-async function improveMessage(text, patientName) {
+async function improveMessage(text, patientName, type = 'whatsapp') {
     try {
         const aiClient = getOpenAI();
+
+        let systemPrompt = "";
+
+        switch (type) {
+            case 'clinical_note':
+                systemPrompt = `Eres un asistente médico experto en redacción de historias clínicas.
+                Tu tarea es reescribir notas rápidas o borradores en un formato clínico profesional, estructurado y preciso.
+                
+                Reglas:
+                1. Usa terminología médica correcta (ej: "dolor de muela" -> "odontalgia").
+                2. Estructura la respuesta claramente (Motivo de consulta, Exploración, Diagnóstico, Plan/Tratamiento).
+                3. Sé objetivo y formal.
+                4. NO inventes información, solo estructura y mejora lo que se te da.
+                5. El paciente es: ${patientName || 'el paciente'}.
+                6. Devuelve SOLAMENTE el texto mejorado, sin introducciones.`;
+                break;
+
+            case 'prescription':
+                systemPrompt = `Eres un asistente médico encargado de redactar recetas.
+                Tu tarea es generar el TEXTO COMPLETO de una receta médica válida basada en la entrada del usuario.
+                
+                Reglas:
+                1. Formato claro y legible.
+                2. Incluye: Nombre del Medicamento (principio activo/comercial), Dosis, Posología (frecuencia), Duración del tratamiento.
+                3. Añade recomendaciones estándar según el medicamento (ej: "tomar con comida", "evitar alcohol").
+                4. El paciente es: ${patientName || 'el paciente'}.
+                5. Devuelve SOLAMENTE el texto de la receta, sin introducciones ni marcas de "Aquí tienes la receta".`;
+                break;
+
+            case 'whatsapp':
+            default:
+                systemPrompt = `Eres un asistente experto en comunicación clínica y atención al paciente. 
+                Tu tarea es reescribir borradores de mensajes de WhatsApp para pacientes de forma profesional, cordial y clara.
+                
+                El mensaje es para el paciente: ${patientName || 'el paciente'}.
+                
+                Reglas:
+                1. Mantén un tono cercano pero profesional.
+                2. Sé conciso y directo (es WhatsApp).
+                3. Corrige ortografía y gramática.
+                4. Si el texto original es muy informal o incompleto, complétalo lógicamente.
+                5. NO uses saludos genéricos como "Estimado paciente", usa su nombre si lo tienes o sé neutro.
+                6. Devuelve SOLAMENTE el texto mejorado, sin introducciones ni comillas.`;
+                break;
+        }
+
         const response = await aiClient.chat.completions.create({
             model: "gpt-4o",
             messages: [
-                {
-                    role: "system",
-                    content: `Eres un asistente experto en comunicación clínica. 
-                    Tu tarea es reescribir borradores de mensajes de WhatsApp para pacientes de forma profesional, cordial y clara.
-                    
-                    El mensaje es para el paciente: ${patientName || 'el paciente'}.
-                    
-                    Reglas:
-                    1. Mantén un tono cercano pero profesional.
-                    2. Sé conciso y directo (es WhatsApp).
-                    3. Corrige ortografía y gramática.
-                    4. Si el texto original es muy informal o incompleto, complétalo lógicamente.
-                    5. NO uses saludos genéricos como "Estimado paciente", usa su nombre si lo tienes o sé neutro.
-                    6. Devuelve SOLAMENTE el texto mejorado, sin introducciones ni comillas.`
-                },
+                { role: "system", content: systemPrompt },
                 { role: "user", content: text }
             ]
         });
