@@ -1161,6 +1161,24 @@ const calculateWalletBalance = async (supabase, patientId) => {
     }
 };
 
+app.get('/api/patients/:id/payments', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const supabase = getSupabase();
+
+        const { data, error } = await supabase
+            .from('Payment')
+            .select('*')
+            .eq('patientId', id)
+            .order('createdAt', { ascending: false });
+
+        if (error) throw error;
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/payments/create', async (req, res) => {
     try {
         let supabase;

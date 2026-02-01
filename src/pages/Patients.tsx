@@ -1171,29 +1171,29 @@ const Patients: React.FC = () => {
                                     onChange={e => setWhatsAppForm({ ...whatsAppForm, content: e.target.value })}
                                 />
                             </div>
-                        </div>
-                        <div className="flex gap-4 mt-6">
-                            <button onClick={() => setIsWhatsAppModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl">Cancelar</button>
-                            <button
-                                onClick={async () => {
-                                    if (!whatsAppForm.scheduledDate || !whatsAppForm.content) return alert("Falta fecha o contenido.");
-                                    try {
-                                        await api.whatsapp.scheduleMessage({
-                                            patientId: selectedPatient!.id,
-                                            scheduledDate: whatsAppForm.scheduledDate,
-                                            content: whatsAppForm.content
-                                        });
-                                        alert('✅ Mensaje programado correctamente');
-                                        setIsWhatsAppModalOpen(false);
-                                        // Refresh logs
-                                        const logs = await api.whatsapp.getLogs(selectedPatient!.id);
-                                        setWhatsappLogs(logs);
-                                    } catch (e: any) { alert('Error: ' + e.message); }
-                                }}
-                                className="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-bold uppercase shadow-lg hover:bg-emerald-600 transition-colors"
-                            >
-                                Programar
-                            </button>
+                            <div className="flex gap-4 mt-6">
+                                <button onClick={() => setIsWhatsAppModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl">Cancelar</button>
+                                <button
+                                    onClick={async () => {
+                                        if (!whatsAppForm.scheduledDate || !whatsAppForm.content) return alert("Falta fecha o contenido.");
+                                        try {
+                                            await api.whatsapp.scheduleMessage({
+                                                patientId: selectedPatient!.id,
+                                                scheduledDate: whatsAppForm.scheduledDate,
+                                                content: whatsAppForm.content
+                                            });
+                                            alert('✅ Mensaje programado correctamente');
+                                            setIsWhatsAppModalOpen(false);
+                                            // Refresh logs
+                                            const logs = await api.whatsapp.getLogs(selectedPatient!.id);
+                                            setWhatsappLogs(logs);
+                                        } catch (e: any) { alert('Error: ' + e.message); }
+                                    }}
+                                    className="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-bold uppercase shadow-lg hover:bg-emerald-600 transition-colors"
+                                >
+                                    Programar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )
