@@ -369,8 +369,9 @@ export const api = {
             const res = await fetch(`${API_URL}/whatsapp/templates/${id}`, { method: 'DELETE', headers });
             if (!res.ok) throw new Error('Failed to delete template');
         },
-        getLogs: async () => {
-            const res = await fetch(`${API_URL}/whatsapp/logs`, { headers });
+        getLogs: async (patientId?: string) => {
+            const query = patientId ? `?patientId=${patientId}` : '';
+            const res = await fetch(`${API_URL}/whatsapp/logs${query}`, { headers });
             if (!res.ok) throw new Error('Failed to fetch logs');
             return res.json();
         },

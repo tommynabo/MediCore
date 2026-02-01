@@ -111,8 +111,16 @@ const Patients: React.FC = () => {
     const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
     const [whatsAppForm, setWhatsAppForm] = useState({ templateId: '', scheduledDate: '', content: '' });
     const [whatsappTemplates, setWhatsappTemplates] = useState<any[]>([]);
+    const [whatsappLogs, setWhatsappLogs] = useState<any[]>([]); // New state for history
 
-    // Fetch templates when modal opens
+    // Fetch templates and logs when modal or tab opens
+    React.useEffect(() => {
+        if (patientTab === 'whatsapp' && selectedPatient) {
+            // Load History
+            api.whatsapp.getLogs(selectedPatient.id).then(setWhatsappLogs).catch(console.error);
+        }
+    }, [patientTab, selectedPatient]);
+
     React.useEffect(() => {
         if (isWhatsAppModalOpen) {
             api.whatsapp.getTemplates().then(setWhatsappTemplates).catch(console.error);
@@ -737,6 +745,46 @@ const Patients: React.FC = () => {
                                         El sistema enviará el mensaje automáticamente en la fecha seleccionada.
                                     </p>
                                 </div>
+
+                                {/* HISTORY SECTION */}
+                                <div className="mt-8">
+                                    <h3 className="text-xl font-bold text-slate-900 mb-4 px-2">Historial de Comunicaciones</h3>
+                                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                        {whatsappLogs.length === 0 ? (
+                                            <div className="p-8 text-center text-slate-400 text-sm">
+                                                No hay mensajes registrados para este paciente.
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-slate-100">
+                                                {whatsappLogs.map(log => (
+                                                    <div key={log.id} className="p-4 hover:bg-slate-50 transition-colors flex gap-4">
+                                                        <div className={`w-2 h-2 rounded-full mt-2 shrink-0 ${log.status === 'SENT' ? 'bg-emerald-500' :
+                                                            log.status === 'PENDING' ? 'bg-amber-400' : 'bg-rose-500'
+                                                            }`} />
+                                                        <div className="flex-1">
+                                                            <div className="flex justify-between items-center mb-1">
+                                                                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${log.type === 'APPOINTMENT_REMINDER' ? 'bg-blue-50 text-blue-600' :
+                                                                    log.type === 'TREATMENT_FOLLOWUP' ? 'bg-purple-50 text-purple-600' : 'bg-slate-100 text-slate-500'
+                                                                    }`}>
+                                                                    {log.type === 'APPOINTMENT_REMINDER' ? 'Recordatorio' : 'Seguimiento'}
+                                                                </span>
+                                                                <span className="text-[10px] text-slate-400 font-bold">
+                                                                    {log.scheduledFor ? (
+                                                                        <>Programado: {new Date(log.scheduledFor).toLocaleString()}</>
+                                                                    ) : (
+                                                                        new Date(log.sentAt).toLocaleString()
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">{log.content}</p>
+                                                            {log.error && <p className="text-xs text-rose-500 mt-1 font-medium">{log.error}</p>}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div >
@@ -1077,8 +1125,85 @@ const Patients: React.FC = () => {
                     setIsPaymentModalOpen(false);
                 }}
             />
-        </div>
-    );
-};
+
+            {/* WHATSAPP SCHEDULE MODAL - MOVED TO ROOT LEVEL TO ENSURE VISIBILITY */}
+            {
+                isWhatsAppModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6">
+                        <div className="bg-white max-w-lg w-full rounded-[2rem] p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                            <h3 className="text-2xl font-black text-slate-900 mb-6">Programar WhatsApp</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Plantilla</label>
+                                    <select
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none"
+                                        onChange={e => {
+                                            const t = whatsappTemplates.find(t => t.id === e.target.value);
+                                            if (t) {
+                                                // Pre-fill content with patient data
+                                                let content = t.content
+                                                    .replace('{{PACIENTE}}', selectedPatient?.name || '')
+                                                    .replace('{{PATIENT_NAME}}', selectedPatient?.name || '') // Legacy
+                                                    .replace('{{DOCTOR}}', 'Dr. General') // Placeholder
+                                                    .replace('{{DOCTOR_NAME}}', 'Dr. General') // Legacy
+                                                    .replace('{{DNI}}', selectedPatient?.dni || '')
+                                                    .replace('{{FECHA}}', new Date().toLocaleDateString('es-ES'))
+                                                    .replace('{{DATE}}', new Date().toLocaleDateString('es-ES')) // Legacy
+                                                    .replace('{{HORA}}', new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }))
+                                                    .replace('{{TIME}}', new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })); // Legacy
+
+                                                setWhatsAppForm({ ...whatsAppForm, templateId: t.id, content });
+                                            }
+                                        }}
+                                    >
+                                        <option value="">Seleccionar Plantilla...</option>
+                                        {whatsappTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Fecha de Envío</label>
+                                    <input
+                                        type="datetime-local"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold outline-none"
+                                        onChange={e => setWhatsAppForm({ ...whatsAppForm, scheduledDate: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Contenido</label>
+                                    <textarea
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold h-32 resize-none"
+                                        value={whatsAppForm.content}
+                                        onChange={e => setWhatsAppForm({ ...whatsAppForm, content: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex gap-4 mt-6">
+                                <button onClick={() => setIsWhatsAppModalOpen(false)} className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl">Cancelar</button>
+                                <button
+                                    onClick={async () => {
+                                        if (!whatsAppForm.scheduledDate || !whatsAppForm.content) return alert("Falta fecha o contenido.");
+                                        try {
+                                            await api.whatsapp.scheduleMessage({
+                                                patientId: selectedPatient!.id,
+                                                scheduledDate: whatsAppForm.scheduledDate,
+                                                content: whatsAppForm.content
+                                            });
+                                            alert('✅ Mensaje programado correctamente');
+                                            setIsWhatsAppModalOpen(false);
+                                            // Refresh logs
+                                            const logs = await api.whatsapp.getLogs(selectedPatient!.id);
+                                            setWhatsappLogs(logs);
+                                        } catch (e: any) { alert('Error: ' + e.message); }
+                                    }}
+                                    className="flex-1 bg-emerald-500 text-white py-3 rounded-xl font-bold uppercase shadow-lg hover:bg-emerald-600 transition-colors"
+                                >
+                                    Programar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+            </div>
+    )
+}
 
 export default Patients;

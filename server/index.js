@@ -1387,7 +1387,11 @@ app.delete('/api/whatsapp/templates/:id', async (req, res) => {
 
 app.get('/api/whatsapp/logs', async (req, res) => {
     try {
+        const { patientId } = req.query;
+        const where = patientId ? { patientId } : {};
+
         const logs = await prisma.whatsAppLog.findMany({
+            where,
             orderBy: { sentAt: 'desc' },
             take: 100,
             include: { patient: true }
