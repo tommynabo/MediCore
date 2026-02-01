@@ -15,7 +15,7 @@ const invoiceService = require('./services/invoiceService');
 const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
 const budgetService = require('./services/budgetService');
 const templateService = require('./services/templateService');
-const whatsappService = require('./services/whatsappService');
+// const whatsappService = require('./services/whatsappService');
 const schedulerService = require('./services/schedulerService');
 
 const prisma = new PrismaClient({
@@ -1316,22 +1316,23 @@ app.get('/api/invoices', async (req, res) => {
 
 // --- MODULE 7: WHATSAPP INTEGRATION ---
 app.get('/api/whatsapp/status', (req, res) => {
-    res.json(whatsappService.getStatus());
+    // res.json(whatsappService.getStatus());
+    res.json({ status: 'DISABLED', qrCode: null });
 });
 
 app.post('/api/whatsapp/send-test', async (req, res) => {
     try {
         const { phone, message } = req.body;
-        const response = await whatsappService.sendMessage(phone, message || 'Test message from CRM Medico');
-        res.json(response);
+        // const response = await whatsappService.sendMessage(phone, message || 'Test message from CRM Medico');
+        res.json({ success: false, error: 'WhatsApp disabled' });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/whatsapp/logout', async (req, res) => {
-    const result = await whatsappService.logout();
-    res.json(result);
+    // const result = await whatsappService.logout();
+    res.json({ success: true });
 });
 
 app.get('/api/whatsapp/templates', async (req, res) => {
