@@ -113,6 +113,56 @@ const startScheduler = (prisma) => {
         console.log('⏳ Running Daily Follow-up Check...');
         // Implementation placeholder for follow-up logic based on completed treatments
     });
+    // Job 3: Process Scheduled Messages (Messages created with a future date)
+    // Runs every 15 minutes to be responsive enough
+    cron.schedule('*/15 * * * *', async () => {
+        console.log('⏳ Checking for Scheduled WhatsApp Messages...');
+        try {
+            const now = new Date();
+            const pendingMessages = await prisma.whatsAppLog.findMany({
+                where: {
+                    status: 'PENDING',
+                    scheduledFor: {
+                        lte: now
+                    }
+                },
+                include: { patient: true }
+            });
+
+            console.log(`🔎 Found ${pendingMessages.length} scheduled messages due.`);
+
+            for (const log of pendingMessages) {
+                if (!log.patient.phone) {
+                    console.warn(`⚠️ Skipped scheduled msg for ${log.patient.name} (No phone)`);
+                    await prisma.whatsAppLog.update({
+                        where: { id: log.id },
+                        data: { status: 'FAILED', error: 'No phone number' }
+                    });
+                    continue;
+                }
+
+                try {
+                    console.log(`📤 Sending scheduled message to ${log.patient.name}...`);
+                    await whatsappService.sendMessage(log.patient.phone, log.content);
+
+                    await prisma.whatsAppLog.update({
+                        where: { id: log.id },
+                        data: { status: 'SENT', sentAt: new Date() }
+                    });
+                    console.log('✅ Scheduled message sent successfully.');
+                } catch (e) {
+                    console.error('❌ Failed to send scheduled message:', e.message);
+                    await prisma.whatsAppLog.update({
+                        where: { id: log.id },
+                        data: { status: 'FAILED', error: e.message } // Keep scheduledFor so maybe we can retry? Or just fail.
+                    });
+                }
+            }
+
+        } catch (e) {
+            console.error('Error processing scheduled messages:', e);
+        }
+    });
 };
 
 module.exports = { startScheduler };

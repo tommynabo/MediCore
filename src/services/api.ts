@@ -373,6 +373,15 @@ export const api = {
             const res = await fetch(`${API_URL}/whatsapp/logs`, { headers });
             if (!res.ok) throw new Error('Failed to fetch logs');
             return res.json();
+        },
+        scheduleMessage: async (data: { patientId: string, scheduledDate: string, content: string }) => {
+            const res = await fetch(`${API_URL}/whatsapp/schedule`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(data)
+            });
+            if (!res.ok) throw new Error('Failed to schedule message');
+            return res.json();
         }
     }
 };

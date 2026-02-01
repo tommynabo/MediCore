@@ -1335,6 +1335,26 @@ app.post('/api/whatsapp/logout', async (req, res) => {
     res.json(result);
 });
 
+app.post('/api/whatsapp/schedule', async (req, res) => {
+    try {
+        const { patientId, templateId, scheduledDate, content } = req.body;
+
+        const log = await prisma.whatsAppLog.create({
+            data: {
+                patientId,
+                type: 'TREATMENT_FOLLOWUP', // Generic type for scheduled msgs
+                status: 'PENDING',
+                content,
+                scheduledFor: new Date(scheduledDate),
+                sentAt: new Date(scheduledDate)
+            }
+        });
+        res.json(log);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.get('/api/whatsapp/templates', async (req, res) => {
     try {
         const templates = await prisma.whatsAppTemplate.findMany();

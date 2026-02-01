@@ -107,6 +107,18 @@ const Patients: React.FC = () => {
     // New Patient Form State
     const [newPatient, setNewPatient] = useState({ name: '', dni: '', email: '', phone: '' });
 
+    // WhatsApp Scheduling State
+    const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+    const [whatsAppForm, setWhatsAppForm] = useState({ templateId: '', scheduledDate: '', content: '' });
+    const [whatsappTemplates, setWhatsappTemplates] = useState<any[]>([]);
+
+    // Fetch templates when modal opens
+    React.useEffect(() => {
+        if (isWhatsAppModalOpen) {
+            api.whatsapp.getTemplates().then(setWhatsappTemplates).catch(console.error);
+        }
+    }, [isWhatsAppModalOpen]);
+
     const handleCreatePatient = async () => {
         if (!newPatient.name || !newPatient.dni) {
             alert("Por favor rellene nombre y DNI.");
@@ -341,7 +353,7 @@ const Patients: React.FC = () => {
                     {/* HEADER SIDEBAR (Mobile/Desktop split logic from App.tsx simplified here) */}
                     <div className="px-8 pt-8 pb-4 border-b border-slate-100 flex items-center justify-between bg-white/80 backdrop-blur-xl sticky top-0 z-10">
                         <div className="flex gap-1 overflow-x-auto no-scrollbar">
-                            {['ficha', 'history', 'odontogram', 'treatments', 'prescriptions', 'billing', 'docs', 'budget'].map(tab => (
+                            {['ficha', 'history', 'whatsapp', 'odontogram', 'treatments', 'prescriptions', 'billing', 'docs', 'budget'].map(tab => (
                                 <button
                                     key={tab}
                                     onClick={() => setPatientTab(tab)}
@@ -701,9 +713,35 @@ const Patients: React.FC = () => {
                                 </div>
                             )
                         }
+                        {/* WHATSAPP TAB */}
+                        {patientTab === 'whatsapp' && (
+                            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Recordatorios WhatsApp</h2>
+                                    <button onClick={() => setIsWhatsAppModalOpen(true)} className="bg-emerald-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase flex items-center gap-2 hover:bg-emerald-600 transition-colors shadow-lg">
+                                        <Plus size={16} /> Programar Mensaje
+                                    </button>
+                                </div>
+                                <div className="bg-slate-50 p-12 rounded-[2rem] text-center border-2 border-dashed border-slate-200">
+                                    <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Phone size={32} />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-slate-900 mb-2">Programar Recordatorios y Revisiones</h3>
+                                    <p className="text-sm text-slate-500 max-w-md mx-auto">
+                                        Utiliza este apartado para programar mensajes automáticos (ej. revisión en 6 meses).
+                                        El sistema enviará el mensaje automáticamente en la fecha seleccionada.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div >
                 </div >
             )}
+
+            {/* WHATSAPP TAB MODAL & CONTENT */}
+
+
+
 
             {/* NEW PATIENT MODAL */}
             {

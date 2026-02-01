@@ -311,4 +311,5 @@ model WhatsAppLog {
   content   String
   error     String?
   sentAt    DateTime            @default(now())
+  scheduledFor DateTime?        // New: For scheduled messages
 }
