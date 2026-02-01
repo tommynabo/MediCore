@@ -1317,23 +1317,22 @@ app.get('/api/invoices', async (req, res) => {
 
 // --- MODULE 7: WHATSAPP INTEGRATION ---
 app.get('/api/whatsapp/status', (req, res) => {
-    // res.json(whatsappService.getStatus());
-    res.json({ status: 'DISABLED', qrCode: null });
+    res.json(whatsappService.getStatus());
 });
 
 app.post('/api/whatsapp/send-test', async (req, res) => {
     try {
         const { phone, message } = req.body;
-        // const response = await whatsappService.sendMessage(phone, message || 'Test message from CRM Medico');
-        res.json({ success: false, error: 'WhatsApp disabled' });
+        const response = await whatsappService.sendMessage(phone, message || 'Test message from CRM Medico');
+        res.json(response);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
 app.post('/api/whatsapp/logout', async (req, res) => {
-    // const result = await whatsappService.logout();
-    res.json({ success: true });
+    const result = await whatsappService.logout();
+    res.json(result);
 });
 
 app.get('/api/whatsapp/templates', async (req, res) => {
