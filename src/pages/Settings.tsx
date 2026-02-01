@@ -6,16 +6,16 @@ import { api } from '../services/api';
 
 const Settings: React.FC = () => {
     const { stock, setStock, currentUserRole } = useAppContext();
-    const [settingsTab, setSettingsTab] = useState<'templates' | 'stock'>('templates');
+    const [settingsTab, setSettingsTab] = useState<'templates' | 'stock' | 'whatsapp'>('templates');
     const [templateSearch, setTemplateSearch] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // WhatsApp State
-    // const [waStatus, setWaStatus] = useState<{ status: string; qrCode: string | null }>({ status: 'DISCONNECTED', qrCode: null });
-    // const [waTemplates, setWaTemplates] = useState<any[]>([]);
-    // const [waLogs, setWaLogs] = useState<any[]>([]);
-    // const [waActiveTab, setWaActiveTab] = useState<'dashboard' | 'connection' | 'templates'>('dashboard');
-    // const [newWaTemplate, setNewWaTemplate] = useState({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
+    const [waStatus, setWaStatus] = useState<{ status: string; qrCode: string | null }>({ status: 'DISCONNECTED', qrCode: null });
+    const [waTemplates, setWaTemplates] = useState<any[]>([]);
+    const [waLogs, setWaLogs] = useState<any[]>([]);
+    const [waActiveTab, setWaActiveTab] = useState<'dashboard' | 'connection' | 'templates'>('dashboard');
+    const [newWaTemplate, setNewWaTemplate] = useState({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
 
     // TEMPLATES DATA - Restored complete list
     const [templates, setTemplates] = useState<DocumentTemplate[]>([
@@ -29,22 +29,22 @@ const Settings: React.FC = () => {
     ]);
 
     useEffect(() => {
-        // if (settingsTab === 'whatsapp') {
-        //     refreshWhatsApp();
-        // }
-    }, [settingsTab]);
+        if (settingsTab === 'whatsapp') {
+            refreshWhatsApp();
+        }
+    }, [settingsTab, waActiveTab]);
 
     const refreshWhatsApp = async () => {
-        // try {
-        //     const status = await api.whatsapp.getStatus();
-        //     setWaStatus(status);
-        //     const tmpls = await api.whatsapp.getTemplates();
-        //     setWaTemplates(tmpls);
-        //     const logs = await api.whatsapp.getLogs();
-        //     setWaLogs(logs);
-        // } catch (e) {
-        //     console.error(e);
-        // }
+        try {
+            const status = await api.whatsapp.getStatus();
+            setWaStatus(status);
+            const tmpls = await api.whatsapp.getTemplates();
+            setWaTemplates(tmpls);
+            const logs = await api.whatsapp.getLogs();
+            setWaLogs(logs);
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const handleUploadTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,12 +73,12 @@ const Settings: React.FC = () => {
     };
 
     const handleCreateWaTemplate = async () => {
-        // if (!newWaTemplate.name || !newWaTemplate.content) return;
-        // try {
-        //     await api.whatsapp.saveTemplate(newWaTemplate);
-        //     setNewWaTemplate({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
-        //     refreshWhatsApp();
-        // } catch (e) { alert('Error creando plantilla'); }
+        if (!newWaTemplate.name || !newWaTemplate.content) return;
+        try {
+            await api.whatsapp.saveTemplate(newWaTemplate);
+            setNewWaTemplate({ name: '', content: '', triggerType: 'APPOINTMENT_REMINDER', triggerOffset: '12h' });
+            refreshWhatsApp();
+        } catch (e) { alert('Error creando plantilla'); }
     };
 
     return (
@@ -92,14 +92,14 @@ const Settings: React.FC = () => {
                 <button onClick={() => setSettingsTab('stock')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'stock' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}>
                     Inventario
                 </button>
-                {/* <button onClick={() => setSettingsTab('whatsapp')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'whatsapp' ? 'bg-green-50 text-green-600' : 'text-slate-400 hover:bg-slate-50'}`}>
+                <button onClick={() => setSettingsTab('whatsapp')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'whatsapp' ? 'bg-green-50 text-green-600' : 'text-slate-400 hover:bg-slate-50'}`}>
                     WhatsApp & CRM
-                </button> */}
+                </button>
             </div>
 
             {/* SETTINGS CONTENT */}
             <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-                {/* {settingsTab === 'whatsapp' && (
+                {settingsTab === 'whatsapp' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
                         <div className="flex justify-between items-end mb-6">
                             <div>
@@ -118,6 +118,7 @@ const Settings: React.FC = () => {
 
                         {waActiveTab === 'dashboard' && (
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* CARD 1: Recordatorios (Reminders) */}
                                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                                     <h4 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                                         <History size={18} className="text-blue-500" />
@@ -141,6 +142,7 @@ const Settings: React.FC = () => {
                                     </div>
                                 </div>
 
+                                {/* CARD 2: Seguimientos (Follow ups) */}
                                 <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                                     <h4 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                                         <RefreshCw size={18} className="text-purple-500" />
@@ -268,7 +270,7 @@ const Settings: React.FC = () => {
                             </div>
                         )}
                     </div>
-                )} */}
+                )}
 
                 {settingsTab === 'templates' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
