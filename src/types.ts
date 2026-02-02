@@ -9,6 +9,8 @@ export interface Patient {
     assignedDoctorId?: string;
     clinicalHistory?: ClinicalRecord[];
     prescriptions?: string[];
+    allergies?: string;
+    medications?: string;
 }
 
 export interface ClinicalRecord {

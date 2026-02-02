@@ -47,6 +47,8 @@ model Patient {
   snapshots      DentalSnapshot[]
   balance        Float            @default(0.0) // Saldo a favor/contra
   wallet         Float            @default(0.0) // Pagos adelantados (Monedero Virtual)
+  allergies      String?          // Alergias importantes
+  medications    String?          // Medicación crónica o relevante
   createdAt      DateTime         @default(now())
   payments       Payment[] // Historial de pagos
   whatsAppLogs   WhatsAppLog[]

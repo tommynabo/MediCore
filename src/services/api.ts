@@ -1,4 +1,4 @@
-import { Patient, Appointment, Invoice, ClinicalRecord, InventoryItem } from '../types';
+import { Patient, Appointment, Invoice, ClinicalRecord, InventoryItem, Doctor } from '../types';
 
 // Use relative path in production (Vercel), localhost in dev
 // @ts-ignore - Vite env
@@ -83,6 +83,14 @@ export const api = {
                 url: data.url || data.pdf_url,
                 qrUrl: data.qrUrl || data.qr_url,
             };
+        }
+    },
+
+    doctors: {
+        getAll: async (): Promise<Doctor[]> => {
+            const res = await fetch(`${API_URL}/doctors`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch doctors');
+            return res.json();
         }
     },
 

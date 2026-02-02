@@ -224,6 +224,18 @@ app.get('/api/patients/:patientId/clinical-records', async (req, res) => {
     }
 });
 
+// --- DOCTORS ---
+app.get('/api/doctors', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase.from('Doctor').select('*');
+        if (error) throw error;
+        res.json(data);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- PATIENT MANAGEMENT ---
 app.get('/api/patients', async (req, res) => {
     try {
@@ -564,7 +576,8 @@ app.post('/api/ai/query', async (req, res) => {
         const userInfo = {
             id: req.user.id,
             role: req.user.role,
-            doctorId: req.user.doctorId || null // Linked doctor profile if user is a doctor
+            doctorId: req.user.doctorId || null, // Linked doctor profile if user is a doctor
+            activePatientId: context?.patientId // [NEW] Pass Active Patient ID
         };
         const response = await aiAgent.processQuery(message, userInfo, context);
         res.json(response);
@@ -940,6 +953,80 @@ app.post('/api/finance/invoices/export/batch', async (req, res) => {
     } catch (e) {
         console.error("Export Error:", e);
         if (!res.headersSent) res.status(500).send("Error generating ZIP");
+    }
+});
+
+app.post('/api/finance/pay-with-wallet', async (req, res) => {
+    try {
+        const { patientId, amount, treatmentIds, doctorId } = req.body;
+
+        console.log(`💰 Paying with wallet: ${amount}€ for Patient ${patientId}`);
+
+        const supabase = getSupabase();
+
+        // 1. Check Balance
+        const { data: patient, error: pError } = await supabase.from('Patient').select('wallet').eq('id', patientId).single();
+        if (pError || !patient) return res.status(404).json({ error: 'Paciente no encontrado' });
+
+        if (patient.wallet < amount) {
+            return res.status(400).json({ error: `Saldo insuficiente (${patient.wallet}€ disponibles)` });
+        }
+
+        // 2. Deduct Balance
+        const newBalance = patient.wallet - amount;
+        await supabase.from('Patient').update({ wallet: newBalance }).eq('id', patientId);
+
+        // 3. Create Payment Record (No Invoice)
+        const paymentId = crypto.randomUUID();
+        await supabase.from('Payment').insert([{
+            id: paymentId,
+            patientId,
+            amount,
+            method: 'wallet',
+            type: 'DIRECT_CHARGE', // Or specific type
+            notes: `Pago con Saldo a favor. Doctor: ${doctorId || 'N/A'}`,
+            createdAt: new Date().toISOString()
+        }]);
+
+        // 4. Update Treatments (if any)
+        if (treatmentIds && treatmentIds.length > 0) {
+            await supabase.from('PatientTreatment').update({ status: 'COMPLETED' }).in('id', treatmentIds);
+        }
+
+        // 5. Create Liquidation (Doctor Commission)
+        if (doctorId) {
+            const appointmentId = crypto.randomUUID();
+            const { error: appError } = await supabase.from('Appointment').insert([{
+                id: appointmentId,
+                patientId,
+                doctorId,
+                date: new Date().toISOString(),
+                time: new Date().toLocaleTimeString(),
+                status: 'COMPLETED'
+            }]);
+
+            if (!appError) {
+                const { data: doctor } = await supabase.from('Doctor').select('commissionPercentage').eq('id', doctorId).single();
+                const commissionRate = doctor?.commissionPercentage || 0;
+
+                await supabase.from('Liquidation').insert([{
+                    id: crypto.randomUUID(),
+                    doctorId,
+                    appointmentId,
+                    grossAmount: amount,
+                    labCost: 0,
+                    commissionRate,
+                    finalAmount: amount * commissionRate,
+                    status: 'PENDING'
+                }]);
+            }
+        }
+
+        res.json({ success: true, newBalance });
+
+    } catch (e) {
+        console.error("Pay with Wallet Error:", e);
+        res.status(500).json({ error: e.message });
     }
 });
 

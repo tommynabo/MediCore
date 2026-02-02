@@ -3,7 +3,7 @@ import { MessageSquare, Activity, Send } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 
 const AI: React.FC = () => {
-    const { api } = useAppContext();
+    const { api, selectedPatient } = useAppContext();
     const [aiInput, setAiInput] = useState('');
     const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'assistant', content: string }[]>([]);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -19,9 +19,11 @@ const AI: React.FC = () => {
         setIsProcessing(true);
 
         try {
-            // Pass chat history to backend for context continuity
+            // Pass chat history AND selected patient to backend
             const response = await api.ai.query(userMsg, undefined, {
-                chatHistory: newHistory.slice(-10) // Last 10 messages for context
+                chatHistory: newHistory.slice(-10), // Last 10 messages for context
+                patientId: selectedPatient?.id,
+                patientName: selectedPatient?.name
             });
 
             const content = response.content || response.answer || JSON.stringify(response);

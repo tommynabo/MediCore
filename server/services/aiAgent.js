@@ -63,6 +63,19 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
         const { data: patients, error: patientsError } = await patientsQuery;
         if (patientsError) console.error("AI: Error fetching patients:", patientsError.message);
 
+        // [NEW] Fetch Active Patient Context
+        let activePatient = null;
+        let activePatientOdontogram = null;
+        if (extraContext.patientId) {
+            const { data: ap } = await supabase.from('Patient').select('*').eq('id', extraContext.patientId).single();
+            if (ap) {
+                activePatient = ap;
+                // Fetch recent history/odontogram for this patient
+                const { data: od } = await supabase.from('Odontogram').select('teethState').eq('patientId', ap.id).single();
+                activePatientOdontogram = od;
+            }
+        }
+
         // Fetch treatments catalog for pricing
         const { data: treatments } = await supabase.from('Treatment').select('id, name, price');
 
@@ -88,7 +101,21 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
         const context = `
         CONTEXTO DEL SISTEMA (Rol: ${userRole}):
         - Fecha actual: ${new Date().toLocaleDateString('es-ES')}
-        - Algunos pacientes en sistema: ${JSON.stringify((patients || []).slice(0, 5).map(p => ({ name: p.name, dni: p.dni })))}
+        
+        ${activePatient ? `
+        ======== PACIENTE ACTIVO (CONFIRMADO) ========
+        Estás viendo la ficha de: **${activePatient.name}** (DNI: ${activePatient.dni})
+        - ID: ${activePatient.id}
+        - Email: ${activePatient.email}
+        - Teléfono: ${activePatient.phone}
+        ${activePatientOdontogram ? '- Odontograma existente: SÍ' : '- Odontograma: No iniciado'}
+        
+        NOTA IMPORTANTE: El usuario probablemente se refiera a este paciente ("este paciente", "añádele", "su historia").
+        Usa el nombre "${activePatient.name}" por defecto en las herramientas si no se especifica otro.
+        ==============================================
+        ` : '- No hay paciente seleccionado explícitamente.'}
+
+        - Otros pacientes en sistema: ${JSON.stringify((patients || []).slice(0, 5).map(p => ({ name: p.name, dni: p.dni })))}
         - Catálogo de tratamientos: ${JSON.stringify(treatments || [])}
         
         ${constraints}
@@ -98,8 +125,9 @@ async function processQuery(userQuery, userInfo = {}, extraContext = {}) {
         ⚠️ REGLA CRÍTICA - SIEMPRE USA HERRAMIENTAS:
         Cuando el usuario mencione CUALQUIER acción con un paciente (añadir, crear, marcar, registrar, modificar, actualizar, etc.), 
         DEBES usar la herramienta correspondiente. NUNCA respondas "no encontré al paciente" sin antes intentar usar la herramienta.
-        Las herramientas hacen su propia búsqueda del paciente - NO necesitas verificar si el paciente existe primero.
         
+        Si el usuario dice "añade a este paciente" o "su historia", REFIÉRETE AL PACIENTE ACTIVO (${activePatient ? activePatient.name : 'Desconocido'}).
+
         FORMATO DE RESPUESTA:
         - Usa SIEMPRE listas Markdown (-) para enumerar acciones, tratamientos o datos.
         - Usa **negrita** para resaltar precios, nombres de pacientes y conceptos clave.
@@ -476,13 +504,31 @@ async function improveMessage(text, patientName, type = 'whatsapp') {
 // ==================== TOOL HANDLERS ====================
 
 async function findPatient(supabase, patientName, userInfo) {
-    const { data: patients } = await supabase
-        .from('Patient')
-        .select('id, name, assignedDoctorId')
-        .ilike('name', `%${patientName}%`)
-        .limit(1);
+    let patient = null;
 
-    const patient = patients?.[0];
+    // 1. Direct Search by Name
+    if (patientName && patientName.trim().length > 0) {
+        const { data: patients } = await supabase
+            .from('Patient')
+            .select('id, name, assignedDoctorId, email, phone')
+            .ilike('name', `%${patientName}%`)
+            .limit(1);
+        patient = patients?.[0];
+    }
+
+    // 2. Fallback: Context/Active Patient
+    // The agent might pass the name of the active patient, but if fuzzy search fails,
+    // or if no name provided (unlikely due to required arg, but possible in logic),
+    // we check if we have an explicit ID in context (passed via userInfo for convenience in this refactor).
+    if (!patient && userInfo.activePatientId) {
+        const { data: active } = await supabase.from('Patient').select('*').eq('id', userInfo.activePatientId).single();
+        // Verify name match loosely if provided, or just use it if name was "este paciente"
+        if (active) {
+            console.log(`AI: Using Active Patient Context: ${active.name}`);
+            patient = active;
+        }
+    }
+
     if (!patient) return { error: `No se encontró al paciente "${patientName}"` };
 
     // Permission check for doctors

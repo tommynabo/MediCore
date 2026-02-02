@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Wallet } from 'lucide-react';
 import { api } from '../services/api';
+import { useAppContext } from '../context/AppContext';
+import { PayWithWalletModal } from './PayWithWalletModal';
 
 interface TreatmentsListProps {
     patientId: string;
@@ -8,8 +10,13 @@ interface TreatmentsListProps {
 }
 
 export const TreatmentsList: React.FC<TreatmentsListProps> = ({ patientId, refreshTrigger }) => {
+    const { selectedPatient, setPatients } = useAppContext();
     const [treatments, setTreatments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Payment Modal State
+    const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+    const [selectedGroupToPay, setSelectedGroupToPay] = useState<any[]>([]);
 
     const fetchTreatments = () => {
         setLoading(true);
@@ -29,6 +36,29 @@ export const TreatmentsList: React.FC<TreatmentsListProps> = ({ patientId, refre
                 await api.treatments.delete(id);
             }
             setTreatments(prev => prev.filter(t => !ids.includes(t.id)));
+        }
+    };
+
+    const handleOpenPayModal = (group: any) => {
+        setSelectedGroupToPay([group]);
+        setIsPayModalOpen(true);
+    };
+
+    const handlePaymentComplete = async () => {
+        fetchTreatments();
+        // Refresh patient details to update wallet display
+        if (selectedPatient) {
+            try {
+                // Fetch fresh patient data
+                // We don't have getById exposed clearly in api wrapper for single patient refresh except searching list?
+                // Actually Patients.tsx logic refreshes list.
+                // We'll just rely on user navigation or add a refresh helper if needed.
+                // For now, let's force a window reload or context update if possible.
+                // Assuming Patients.tsx watchers will handle it if we update state? No.
+                // Let's manually fetch and update context.
+                const updatedList = await api.getPatients();
+                setPatients(updatedList);
+            } catch (e) { console.error(e); }
         }
     };
 
@@ -63,11 +93,7 @@ export const TreatmentsList: React.FC<TreatmentsListProps> = ({ patientId, refre
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     const el = document.getElementById(`teeth-popover-${group.id}`);
-                                    if (el) el.classList.remove('hidden'); else el?.classList.add('hidden'); // Fallback logic if toggling fails? No, toggle is better.
-                                    // React way:
-                                    // specific check
-                                    const el2 = document.getElementById(`teeth-popover-${group.id}`);
-                                    if (el2) el2.style.display = el2.style.display === 'block' ? 'none' : 'block';
+                                    if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
                                 }}
                                 className="cursor-pointer bg-blue-50 text-blue-600 px-2 py-1 rounded-md text-[9px] font-bold hover:bg-blue-100 transition-colors"
                             >
@@ -104,7 +130,19 @@ export const TreatmentsList: React.FC<TreatmentsListProps> = ({ patientId, refre
                         {group.price * group.count}€ {group.count > 1 && <span className="text-slate-400 text-[9px]">({group.price}€/u)</span>}
                     </div>
 
-                    <div className="col-span-1 text-right">
+                    <div className="col-span-1 text-right flex justify-end gap-2">
+                        {group.status !== 'COMPLETED' && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenPayModal(group);
+                                }}
+                                className="text-slate-400 hover:text-emerald-500 transition-colors"
+                                title="Pagar con Saldo"
+                            >
+                                <Wallet size={12} />
+                            </button>
+                        )}
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -117,6 +155,17 @@ export const TreatmentsList: React.FC<TreatmentsListProps> = ({ patientId, refre
                     </div>
                 </div>
             ))}
+
+            {/* Payment Modal */}
+            {selectedPatient && (
+                <PayWithWalletModal
+                    isOpen={isPayModalOpen}
+                    onClose={() => setIsPayModalOpen(false)}
+                    patient={selectedPatient}
+                    treatments={selectedGroupToPay}
+                    onPaymentComplete={handlePaymentComplete}
+                />
+            )}
         </div>
     );
 };

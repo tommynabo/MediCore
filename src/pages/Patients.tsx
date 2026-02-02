@@ -3,7 +3,7 @@ import {
     Search, Plus, Filter, UserCheck, ShieldCheck, Mail, CheckCircle2, Edit, Check, Edit3, Trash2,
     ArrowUp, Activity, FileText, ClipboardCheck, Layers, DollarSign, PenTool, Smile, Calculator,
     Phone, Settings, Download, Zap, TrendingUp, CreditCard, Clock, FileText as FileTextIcon, // Alias for conflict
-    QrCode, Wallet
+    QrCode, Wallet, AlertTriangle
 } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment, PatientTreatment } from '../../types';
@@ -338,7 +338,12 @@ const Patients: React.FC = () => {
                                         {patient.name.charAt(0)}
                                     </div>
                                     <div>
-                                        <h4 className={`text-sm font-black ${selectedPatient?.id === patient.id ? 'text-white' : 'text-slate-900'} `}>{patient.name}</h4>
+                                        <h4 className={`text-sm font-black ${selectedPatient?.id === patient.id ? 'text-white' : 'text-slate-900'} flex items-center gap-2`}>
+                                            {patient.name}
+                                            {(patient.allergies || patient.medications) && (
+                                                <AlertTriangle size={14} className={selectedPatient?.id === patient.id ? 'text-amber-300' : 'text-amber-500'} />
+                                            )}
+                                        </h4>
                                         <div className="flex items-center gap-2 mt-1">
                                             <span className={`text-[10px] font-bold uppercase tracking-wider ${selectedPatient?.id === patient.id ? 'text-slate-400' : 'text-slate-400'} `}>
                                                 ID: {patient.id.slice(0, 6)}...
@@ -410,6 +415,26 @@ const Patients: React.FC = () => {
                                     </button>
                                 </div>
 
+                                {/* MEDICAL ALERTS BANNER */}
+                                {(selectedPatient.allergies || selectedPatient.medications) && (
+                                    <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex gap-4 items-start animate-in slide-in-from-top-4">
+                                        <div className="bg-amber-100 text-amber-600 p-3 rounded-xl shrink-0">
+                                            <AlertTriangle size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-amber-800 font-bold text-lg mb-1">¡Atención Médica Importante!</h4>
+                                            <div className="space-y-1 text-sm text-amber-700">
+                                                {selectedPatient.allergies && (
+                                                    <p><strong>Alergias:</strong> {selectedPatient.allergies}</p>
+                                                )}
+                                                {selectedPatient.medications && (
+                                                    <p><strong>Medicación:</strong> {selectedPatient.medications}</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm grid grid-cols-2 gap-8">
                                     <div className="col-span-2">
                                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1 block">Nombre</label>
@@ -426,6 +451,31 @@ const Patients: React.FC = () => {
                                     <div>
                                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1 block">Teléfono</label>
                                         <input disabled={!isEditingPatient} value={selectedPatient.phone || ''} onChange={(e) => setSelectedPatient({ ...selectedPatient, phone: e.target.value })} className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold" placeholder="+34 600 000 000" />
+                                    </div>
+                                    <div className="col-span-2 border-t border-slate-100 pt-4 mt-2">
+                                        <h4 className="text-xs font-black uppercase text-slate-900 mb-4 flex items-center gap-2">
+                                            <AlertTriangle size={14} className="text-amber-500" /> Alertas Médicas
+                                        </h4>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-amber-500/70 ml-2 mb-1 block">Alergias</label>
+                                        <textarea
+                                            disabled={!isEditingPatient}
+                                            value={selectedPatient.allergies || ''}
+                                            onChange={(e) => setSelectedPatient({ ...selectedPatient, allergies: e.target.value })}
+                                            className="w-full bg-amber-50/50 border border-amber-100 rounded-2xl p-4 text-sm font-medium text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-200 placeholder:text-amber-300 min-h-[100px]"
+                                            placeholder="Ej. Alergia a la Penicilina..."
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-amber-500/70 ml-2 mb-1 block">Medicación</label>
+                                        <textarea
+                                            disabled={!isEditingPatient}
+                                            value={selectedPatient.medications || ''}
+                                            onChange={(e) => setSelectedPatient({ ...selectedPatient, medications: e.target.value })}
+                                            className="w-full bg-amber-50/50 border border-amber-100 rounded-2xl p-4 text-sm font-medium text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-200 placeholder:text-amber-300 min-h-[100px]"
+                                            placeholder="Ej. Sintrom, Adiro..."
+                                        />
                                     </div>
                                 </div>
                             </div>
