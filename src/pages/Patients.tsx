@@ -389,7 +389,21 @@ const Patients: React.FC = () => {
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">Ficha del Paciente</h2>
                                     <button
-                                        onClick={() => setIsEditingPatient(!isEditingPatient)}
+                                        onClick={async () => {
+                                            if (isEditingPatient) {
+                                                try {
+                                                    // SAVE CHANGES
+                                                    const updated = await api.updatePatient(selectedPatient.id, selectedPatient);
+                                                    setPatients(prev => prev.map(p => p.id === updated.id ? updated : p));
+                                                    setSelectedPatient(updated);
+                                                    alert("✅ Cambios guardados correctamente");
+                                                } catch (e) {
+                                                    console.error(e);
+                                                    alert("Error al guardar cambios");
+                                                }
+                                            }
+                                            setIsEditingPatient(!isEditingPatient);
+                                        }}
                                         className={`px-6 py-2 rounded-xl text-xs font-bold uppercase flex items-center gap-2 transition-all ${isEditingPatient ? 'bg-emerald-50 text-emerald-600' : 'bg-white border border-slate-200'} `}
                                     >
                                         {isEditingPatient ? <><Check size={16} /> Guardar</> : <><Edit size={16} /> Modificar</>}
@@ -403,11 +417,15 @@ const Patients: React.FC = () => {
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1 block">DNI</label>
-                                        <input disabled={!isEditingPatient} value={selectedPatient.dni} className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold" />
+                                        <input disabled={!isEditingPatient} value={selectedPatient.dni} onChange={(e) => setSelectedPatient({ ...selectedPatient, dni: e.target.value })} className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold" />
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1 block">Email</label>
-                                        <input disabled={!isEditingPatient} value={selectedPatient.email} className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold" />
+                                        <input disabled={!isEditingPatient} value={selectedPatient.email} onChange={(e) => setSelectedPatient({ ...selectedPatient, email: e.target.value })} className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold" />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1 block">Teléfono</label>
+                                        <input disabled={!isEditingPatient} value={selectedPatient.phone || ''} onChange={(e) => setSelectedPatient({ ...selectedPatient, phone: e.target.value })} className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold" placeholder="+34 600 000 000" />
                                     </div>
                                 </div>
                             </div>
@@ -828,6 +846,15 @@ const Patients: React.FC = () => {
                                         placeholder="juan@email.com"
                                         value={newPatient.email}
                                         onChange={e => setNewPatient({ ...newPatient, email: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase text-slate-400">Teléfono</label>
+                                    <input
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold"
+                                        placeholder="+34 600 000 000"
+                                        value={newPatient.phone || ''}
+                                        onChange={e => setNewPatient({ ...newPatient, phone: e.target.value })}
                                     />
                                 </div>
                             </div>

@@ -297,6 +297,45 @@ app.post('/api/patients', async (req, res) => {
     }
 });
 
+app.put('/api/patients/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updates = req.body;
+
+        console.log(`📝 Updating patient ${id}:`, JSON.stringify(updates, null, 2));
+
+        // Remove ID from updates if present to avoid PK change errors
+        delete updates.id;
+        delete updates.createdAt;
+
+        // If birthDate is updated, ensure it's a valid Date object/ISO string for Prisma/Supabase
+        if (updates.birthDate) {
+            updates.birthDate = new Date(updates.birthDate).toISOString();
+        }
+
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { data, error } = await supabase
+            .from('Patient')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) {
+            console.error("❌ Supabase Update Error:", error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        console.log("✅ Patient updated:", data.id);
+        res.json(data);
+    } catch (e) {
+        console.error("Error updating patient:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- APPOINTMENTS ---
 app.post('/api/appointments', async (req, res) => {
     try {

@@ -118,6 +118,19 @@ export const api = {
         return res.json();
     },
 
+    updatePatient: async (id: string, updates: Partial<Patient>): Promise<Patient> => {
+        const res = await fetch(`${API_URL}/patients/${id}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(updates)
+        });
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Failed to update patient: ${res.statusText}`);
+        }
+        return res.json();
+    },
+
     // Appointments
     appointments: {
         getAll: async (): Promise<Appointment[]> => {
