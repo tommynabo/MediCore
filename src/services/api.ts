@@ -341,6 +341,50 @@ export const api = {
         }
     },
 
+    // Services Catalog
+    services: {
+        getAll: async (filters?: { specialty?: string; search?: string }) => {
+            let url = `${API_URL}/services`;
+            if (filters) {
+                const params = new URLSearchParams();
+                if (filters.specialty) params.set('specialty', filters.specialty);
+                if (filters.search) params.set('search', filters.search);
+                if (params.toString()) url += `?${params}`;
+            }
+            const res = await fetch(url, { headers });
+            if (!res.ok) throw new Error('Failed to fetch services');
+            return res.json();
+        },
+        getSpecialties: async () => {
+            const res = await fetch(`${API_URL}/services/specialties`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch specialties');
+            return res.json();
+        },
+        create: async (serviceData: any) => {
+            const res = await fetch(`${API_URL}/services`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(serviceData)
+            });
+            if (!res.ok) throw new Error('Failed to create service');
+            return res.json();
+        },
+        update: async (id: string, updates: any) => {
+            const res = await fetch(`${API_URL}/services/${id}`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(updates)
+            });
+            if (!res.ok) throw new Error('Failed to update service');
+            return res.json();
+        },
+        delete: async (id: string) => {
+            const res = await fetch(`${API_URL}/services/${id}`, { method: 'DELETE', headers });
+            if (!res.ok) throw new Error('Failed to delete service');
+            return res.json();
+        }
+    },
+
     // Odontogram
     odontogram: {
         get: async (patientId: string) => {

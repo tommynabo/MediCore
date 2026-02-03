@@ -1551,6 +1551,136 @@ app.use(express.static(path.join(__dirname, '../dist')));
 
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
+// --- MODULE 10: SERVICES CATALOG ---
+app.get('/api/services', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        const { specialty, search, includeInactive } = req.query;
+
+        let query = supabase.from('services').select('*').order('specialty_name').order('name');
+
+        // Filter by active status (default: only active)
+        if (!includeInactive) {
+            query = query.eq('is_active', true);
+        }
+
+        // Filter by specialty
+        if (specialty) {
+            query = query.eq('specialty_name', specialty);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('❌ Error fetching services:', error);
+            return res.status(500).json({ error: error.message });
+        }
+
+        // Apply search filter in memory (Supabase ilike can be slow on large datasets)
+        let filtered = data;
+        if (search) {
+            const searchLower = search.toLowerCase();
+            filtered = data.filter(s => s.name.toLowerCase().includes(searchLower));
+        }
+
+        res.json(filtered);
+    } catch (e) {
+        console.error('Error in GET /api/services:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.get('/api/services/specialties', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        const { data, error } = await supabase
+            .from('services')
+            .select('specialty_name, specialty_color')
+            .eq('is_active', true);
+
+        if (error) throw error;
+
+        // Get unique specialties
+        const specialties = [...new Map(data.map(s => [s.specialty_name, s])).values()];
+        res.json(specialties);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/services', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        const serviceData = req.body;
+
+        // Ensure required fields
+        if (!serviceData.name || serviceData.final_price === undefined) {
+            return res.status(400).json({ error: 'Name and price are required' });
+        }
+
+        const { data, error } = await supabase
+            .from('services')
+            .insert([{
+                ...serviceData,
+                is_active: true,
+                created_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.status(201).json(data);
+    } catch (e) {
+        console.error('Error creating service:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.put('/api/services/:id', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        const { id } = req.params;
+        const updates = req.body;
+
+        delete updates.id;
+        delete updates.created_at;
+
+        const { data, error } = await supabase
+            .from('services')
+            .update({ ...updates, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json(data);
+    } catch (e) {
+        console.error('Error updating service:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/services/:id', async (req, res) => {
+    try {
+        const supabase = getSupabase();
+        const { id } = req.params;
+
+        // Soft delete - just mark as inactive
+        const { data, error } = await supabase
+            .from('services')
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        res.json({ success: true, data });
+    } catch (e) {
+        console.error('Error deleting service:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- MODULE 9: AI ----
 app.post('/api/ai/improve', async (req, res) => {
     try {

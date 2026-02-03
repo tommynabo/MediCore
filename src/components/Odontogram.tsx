@@ -30,18 +30,13 @@ const getToothShape = (id: number): string => {
     return PATHS.molar;
 };
 
-const ALL_SERVICES = [
-    { id: 'srv-1', name: 'Limpieza Dental', price: 60 },
-    { id: 'srv-2', name: 'Extracción', price: 150 },
-    { id: 'srv-3', name: 'Empaste', price: 80 },
-    { id: 'srv-4', name: 'Endodoncia', price: 350 },
-    { id: 'srv-5', name: 'Corona', price: 450 },
-    { id: 'srv-6', name: 'Implante', price: 1200 },
-    { id: 'srv-7', name: 'Blanqueamiento', price: 200 },
-    { id: 'srv-8', name: 'Ortodoncia (mensual)', price: 180 },
-    { id: 'srv-9', name: 'Carilla', price: 300 },
-    { id: 'srv-10', name: 'Puente', price: 800 },
-];
+interface Service {
+    id: string;
+    name: string;
+    final_price: number;
+    specialty_name?: string;
+    specialty_color?: string;
+}
 
 // Quadrants
 const ADULT_QUADRANTS = {
@@ -72,8 +67,28 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     const [treatments, setTreatments] = useState<PatientTreatment[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTreatmentsForBudget, setSelectedTreatmentsForBudget] = useState<string[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
+    const [loadingServices, setLoadingServices] = useState(true);
+    const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
     const [isSaving, setIsSaving] = useState(false);
 
+    // Fetch services from API
+    useEffect(() => {
+        if (api?.services?.getAll) {
+            setLoadingServices(true);
+            api.services.getAll()
+                .then((data: Service[]) => {
+                    setServices(data || []);
+                    setLoadingServices(false);
+                })
+                .catch((err: any) => {
+                    console.error("Error cargando servicios:", err);
+                    setLoadingServices(false);
+                });
+        }
+    }, [api]);
+
+    // Fetch patient treatments
     useEffect(() => {
         if (patientId && api?.treatments?.getByPatient) {
             api.treatments.getByPatient(patientId)
@@ -88,9 +103,21 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 
     const getToothTreatments = (toothId: number) => treatments.filter(t => t.toothId === toothId);
 
-    const filteredServices = ALL_SERVICES.filter(service =>
-        service.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const specialties = [...new Set(services.map(s => s.specialty_name).filter(Boolean))];
+
+    const filteredServices = services.filter(service => {
+        const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSpecialty = !selectedSpecialty || service.specialty_name === selectedSpecialty;
+        return matchesSearch && matchesSpecialty;
+    });
+
+    // Group services by specialty for display
+    const groupedServices = filteredServices.reduce((acc, service) => {
+        const specialty = service.specialty_name || 'Otros';
+        if (!acc[specialty]) acc[specialty] = [];
+        acc[specialty].push(service);
+        return acc;
+    }, {} as Record<string, Service[]>);
 
     const handleToothClick = (toothId: number, event: React.MouseEvent) => {
         if (!isEditable) return;
@@ -103,12 +130,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         }
     };
 
-    const handleAddTreatment = (service: typeof ALL_SERVICES[0]) => {
+    const handleAddTreatment = (service: Service) => {
         if (selectedTeeth.length === 0) { alert('Selecciona al menos un diente'); return; }
         const newTreatments: PatientTreatment[] = selectedTeeth.map(toothId => ({
             id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             patientId, serviceId: service.id, serviceName: service.name,
-            toothId, price: service.price, status: 'PENDIENTE', createdAt: new Date().toISOString()
+            toothId, price: service.final_price, status: 'PENDIENTE', createdAt: new Date().toISOString()
         }));
         const updatedTreatments = [...treatments, ...newTreatments];
         setTreatments(updatedTreatments);
@@ -301,7 +328,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                                     <button key={service.id} onClick={() => handleAddTreatment(service)} disabled={selectedTeeth.length === 0}
                                         className="group p-4 bg-white border-2 border-slate-200 rounded-xl hover:border-violet-400 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left">
                                         <p className="text-sm font-black text-slate-900 mb-1">{service.name}</p>
-                                        <p className="text-xs font-bold text-violet-600">{service.price}€</p>
+                                        <p className="text-xs font-bold text-violet-600">{service.final_price}€</p>
                                         <div className="mt-2 flex items-center gap-1 text-xs text-slate-500 group-hover:text-violet-600"><Plus size={12} /><span>Añadir</span></div>
                                     </button>
                                 ))
