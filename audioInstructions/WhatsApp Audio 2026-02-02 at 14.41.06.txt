@@ -1,7 +1,0 @@
-Y también lo que te quería decir, no sé si hay una manera, por ejemplo, que cuando
-tú pones a los pacientes las alergias y medicaciones y tal, que cuando es cierta medicación
-te salta una alarma, es decir que te lo pone, te pone algo al lado de su nombre, que este
-tiene, por ejemplo, alergia a la penicilina o este tiene alergia, por ejemplo, no sé qué,
-o este toma ese tipo de medicación, tenéis que tener cuidado cuando se hace la extracción
-y sabes, esto también no sé cuánto de inteligente puede ser el chat para decir
-no sé estas cosas.
