@@ -18,6 +18,15 @@ const PATHS = {
 };
 
 const getToothShape = (id: number): string => {
+    // Para dientes temporales (51-85), los molares (4 y 5) tienen forma de molar
+    if (id >= 51) {
+        const lastDigit = id % 10;
+        if (lastDigit >= 1 && lastDigit <= 3) return PATHS.incisor; // Simplifcamos visualmente incisivos/caninos
+        if (lastDigit >= 4) return PATHS.molar;
+        return PATHS.molar;
+    }
+
+    // Para definitivos
     const lastDigit = id % 10;
     if (lastDigit >= 1 && lastDigit <= 2) return PATHS.incisor;
     if (lastDigit === 3) return PATHS.canine;
@@ -39,6 +48,25 @@ const ALL_SERVICES = [
     { id: 'srv-10', name: 'Puente', price: 800 },
 ];
 
+// Definition of Quadrants
+const QUADRANTS = {
+    Q1: [18, 17, 16, 15, 14, 13, 12, 11],
+    Q2: [21, 22, 23, 24, 25, 26, 27, 28],
+    Q3: [31, 32, 33, 34, 35, 36, 37, 38], // Rendered reversed to match visual flow? Standard is Left->Right Q4-Q3 or Q3-Q4.
+    // Standard visualization (Patient facing us):
+    // Right (Screen Left): 18-11 ... 48-41
+    // Left (Screen Right): 21-28 ... 31-38
+    // So Q3 (31-38) matches Q2 (21-28) direction.
+    // But Q4 (48-41) matches Q1 (18-11) direction.
+    Q4: [48, 47, 46, 45, 44, 43, 42, 41],
+
+    // Deciduous
+    Q5: [55, 54, 53, 52, 51],
+    Q6: [61, 62, 63, 64, 65],
+    Q7: [71, 72, 73, 74, 75],
+    Q8: [85, 84, 83, 82, 81]
+};
+
 export const Odontogram: React.FC<OdontogramProps> = ({
     patientId,
     isEditable,
@@ -53,16 +81,11 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     const [selectedTreatmentsForBudget, setSelectedTreatmentsForBudget] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Dientes (ISO 3950)
-    const upperTeeth = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
-    const lowerTeeth = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
-
     // Cargar tratamientos del paciente desde API
     useEffect(() => {
         if (patientId && api?.treatments?.getByPatient) {
             api.treatments.getByPatient(patientId)
                 .then((data: PatientTreatment[]) => {
-                    // Filter out already budgeted items as requested by user ("que se elimine de la sección de presupuestar cualquier pasado")
                     const visible = (data || []).filter(t => t.status !== 'PRESUPUESTADO');
                     setTreatments(visible);
                     onTreatmentsChange?.(visible);
@@ -84,14 +107,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         if (!isEditable) return;
 
         if (event.ctrlKey || event.metaKey) {
-            // Selección múltiple con Ctrl/Cmd
             setSelectedTeeth(prev =>
                 prev.includes(toothId)
                     ? prev.filter(id => id !== toothId)
                     : [...prev, toothId]
             );
         } else {
-            // Selección simple
             setSelectedTeeth([toothId]);
         }
     };
@@ -103,7 +124,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
             return;
         }
 
-        // Crear tratamientos TEMPORALES (ID temporal empieza con temp-)
         const newTreatments: PatientTreatment[] = selectedTeeth.map(toothId => ({
             id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             patientId,
@@ -119,7 +139,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         setTreatments(updatedTreatments);
         onTreatmentsChange?.(updatedTreatments);
 
-        // Limpiar selección
         setSelectedTeeth([]);
         setSearchTerm('');
     };
@@ -128,7 +147,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     const handleDeleteTreatment = async (treatmentId: string) => {
         if (!confirm('¿Eliminar este tratamiento?')) return;
 
-        // Si es temporal (no guardado en BD), borrar localmente
         if (treatmentId.startsWith('temp-')) {
             const updated = treatments.filter(t => t.id !== treatmentId);
             setTreatments(updated);
@@ -136,7 +154,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
             return;
         }
 
-        // Si es real, borrar en API
         try {
             await api.treatments.delete(treatmentId);
             const updated = treatments.filter(t => t.id !== treatmentId);
@@ -152,16 +169,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     const handleSaveTreatments = async () => {
         setIsSaving(true);
         try {
-            // Filtrar y limpiar tratamientos para enviar (quitando IDs temporales si fuera necesario, 
-            // pero el backend suele ignorar ID si es autoincrement/uuid generado allá, 
-            // o mejor, enviamos todos y el backend hace upsert/insert)
-
-            // Estrategia más segura: Enviar todo el array para batch sync o solo los nuevos.
-            // Asumiremos que createBatch gestiona upserts o inserciones nuevas.
-            // Para simplificar, enviamos todo y el backend debería manejarlo. 
-            // Pero dado el endpoint `createBatch`, probablemente espera solo nuevos o sync completo.
-            // Como no tenemos lógica compleja de diff en frontend, enviamos los que tienen ID 'temp-' como nuevos.
-
             const newTreatments = treatments.filter(t => t.id.startsWith('temp-'));
 
             if (newTreatments.length === 0) {
@@ -170,12 +177,10 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 return;
             }
 
-            // Mapear para quitar el ID temporal antes de enviar (dejando que la BD genere ID)
             const treatmentsPayload = newTreatments.map(({ id, ...rest }) => rest);
 
             await api.treatments.createBatch(patientId, treatmentsPayload);
 
-            // Recargar para obtener IDs reales
             const reloaded = await api.treatments.getByPatient(patientId);
             setTreatments(reloaded);
             onTreatmentsChange?.(reloaded);
@@ -192,12 +197,9 @@ export const Odontogram: React.FC<OdontogramProps> = ({
     // Generar presupuesto
     const handleCreateBudget = async () => {
         let itemsToBudget = [];
-
-        // 1. Si hay selección explícita, usarlos
         if (selectedTreatmentsForBudget.length > 0) {
             itemsToBudget = treatments.filter(t => selectedTreatmentsForBudget.includes(t.id));
         } else {
-            // 2. Si NO hay selección, usar TODOS los pendientes por defecto
             const pending = treatments.filter(t => t.status === 'PENDIENTE');
             if (pending.length > 0) itemsToBudget = pending;
             else if (treatments.length > 0) itemsToBudget = treatments;
@@ -210,24 +212,18 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 
         if (confirm(`¿Crear presupuesto con ${itemsToBudget.length} tratamientos?`)) {
             try {
-                // AUTO-SAVE: Verificar si hay tratamientos temporales y guardarlos
                 const tempItems = itemsToBudget.filter(t => t.id.startsWith('temp-'));
                 let finalItemsToBudget = itemsToBudget;
 
                 if (tempItems.length > 0) {
                     setIsSaving(true);
                     const treatmentsPayload = tempItems.map(({ id, ...rest }) => rest);
-                    // Guardar en batch
                     await api.treatments.createBatch(patientId, treatmentsPayload);
 
-                    // Recargar de BD para obtener IDs reales
                     const reloaded = await api.treatments.getByPatient(patientId);
                     setTreatments(reloaded);
                     onTreatmentsChange?.(reloaded);
 
-                    // Volver a calcular items a presupuestar basándonos en los nuevos datos (tomamos los pendientes)
-                    // Si había selección específica, intentamos recuperarla o simplificamos a 'todos los pendientes'
-                    // Dado que el usuario pidió 'presupuestar directamente', asumimos PENDIENTES.
                     finalItemsToBudget = reloaded.filter(t => t.status === 'PENDIENTE');
                     setIsSaving(false);
                 }
@@ -237,13 +233,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                     return;
                 }
 
-                // Preparar items para el presupuesto (ahora con IDs reales si existían)
                 const budgetItems = finalItemsToBudget.map(t => ({
                     id: crypto.randomUUID(),
                     name: `${t.serviceName} - Diente ${t.toothId || 'General'}`,
                     price: t.price,
                     serviceId: t.serviceId,
-                    treatmentId: t.id // Vincular ID real
+                    treatmentId: t.id
                 }));
 
                 await api.budget.create(patientId, budgetItems);
@@ -259,17 +254,30 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         }
     };
 
+    // Render helper for rows of teeth
+    const renderToothRow = (teethIds: number[], label?: string) => (
+        <div className="flex justify-center gap-1 flex-wrap">
+            {teethIds.map(toothId => (
+                <Tooth
+                    key={toothId}
+                    id={toothId}
+                    treatments={getToothTreatments(toothId)}
+                    isSelected={selectedTeeth.includes(toothId)}
+                    onClick={(e) => handleToothClick(toothId, e)}
+                />
+            ))}
+        </div>
+    );
 
     return (
         <div className="w-full space-y-6">
-            {/* Odontograma Visual */}
             <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm relative">
 
-                {/* Botón Guardar Flotante o en Header */}
+                {/* Botón Guardar */}
                 <div className="absolute top-8 right-8 z-10">
                     <button
                         onClick={handleSaveTreatments}
-                        disabled={isSaving || !treatments.some(t => t.id.startsWith('temp-'))} // Solo habilitar si hay cambios pendientes
+                        disabled={isSaving || !treatments.some(t => t.id.startsWith('temp-'))}
                         className="bg-slate-900 text-white px-6 py-3 rounded-xl text-sm font-black uppercase flex items-center gap-2 shadow-lg hover:bg-black hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Save size={18} />
@@ -277,50 +285,74 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                     </button>
                 </div>
 
-                {/* Instrucciones */}
-                <div className="mb-6 p-4 bg-blue-50 rounded-xl text-xs text-blue-700 font-bold flex items-start gap-3 max-w-2xl">
+                {/* Instructions Alert */}
+                <div className="mb-8 p-4 bg-blue-50 rounded-xl text-xs text-blue-700 font-bold flex items-start gap-3 max-w-xl">
                     <div className="flex-shrink-0 mt-0.5">💡</div>
                     <div>
                         <p className="font-black mb-1">CÓMO USAR:</p>
-                        <p><strong>1.</strong> Haz clic en un diente (o Ctrl/Cmd + clic para seleccionar varios)</p>
-                        <p><strong>2.</strong> Busca el tratamiento en la barra inferior</p>
-                        <p><strong>3.</strong> Haz clic en el tratamiento para asignarlo</p>
-                        <p><strong>4.</strong> Pulsa <strong>GUARDAR CAMBIOS</strong> para confirmar</p>
+                        <p>1. Clic en dientes (Ctrl+Clic para varios)</p>
+                        <p>2. Busca tratamiento abajo</p>
+                        <p>3. Añadir y Guardar</p>
                     </div>
                 </div>
 
-                {/* Dientes Superiores */}
-                <div className="flex justify-center gap-2 mb-12 flex-wrap">
-                    {upperTeeth.map(toothId => (
-                        <Tooth
-                            key={toothId}
-                            id={toothId}
-                            treatments={getToothTreatments(toothId)}
-                            isSelected={selectedTeeth.includes(toothId)}
-                            onClick={(e) => handleToothClick(toothId, e)}
-                        />
-                    ))}
-                </div>
+                {/* ODONTOGRAM GRID LAYOUT */}
+                <div className="flex flex-col gap-8 items-center">
 
-                {/* Divider */}
-                <div className="border-t-2 border-slate-300 my-8"></div>
+                    {/* TOP ROW: Q1 | Q2 */}
+                    <div className="flex gap-8 md:gap-16">
+                        <div className="flex flex-col items-end">
+                            {/* <span className="text-[10px] uppercase font-black text-slate-400 mb-2">Q1: Superior Dcho</span> */}
+                            {renderToothRow(QUADRANTS.Q1)}
+                        </div>
+                        <div className="flex flex-col items-start">
+                            {/* <span className="text-[10px] uppercase font-black text-slate-400 mb-2">Q2: Superior Izq</span> */}
+                            {renderToothRow(QUADRANTS.Q2)}
+                        </div>
+                    </div>
 
-                {/* Dientes Inferiores */}
-                <div className="flex justify-center gap-2 mb-8 flex-wrap">
-                    {lowerTeeth.map(toothId => (
-                        <Tooth
-                            key={toothId}
-                            id={toothId}
-                            treatments={getToothTreatments(toothId)}
-                            isSelected={selectedTeeth.includes(toothId)}
-                            onClick={(e) => handleToothClick(toothId, e)}
-                        />
-                    ))}
+                    {/* MIDDLE ROW: DECIDUOUS (TEMPORALES) */}
+                    <div className="flex gap-8 md:gap-16 py-2 bg-slate-50/50 rounded-3xl px-8 border border-slate-100/50">
+                        <div className="flex flex-col gap-2">
+                            {/* Q5 under Q1 */}
+                            <div className="flex flex-col items-end">
+                                {renderToothRow(QUADRANTS.Q5)}
+                            </div>
+                            {/* Q8 under Q5 */}
+                            <div className="flex flex-col items-end">
+                                {renderToothRow(QUADRANTS.Q8)}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            {/* Q6 under Q2 */}
+                            <div className="flex flex-col items-start">
+                                {renderToothRow(QUADRANTS.Q6)}
+                            </div>
+                            {/* Q7 under Q6 */}
+                            <div className="flex flex-col items-start">
+                                {renderToothRow(QUADRANTS.Q7)}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* BOTTOM ROW: Q4 | Q3 */}
+                    <div className="flex gap-8 md:gap-16">
+                        <div className="flex flex-col items-end">
+                            {renderToothRow(QUADRANTS.Q4)}
+                            {/* <span className="text-[10px] uppercase font-black text-slate-400 mt-2">Q4: Inferior Dcho</span> */}
+                        </div>
+                        <div className="flex flex-col items-start">
+                            {renderToothRow(QUADRANTS.Q3)}
+                            {/* <span className="text-[10px] uppercase font-black text-slate-400 mt-2">Q3: Inferior Izq</span> */}
+                        </div>
+                    </div>
+
                 </div>
 
                 {/* Dientes Seleccionados */}
                 {selectedTeeth.length > 0 && (
-                    <div className="mt-6 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
+                    <div className="mt-8 mx-auto max-w-2xl p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
                         <div className="flex items-center justify-between mb-3">
                             <p className="text-sm font-black text-purple-900">
                                 Dientes seleccionados: <span className="text-purple-600">{selectedTeeth.join(', ')}</span>
@@ -333,12 +365,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                             </button>
                         </div>
                         <p className="text-xs text-purple-700">
-                            👇 Busca y selecciona un tratamiento abajo para asignarlo a estos dientes
+                            👇 Busca y selecciona un tratamiento abajo para asignarlo
                         </p>
                     </div>
                 )}
 
-                {/* Barra de Búsqueda de Tratamientos */}
+                {/* Barra de Búsqueda */}
                 <div className="mt-8 pt-6 border-t border-slate-200">
                     <label className="text-xs font-black uppercase text-slate-400 mb-3 block">
                         🔍 Buscar Tratamiento
@@ -355,7 +387,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                         />
                     </div>
 
-                    {/* Lista de Tratamientos Disponibles */}
+                    {/* Lista de Tratamientos */}
                     {searchTerm.length > 0 && (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                             {filteredServices.length === 0 ? (
@@ -384,7 +416,7 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 </div>
             </div>
 
-            {/* Tabla de Tratamientos Asignados */}
+            {/* Tabla de Tratamientos */}
             <div className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                     <h4 className="text-lg font-black text-slate-900">
@@ -504,24 +536,23 @@ const Tooth: React.FC<{
     onClick: (e: React.MouseEvent) => void;
 }> = ({ id, treatments, isSelected, onClick }) => {
     const shape = getToothShape(id);
-
-    // Always use white color for teeth
     const color = '#ffffff';
 
     return (
-        <div className="flex flex-col items-center group cursor-pointer w-[60px]" onClick={onClick}>
+        <div className="flex flex-col items-center group cursor-pointer w-[40px] md:w-[60px]" onClick={onClick}>
             {/* Diente SVG */}
-            <div className="relative mb-2 transition-transform hover:-translate-y-1">
+            <div className={`relative mb-2 transition-transform hover:-translate-y-1 ${isSelected ? '-translate-y-2' : ''}`}>
                 <svg
-                    width="40"
+                    width="40" // Mobile responsive width could be handled via className but viewBox handles aspect
                     height="60"
                     viewBox="0 0 30 50"
-                    className="overflow-visible"
+                    className="overflow-visible w-full h-auto max-w-[30px] md:max-w-none"
+                // Fixed size for consistency or responsive? Kept original width attr but added classes for basic responsiveness
                 >
                     <path
                         d={shape}
                         fill={color}
-                        stroke={isSelected ? '#7c3aed' : '#94a3b8'} // Violet seleccionado, Slate normal
+                        stroke={isSelected ? '#7c3aed' : '#94a3b8'}
                         strokeWidth={isSelected ? 3 : 1}
                         className="transition-all duration-300"
                     />
@@ -534,7 +565,7 @@ const Tooth: React.FC<{
 
             {/* Estado Simplificado */}
             {treatments.length > 0 && (
-                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 min-w-[max-content]">
+                <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 min-w-[max-content] z-20">
                     <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase shadow-sm border ${treatments[0].status === 'COMPLETADO' ? 'bg-green-100 text-green-700 border-green-200' :
                         treatments[0].status === 'EN_PROCESO' ? 'bg-blue-100 text-blue-700 border-blue-200' :
                             'bg-amber-100 text-amber-700 border-amber-200'

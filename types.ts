@@ -77,7 +77,7 @@ export interface PatientTreatment {
   serviceName: string; // Nombre del servicio
   toothId?: number; // Número del diente (ej: 21, 36)
   price: number; // Precio (puede ser custom)
-  status: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO';
+  status: 'PENDIENTE' | 'EN_PROCESO' | 'COMPLETADO' | 'PRESUPUESTADO';
   notes?: string;
   createdAt: string;
 }
