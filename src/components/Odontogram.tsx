@@ -62,7 +62,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 }) => {
     const { api } = useAppContext();
 
-    const [dentitionMode, setDentitionMode] = useState<DentitionMode>('adult');
     const [selectedTeeth, setSelectedTeeth] = useState<number[]>([]);
     const [treatments, setTreatments] = useState<PatientTreatment[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -103,21 +102,11 @@ export const Odontogram: React.FC<OdontogramProps> = ({
 
     const getToothTreatments = (toothId: number) => treatments.filter(t => t.toothId === toothId);
 
-    const specialties = [...new Set(services.map(s => s.specialty_name).filter(Boolean))];
-
     const filteredServices = services.filter(service => {
         const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesSpecialty = !selectedSpecialty || service.specialty_name === selectedSpecialty;
         return matchesSearch && matchesSpecialty;
     });
-
-    // Group services by specialty for display
-    const groupedServices = filteredServices.reduce((acc, service) => {
-        const specialty = service.specialty_name || 'Otros';
-        if (!acc[specialty]) acc[specialty] = [];
-        acc[specialty].push(service);
-        return acc;
-    }, {} as Record<string, Service[]>);
 
     const handleToothClick = (toothId: number, event: React.MouseEvent) => {
         if (!isEditable) return;
@@ -203,9 +192,6 @@ export const Odontogram: React.FC<OdontogramProps> = ({
         }
     };
 
-    const currentQuadrants = dentitionMode === 'adult' ? ADULT_QUADRANTS : CHILD_QUADRANTS;
-    const isAdult = dentitionMode === 'adult';
-
     return (
         <div className="w-full space-y-6">
             <div className="bg-gradient-to-br from-slate-50 via-white to-blue-50/30 rounded-[2rem] p-8 border border-slate-200/80 shadow-xl relative overflow-hidden">
@@ -215,24 +201,8 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                     <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
                 </div>
 
-                {/* Header with Toggle & Save */}
-                <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 mb-8">
-                    {/* Adult/Child Toggle */}
-                    <div className="flex items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
-                        <button
-                            onClick={() => { setDentitionMode('adult'); setSelectedTeeth([]); }}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-300 ${isAdult ? 'bg-white text-slate-900 shadow-lg shadow-slate-200/50' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <Users size={18} /> Adulto
-                        </button>
-                        <button
-                            onClick={() => { setDentitionMode('child'); setSelectedTeeth([]); }}
-                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-black transition-all duration-300 ${!isAdult ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-200/50' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            <Baby size={18} /> Niño
-                        </button>
-                    </div>
-
+                {/* Header with Save */}
+                <div className="relative z-10 flex flex-wrap items-center justify-end gap-4 mb-8">
                     <button
                         onClick={handleSaveTreatments}
                         disabled={isSaving || !treatments.some(t => t.id.startsWith('temp-'))}
@@ -246,51 +216,65 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 {/* Odontogram Visual */}
                 <div className="relative z-10 bg-white/70 backdrop-blur-sm rounded-3xl p-8 border border-slate-100 shadow-inner">
 
-                    {/* Label */}
-                    <div className="text-center mb-6">
-                        <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${isAdult ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'}`}>
-                            {isAdult ? <><Users size={14} /> Dentición Permanente</> : <><Baby size={14} /> Dentición Temporal</>}
-                        </span>
-                    </div>
-
                     {/* Grid Layout */}
-                    <div className="flex flex-col items-center gap-6">
-                        {/* Upper Jaw */}
-                        <div className="relative">
-                            <div className="absolute -left-16 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:block" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg) translateY(50%)' }}>Superior</div>
-                            <div className="flex items-center justify-center">
-                                <div className="flex items-center gap-1">
-                                    {(isAdult ? currentQuadrants.Q1 : currentQuadrants.Q5).map(toothId => (
-                                        <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild={!isAdult} />
-                                    ))}
-                                </div>
-                                <div className="w-px h-16 bg-gradient-to-b from-transparent via-slate-300 to-transparent mx-3"></div>
-                                <div className="flex items-center gap-1">
-                                    {(isAdult ? currentQuadrants.Q2 : currentQuadrants.Q6).map(toothId => (
-                                        <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild={!isAdult} />
-                                    ))}
-                                </div>
+                    <div className="flex flex-col items-center gap-2">
+
+                        {/* 1. Adult Upper */}
+                        <div className="flex items-center justify-center gap-8">
+                            <div className="flex items-center gap-1">
+                                {ADULT_QUADRANTS.Q1.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} />
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {ADULT_QUADRANTS.Q2.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} />
+                                ))}
                             </div>
                         </div>
 
-                        {/* Divider */}
-                        <div className="w-full max-w-2xl h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent"></div>
+                        {/* 2. Child Upper (Centered) */}
+                        <div className="flex items-center justify-center gap-8 px-12">
+                            <div className="flex items-center gap-1">
+                                {CHILD_QUADRANTS.Q5.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild />
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {CHILD_QUADRANTS.Q6.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild />
+                                ))}
+                            </div>
+                        </div>
 
-                        {/* Lower Jaw */}
-                        <div className="relative">
-                            <div className="absolute -left-16 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest hidden lg:block" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg) translateY(50%)' }}>Inferior</div>
-                            <div className="flex items-center justify-center">
-                                <div className="flex items-center gap-1">
-                                    {(isAdult ? currentQuadrants.Q4 : currentQuadrants.Q8).map(toothId => (
-                                        <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild={!isAdult} />
-                                    ))}
-                                </div>
-                                <div className="w-px h-16 bg-gradient-to-b from-transparent via-slate-300 to-transparent mx-3"></div>
-                                <div className="flex items-center gap-1">
-                                    {(isAdult ? currentQuadrants.Q3 : currentQuadrants.Q7).map(toothId => (
-                                        <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild={!isAdult} />
-                                    ))}
-                                </div>
+                        {/* Spacer/Center Line */}
+                        <div className="w-full max-w-lg h-px bg-slate-200 my-2"></div>
+
+                        {/* 3. Child Lower (Centered) */}
+                        <div className="flex items-center justify-center gap-8 px-12">
+                            <div className="flex items-center gap-1">
+                                {CHILD_QUADRANTS.Q8.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild />
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {CHILD_QUADRANTS.Q7.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} isChild />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 4. Adult Lower */}
+                        <div className="flex items-center justify-center gap-8">
+                            <div className="flex items-center gap-1">
+                                {ADULT_QUADRANTS.Q4.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} />
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-1">
+                                {ADULT_QUADRANTS.Q3.map(toothId => (
+                                    <Tooth key={toothId} id={toothId} treatments={getToothTreatments(toothId)} isSelected={selectedTeeth.includes(toothId)} onClick={(e) => handleToothClick(toothId, e)} />
+                                ))}
                             </div>
                         </div>
                     </div>

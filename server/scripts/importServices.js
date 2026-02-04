@@ -2,17 +2,12 @@
  * Import Services from CSV to Supabase
  * Run with: node server/scripts/importServices.js
  */
-import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import dotenv from 'dotenv';
+const { createClient } = require('@supabase/supabase-js');
+const fs = require('fs');
+const path = require('path');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load environment variables
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+// Load from project root
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
@@ -27,7 +22,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Parse European price format: "180,00 €" -> 180.00
 function parsePrice(priceStr) {
     if (!priceStr) return 0;
-    // Remove € symbol and spaces, replace comma with dot
     const cleaned = priceStr.replace('€', '').replace(/\s/g, '').replace(',', '.');
     return parseFloat(cleaned) || 0;
 }
@@ -89,7 +83,7 @@ async function importServices() {
         console.log(`   ${specialty}: ${items.length} services`);
     });
 
-    // Clear existing services (optional - comment out if you want to keep existing)
+    // Clear existing services
     console.log('\n🗑️  Clearing existing services...');
     const { error: deleteError } = await supabase.from('services').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (deleteError && !deleteError.message.includes('no rows')) {
