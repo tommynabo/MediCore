@@ -100,6 +100,47 @@ export const api = {
             const res = await fetch(`${API_URL}/patients/${patientId}/payments`, { headers });
             if (!res.ok) throw new Error('Failed to fetch payments');
             return res.json();
+        },
+        create: async (paymentData: {
+            patientId: string;
+            amount: number;
+            method: 'cash' | 'card' | 'transfer';
+            type: 'ADVANCE_PAYMENT' | 'DIRECT_CHARGE';
+            budgetId?: string;
+            notes?: string;
+        }) => {
+            const res = await fetch(`${API_URL}/payments/create`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(paymentData)
+            });
+            if (!res.ok) throw new Error('Failed to create payment');
+            return res.json();
+        },
+        transfer: async (transferData: {
+            patientId: string;
+            sourcePaymentId: string;
+            amount: number;
+            treatmentId?: string;
+            treatmentName?: string;
+            doctorId: string;
+            notes?: string;
+        }) => {
+            const res = await fetch(`${API_URL}/payments/transfer`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(transferData)
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed to transfer payment');
+            }
+            return res.json();
+        },
+        getAdvanceBalance: async (patientId: string) => {
+            const res = await fetch(`${API_URL}/patients/${patientId}/advance-balance`, { headers });
+            if (!res.ok) throw new Error('Failed to fetch advance balance');
+            return res.json();
         }
     },
 

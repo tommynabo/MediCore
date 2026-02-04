@@ -9,6 +9,7 @@ import { useAppContext } from '../context/AppContext';
 import { Patient, ClinicalRecord, Specialization, Doctor, Invoice, Appointment, PatientTreatment } from '../../types';
 import { Odontogram } from '../components/Odontogram';
 import { PaymentModal } from '../components/PaymentModal';
+import { TransferBalanceModal } from '../components/TransferBalanceModal';
 import { TreatmentsList } from '../components/TreatmentsList';
 import { PaymentsList } from '../components/PaymentsList';
 import { DOCTORS, DENTAL_SERVICES } from '../constants';
@@ -103,6 +104,13 @@ const Patients: React.FC = () => {
 
     // Wallet / Payment Modal
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+
+    // Doctors State (for transfer modal)
+    const [doctors, setDoctors] = useState<any[]>([]);
+    React.useEffect(() => {
+        api.doctors.getAll().then(setDoctors).catch(console.error);
+    }, []);
 
     // New Patient Form State
     const [newPatient, setNewPatient] = useState({ name: '', dni: '', email: '', phone: '' });
@@ -687,13 +695,22 @@ const Patients: React.FC = () => {
                                                 Saldo disponible para futuros tratamientos. Los anticipos generan factura simplificada automáticamente.
                                             </p>
                                         </div>
-                                        <button
-                                            onClick={() => setIsPaymentModalOpen(true)}
-                                            className="bg-white text-slate-900 px-8 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-50 transition-all flex items-center gap-3"
-                                        >
-                                            <Wallet size={20} />
-                                            Gestionar Pagos
-                                        </button>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={() => setIsPaymentModalOpen(true)}
+                                                className="bg-white text-slate-900 px-6 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-blue-50 transition-all flex items-center gap-2 text-sm"
+                                            >
+                                                <Plus size={18} />
+                                                Añadir Saldo
+                                            </button>
+                                            <button
+                                                onClick={() => setIsTransferModalOpen(true)}
+                                                className="bg-emerald-500 text-white px-6 py-4 rounded-xl font-black uppercase shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2 text-sm"
+                                            >
+                                                <ArrowUp className="rotate-90" size={18} />
+                                                Asignar a Tratamiento
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1282,6 +1299,26 @@ const Patients: React.FC = () => {
                     setIsPaymentModalOpen(false);
                 }}
             />
+
+            {/* Transfer Balance Modal */}
+            {selectedPatient && (
+                <TransferBalanceModal
+                    isOpen={isTransferModalOpen}
+                    onClose={() => setIsTransferModalOpen(false)}
+                    patient={selectedPatient}
+                    treatments={treatments}
+                    doctors={doctors}
+                    onTransferComplete={() => {
+                        // Refresh patient data and payments
+                        api.getPatients().then(newPatients => {
+                            setPatients(newPatients);
+                            const updated = newPatients.find(p => p.id === selectedPatient.id);
+                            if (updated) setSelectedPatient(updated);
+                        });
+                        api.payments.getByPatient(selectedPatient.id).then(setPayments);
+                    }}
+                />
+            )}
 
             {/* WHATSAPP SCHEDULE MODAL - MOVED TO ROOT LEVEL TO ENSURE VISIBILITY */}
             {

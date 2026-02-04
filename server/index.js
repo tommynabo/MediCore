@@ -1267,8 +1267,12 @@ const calculateWalletBalance = async (supabase, patientId) => {
             if (p.type === 'ADVANCE_PAYMENT') {
                 balance += (p.amount || 0);
             }
+            // Subtract TRANSFERS (advance money assigned to treatments)
+            if (p.type === 'TRANSFER') {
+                balance -= (p.amount || 0);
+            }
             // Subtract if paid WITH wallet (method can be 'wallet' or 'ADVANCE_PAYMENT' due to legacy frontend mapping)
-            if ((p.method === 'wallet' || p.method === 'ADVANCE_PAYMENT') && p.type !== 'ADVANCE_PAYMENT') {
+            if ((p.method === 'wallet' || p.method === 'ADVANCE_PAYMENT') && p.type !== 'ADVANCE_PAYMENT' && p.type !== 'TRANSFER') {
                 balance -= (p.amount || 0);
             }
             // Subtract if direct charge from wallet (e.g. manual adjustment)
@@ -1411,6 +1415,221 @@ app.post('/api/payments/create', async (req, res) => {
         });
     } catch (e) {
         console.error("❌ Payment creation error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/**
+ * TRANSFER ADVANCE PAYMENT TO TREATMENT
+ * This endpoint transfers money from "a cuenta" (advance) to a specific treatment/concept
+ * WITHOUT generating a new invoice (to avoid duplicate invoices and Hacienda issues).
+ * 
+ * It updates the original payment's concept and links it to a doctor for commission tracking.
+ */
+app.post('/api/payments/transfer', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { patientId, sourcePaymentId, amount, treatmentId, treatmentName, doctorId, notes } = req.body;
+
+        if (!patientId || !sourcePaymentId || !amount || !doctorId) {
+            return res.status(400).json({ error: 'Campos requeridos: patientId, sourcePaymentId, amount, doctorId' });
+        }
+
+        // 1. Verificar que el pago original existe y tiene saldo disponible
+        const { data: sourcePayment, error: sourceError } = await supabase
+            .from('Payment')
+            .select('*')
+            .eq('id', sourcePaymentId)
+            .single();
+
+        if (sourceError || !sourcePayment) {
+            return res.status(404).json({ error: 'Pago origen no encontrado' });
+        }
+
+        if (sourcePayment.type !== 'ADVANCE_PAYMENT') {
+            return res.status(400).json({ error: 'Solo se pueden transferir pagos a cuenta (ADVANCE_PAYMENT)' });
+        }
+
+        // 2. Crear registro de transferencia (NO genera nueva factura)
+        const transferId = crypto.randomUUID();
+        const { data: transfer, error: transferError } = await supabase
+            .from('Payment')
+            .insert([{
+                id: transferId,
+                patientId,
+                amount: parseFloat(amount),
+                method: 'wallet', // Indica uso de saldo
+                type: 'TRANSFER', // Nuevo tipo: transferencia de saldo
+                sourcePaymentId, // Referencia al pago original
+                treatmentId: treatmentId || null,
+                doctorId, // Para calcular comisión
+                notes: notes || `Transferencia de anticipo a: ${treatmentName || 'Tratamiento'}`,
+                createdAt: new Date().toISOString()
+            }])
+            .select()
+            .single();
+
+        if (transferError) {
+            console.error("❌ Error creating transfer:", transferError);
+            return res.status(500).json({ error: transferError.message });
+        }
+
+        // 3. Recalcular saldo del monedero
+        await calculateWalletBalance(supabase, patientId);
+
+        // 4. Si hay tratamiento, marcar como pagado
+        if (treatmentId) {
+            await supabase
+                .from('PatientTreatment')
+                .update({ status: 'PAGADO' })
+                .eq('id', treatmentId);
+        }
+
+        // 5. Añadir al historial clínico
+        const historyPayload = {
+            treatment: 'Asignación de Saldo',
+            observation: `Saldo de ${amount}€ asignado a: ${treatmentName || 'Tratamiento'}. Doctor: ${doctorId.substring(0, 8)}...`,
+            specialization: 'Administración'
+        };
+
+        await supabase.from('ClinicalRecord').insert([{
+            id: crypto.randomUUID(),
+            patientId,
+            date: new Date().toISOString(),
+            text: JSON.stringify(historyPayload),
+            authorId: 'system'
+        }]);
+
+        console.log(`✅ [TRANSFER] ${amount}€ transferred from advance to treatment. Doctor: ${doctorId}`);
+
+        res.json({
+            success: true,
+            transfer,
+            message: 'Saldo transferido correctamente. No se ha generado nueva factura.'
+        });
+    } catch (e) {
+        console.error("❌ Transfer error:", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/**
+ * GET DOCTOR COMMISSIONS
+ * Calculates commissions based on payments assigned to doctors (both direct and transfers)
+ */
+app.get('/api/doctors/:doctorId/commissions', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { doctorId } = req.params;
+        const { month, year } = req.query;
+
+        // Default to current month
+        const targetMonth = month ? parseInt(month) : new Date().getMonth() + 1;
+        const targetYear = year ? parseInt(year) : new Date().getFullYear();
+
+        const startDate = new Date(targetYear, targetMonth - 1, 1).toISOString();
+        const endDate = new Date(targetYear, targetMonth, 0, 23, 59, 59).toISOString();
+
+        // Get all payments assigned to this doctor in the month
+        const { data: payments, error } = await supabase
+            .from('Payment')
+            .select('*')
+            .eq('doctorId', doctorId)
+            .gte('createdAt', startDate)
+            .lte('createdAt', endDate);
+
+        if (error) throw error;
+
+        // Calculate total and breakdown
+        const directPayments = payments.filter(p => p.type === 'DIRECT_CHARGE');
+        const transfers = payments.filter(p => p.type === 'TRANSFER');
+
+        const totalDirect = directPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const totalTransfers = transfers.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const grandTotal = totalDirect + totalTransfers;
+
+        // Default commission rate (can be configured per doctor)
+        const commissionRate = 0.30; // 30%
+        const commissionAmount = grandTotal * commissionRate;
+
+        res.json({
+            doctorId,
+            period: { month: targetMonth, year: targetYear },
+            breakdown: {
+                directPayments: { count: directPayments.length, total: totalDirect },
+                transfers: { count: transfers.length, total: totalTransfers }
+            },
+            grandTotal,
+            commissionRate: `${commissionRate * 100}%`,
+            commissionAmount: parseFloat(commissionAmount.toFixed(2)),
+            payments: payments.slice(0, 50) // Limit to 50 for response size
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/**
+ * GET UNASSIGNED ADVANCE PAYMENTS (Saldo a Cuenta disponible)
+ * Returns advance payments that haven't been fully transferred to treatments
+ */
+app.get('/api/patients/:patientId/advance-balance', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+        const { patientId } = req.params;
+
+        // Get all advance payments
+        const { data: advances, error: advError } = await supabase
+            .from('Payment')
+            .select('*')
+            .eq('patientId', patientId)
+            .eq('type', 'ADVANCE_PAYMENT')
+            .order('createdAt', { ascending: false });
+
+        if (advError) throw advError;
+
+        // Get all transfers (usage of advance money)
+        const { data: transfers, error: transError } = await supabase
+            .from('Payment')
+            .select('*')
+            .eq('patientId', patientId)
+            .eq('type', 'TRANSFER');
+
+        if (transError) throw transError;
+
+        // Calculate totals
+        const totalAdvanced = advances.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const totalTransferred = transfers.reduce((sum, p) => sum + (p.amount || 0), 0);
+        const availableBalance = totalAdvanced - totalTransferred;
+
+        res.json({
+            patientId,
+            totalAdvanced,
+            totalTransferred,
+            availableBalance,
+            advances: advances.map(a => ({
+                id: a.id,
+                amount: a.amount,
+                date: a.createdAt,
+                invoiceId: a.invoiceId,
+                notes: a.notes
+            })),
+            transfers: transfers.map(t => ({
+                id: t.id,
+                amount: t.amount,
+                date: t.createdAt,
+                treatmentId: t.treatmentId,
+                doctorId: t.doctorId,
+                notes: t.notes
+            }))
+        });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
