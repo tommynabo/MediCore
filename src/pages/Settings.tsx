@@ -1,14 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, UserPlus, Download, Plus, Minus, Package, AlertTriangle, CheckCircle2, FileText as FileTextIcon, MessageSquare, QrCode, History, Send, RefreshCw, Trash2, Smartphone } from 'lucide-react';
+import { Search, UserPlus, Download, Plus, Minus, Package, AlertTriangle, CheckCircle2, FileText as FileTextIcon, MessageSquare, QrCode, History, Send, RefreshCw, Trash2, Smartphone, Stethoscope } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { DocumentTemplate } from '../../types';
 import { api } from '../services/api';
 
 const Settings: React.FC = () => {
     const { stock, setStock, currentUserRole } = useAppContext();
-    const [settingsTab, setSettingsTab] = useState<'templates' | 'stock' | 'whatsapp'>('templates');
+    const [settingsTab, setSettingsTab] = useState<'templates' | 'stock' | 'whatsapp' | 'services'>('templates');
     const [templateSearch, setTemplateSearch] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Services State
+    const [services, setServices] = useState<any[]>([]);
+    const [serviceSearch, setServiceSearch] = useState('');
+    const [isLoadingServices, setIsLoadingServices] = useState(false);
 
     // WhatsApp State
     const [waStatus, setWaStatus] = useState<{ status: string; qrCode: string | null }>({ status: 'DISCONNECTED', qrCode: null });
@@ -31,6 +36,8 @@ const Settings: React.FC = () => {
     useEffect(() => {
         if (settingsTab === 'whatsapp') {
             refreshWhatsApp();
+        } else if (settingsTab === 'services') {
+            loadServices();
         }
     }, [settingsTab, waActiveTab]);
 
@@ -44,6 +51,18 @@ const Settings: React.FC = () => {
             setWaLogs(logs);
         } catch (e) {
             console.error(e);
+        }
+    };
+
+    const loadServices = async () => {
+        setIsLoadingServices(true);
+        try {
+            const data = await api.services.getAll();
+            setServices(data || []);
+        } catch (e) {
+            console.error("Error loading services:", e);
+        } finally {
+            setIsLoadingServices(false);
         }
     };
 
@@ -75,20 +94,7 @@ const Settings: React.FC = () => {
     const handleCreateWaTemplate = async () => {
         if (!newWaTemplate.name || !newWaTemplate.content) return;
         try {
-            // Construct triggerOffset string based on inputs
-            // Example: 12h (default before), or we might need specific logic later.
-            // For now, backend expects short strings like "24h" or "6mo".
-            // If user selects "After", we might not be handling that in backend fully yet unless logic exists.
-            // But let's save what the backend expects.
-
-            // Standard convention: "12h" -> 12 hours before. 
-            // If "After", maybe we just trust the trigger type handles the logic?
-            // Appointment Reminder is ALWAYS before.
-            // Treatment Followup is ALWAYS after.
-            // So we mostly care about Value + Unit.
-
             const offsetString = `${newWaTemplate.triggerOffsetValue}${newWaTemplate.triggerOffsetUnit}`;
-
             await api.whatsapp.createTemplate({
                 ...newWaTemplate,
                 triggerOffset: offsetString
@@ -97,6 +103,11 @@ const Settings: React.FC = () => {
             refreshWhatsApp();
         } catch (e) { alert('Error creando plantilla'); }
     };
+
+    const filteredServices = services.filter(s =>
+        s.name.toLowerCase().includes(serviceSearch.toLowerCase()) ||
+        s.specialty_name?.toLowerCase().includes(serviceSearch.toLowerCase())
+    );
 
     return (
         <div className="flex h-full overflow-hidden bg-slate-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -108,6 +119,9 @@ const Settings: React.FC = () => {
                 </button>
                 <button onClick={() => setSettingsTab('stock')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'stock' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-50'}`}>
                     Inventario
+                </button>
+                <button onClick={() => setSettingsTab('services')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'services' ? 'bg-indigo-50 text-indigo-600' : 'text-slate-400 hover:bg-slate-50'}`}>
+                    Servicios / Tarifas
                 </button>
                 <button onClick={() => setSettingsTab('whatsapp')} className={`w-full text-left px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${settingsTab === 'whatsapp' ? 'bg-green-50 text-green-600' : 'text-slate-400 hover:bg-slate-50'}`}>
                     WhatsApp & CRM
@@ -316,6 +330,69 @@ const Settings: React.FC = () => {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {settingsTab === 'services' && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="flex justify-between items-end">
+                            <div>
+                                <h3 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                                    <Stethoscope className="text-indigo-500" size={32} />
+                                    Tarifas y Servicios
+                                </h3>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2">{filteredServices.length} Servicios Activos</p>
+                            </div>
+                            <div className="flex gap-4">
+                                <div className="relative">
+                                    <Search size={16} className="absolute left-4 top-3.5 text-slate-400" />
+                                    <input
+                                        value={serviceSearch}
+                                        onChange={(e) => setServiceSearch(e.target.value)}
+                                        className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-xs font-bold outline-none focus:ring-4 focus:ring-slate-100 transition-all min-w-[250px]"
+                                        placeholder="Buscar servicio..."
+                                    />
+                                </div>
+                                <button className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform flex items-center gap-2">
+                                    <Plus size={16} /> Nuevo
+                                </button>
+                            </div>
+                        </div>
+
+                        {isLoadingServices ? (
+                            <div className="text-center py-10 opacity-50">Cargando servicios...</div>
+                        ) : (
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <table className="w-full text-left">
+                                    <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 tracking-widest border-b border-slate-100">
+                                        <tr>
+                                            <th className="p-6">Servicio</th>
+                                            <th className="p-6">Especialidad</th>
+                                            <th className="p-6 text-right">Precio</th>
+                                            <th className="p-6 text-center">Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50">
+                                        {filteredServices.map(service => (
+                                            <tr key={service.id} className="text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                                                <td className="p-6 text-slate-900 font-bold">{service.name}</td>
+                                                <td className="p-6">
+                                                    <span className="px-3 py-1 rounded-full text-[10px] uppercase font-bold" style={{ backgroundColor: (service.specialty_color || '#e2e8f0') + '20', color: service.specialty_color || '#64748b' }}>
+                                                        {service.specialty_name || 'General'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-6 text-right font-black text-slate-900">{service.final_price?.toFixed(2)}€</td>
+                                                <td className="p-6 text-center">
+                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center justify-center gap-1 mx-auto w-fit ${service.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                        {service.is_active ? 'Activo' : 'Inactivo'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         )}
                     </div>

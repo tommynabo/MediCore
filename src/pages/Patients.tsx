@@ -415,22 +415,37 @@ const Patients: React.FC = () => {
                                     </button>
                                 </div>
 
-                                {/* MEDICAL ALERTS BANNER */}
-                                {(selectedPatient.allergies || selectedPatient.medications) && (
-                                    <div className="bg-amber-50 border border-amber-200 p-6 rounded-[2rem] flex gap-4 items-start animate-in slide-in-from-top-4">
-                                        <div className="bg-amber-100 text-amber-600 p-3 rounded-xl shrink-0">
-                                            <AlertTriangle size={24} />
+                                {/* MEDICAL ALERTS BANNER (FRANKEN LOGIC) */}
+                                {(selectedPatient.allergies || selectedPatient.medications || (selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0)) && (
+                                    <div className="bg-red-50 border border-red-200 p-6 rounded-[2rem] flex gap-4 items-start animate-in slide-in-from-top-4 shadow-sm mb-6">
+                                        <div className="bg-red-100 text-red-600 p-3 rounded-xl shrink-0 animate-pulse">
+                                            <AlertTriangle size={32} />
                                         </div>
-                                        <div>
-                                            <h4 className="text-amber-800 font-bold text-lg mb-1">¡Atención Médica Importante!</h4>
-                                            <div className="space-y-1 text-sm text-amber-700">
+                                        <div className="flex-1">
+                                            <h4 className="text-red-900 font-black text-xl mb-2">¡ALERTA MÉDICA IMPORTANTE!</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {selectedPatient.allergies && (
-                                                    <p><strong>Alergias:</strong> {selectedPatient.allergies}</p>
+                                                    <div className="bg-white/60 p-3 rounded-xl border border-red-100">
+                                                        <p className="text-[10px] font-bold uppercase text-red-400 mb-1">Alergias</p>
+                                                        <p className="text-red-900 font-bold text-sm">{selectedPatient.allergies}</p>
+                                                    </div>
                                                 )}
                                                 {selectedPatient.medications && (
-                                                    <p><strong>Medicación:</strong> {selectedPatient.medications}</p>
+                                                    <div className="bg-white/60 p-3 rounded-xl border border-red-100">
+                                                        <p className="text-[10px] font-bold uppercase text-red-400 mb-1">Medicación</p>
+                                                        <p className="text-red-900 font-bold text-sm">{selectedPatient.medications}</p>
+                                                    </div>
                                                 )}
                                             </div>
+                                            {selectedPatient.medicalHistory && selectedPatient.medicalHistory.length > 0 && (
+                                                <div className="mt-4 flex flex-wrap gap-2">
+                                                    {selectedPatient.medicalHistory.map((cond, i) => (
+                                                        <span key={i} className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs font-black uppercase tracking-wider shadow-sm">
+                                                            {cond}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -452,30 +467,88 @@ const Patients: React.FC = () => {
                                         <label className="text-[10px] font-black uppercase text-slate-400 ml-2 mb-1 block">Teléfono</label>
                                         <input disabled={!isEditingPatient} value={selectedPatient.phone || ''} onChange={(e) => setSelectedPatient({ ...selectedPatient, phone: e.target.value })} className="w-full bg-slate-50 rounded-2xl p-4 text-sm font-bold" placeholder="+34 600 000 000" />
                                     </div>
-                                    <div className="col-span-2 border-t border-slate-100 pt-4 mt-2">
-                                        <h4 className="text-xs font-black uppercase text-slate-900 mb-4 flex items-center gap-2">
-                                            <AlertTriangle size={14} className="text-amber-500" /> Alertas Médicas
+
+                                    {/* MEDICAL CONDITIONS EDITOR */}
+                                    <div className="col-span-2 border-t border-slate-100 pt-6 mt-2">
+                                        <h4 className="text-sm font-black uppercase text-slate-900 mb-4 flex items-center gap-2">
+                                            <Activity size={18} className="text-indigo-500" /> Historial y Condiciones
                                         </h4>
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase text-amber-500/70 ml-2 mb-1 block">Alergias</label>
-                                        <textarea
-                                            disabled={!isEditingPatient}
-                                            value={selectedPatient.allergies || ''}
-                                            onChange={(e) => setSelectedPatient({ ...selectedPatient, allergies: e.target.value })}
-                                            className="w-full bg-amber-50/50 border border-amber-100 rounded-2xl p-4 text-sm font-medium text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-200 placeholder:text-amber-300 min-h-[100px]"
-                                            placeholder="Ej. Alergia a la Penicilina..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase text-amber-500/70 ml-2 mb-1 block">Medicación</label>
-                                        <textarea
-                                            disabled={!isEditingPatient}
-                                            value={selectedPatient.medications || ''}
-                                            onChange={(e) => setSelectedPatient({ ...selectedPatient, medications: e.target.value })}
-                                            className="w-full bg-amber-50/50 border border-amber-100 rounded-2xl p-4 text-sm font-medium text-amber-800 focus:outline-none focus:ring-2 focus:ring-amber-200 placeholder:text-amber-300 min-h-[100px]"
-                                            placeholder="Ej. Sintrom, Adiro..."
-                                        />
+
+                                        {isEditingPatient ? (
+                                            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 space-y-4">
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Condiciones Comunes (Click para añadir)</label>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {["Hipertensión", "Diabetes", "Asma", "Epilepsia", "Problemas Cardíacos", "Alergia Penicilina", "Alergia AINES", "Embarazo", "Hepatitis", "VIH", "Sintrom"].map(cond => (
+                                                            <button
+                                                                key={cond}
+                                                                onClick={() => {
+                                                                    const current = selectedPatient.medicalHistory || [];
+                                                                    if (!current.includes(cond)) {
+                                                                        setSelectedPatient({ ...selectedPatient, medicalHistory: [...current, cond] });
+                                                                    }
+                                                                }}
+                                                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${selectedPatient.medicalHistory?.includes(cond) ? 'bg-indigo-600 text-white shadow-md' : 'bg-white border border-slate-200 text-slate-600 hover:border-indigo-300'}`}
+                                                            >
+                                                                {cond}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Condiciones Seleccionadas</label>
+                                                    <div className="flex flex-wrap gap-2 min-h-[40px] p-2 bg-white rounded-xl border border-slate-200">
+                                                        {(selectedPatient.medicalHistory || []).map((cond, idx) => (
+                                                            <span key={idx} className="bg-indigo-50 text-indigo-700 px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-2">
+                                                                {cond}
+                                                                <button onClick={() => {
+                                                                    const newHistory = selectedPatient.medicalHistory?.filter((_, i) => i !== idx);
+                                                                    setSelectedPatient({ ...selectedPatient, medicalHistory: newHistory });
+                                                                }} className="hover:text-red-500"><Trash2 size={12} /></button>
+                                                            </span>
+                                                        ))}
+                                                        {(selectedPatient.medicalHistory || []).length === 0 && <span className="text-slate-300 text-xs italic p-1">Sin condiciones registradas</span>}
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-amber-500/70 ml-2 mb-1 block">Alergias (Texto)</label>
+                                                        <textarea
+                                                            value={selectedPatient.allergies || ''}
+                                                            onChange={(e) => setSelectedPatient({ ...selectedPatient, allergies: e.target.value })}
+                                                            className="w-full bg-white border border-amber-100 rounded-xl p-3 text-sm font-medium text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-200 h-24"
+                                                            placeholder="Describa alergias específicas..."
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[10px] font-black uppercase text-amber-500/70 ml-2 mb-1 block">Medicación (Texto)</label>
+                                                        <textarea
+                                                            value={selectedPatient.medications || ''}
+                                                            onChange={(e) => setSelectedPatient({ ...selectedPatient, medications: e.target.value })}
+                                                            className="w-full bg-white border border-amber-100 rounded-xl p-3 text-sm font-medium text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-200 h-24"
+                                                            placeholder="Lista de medicación actual..."
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {(selectedPatient.medicalHistory || []).map((cond, idx) => (
+                                                        <span key={idx} className="bg-slate-100 text-slate-700 px-3 py-1 rounded-lg text-xs font-bold border border-slate-200">
+                                                            {cond}
+                                                        </span>
+                                                    ))}
+                                                    {(!selectedPatient.medicalHistory || selectedPatient.medicalHistory.length === 0) && <span className="text-slate-400 text-xs italic">No hay condiciones registradas</span>}
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                                    {selectedPatient.allergies && <p><strong className="text-amber-600 block text-xs uppercase mb-1">Alergias</strong> {selectedPatient.allergies}</p>}
+                                                    {selectedPatient.medications && <p><strong className="text-amber-600 block text-xs uppercase mb-1">Medicación</strong> {selectedPatient.medications}</p>}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

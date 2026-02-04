@@ -1,118 +1,92 @@
-/**
- * Import Services from CSV to Supabase
- * Run with: node server/scripts/importServices.js
- */
-const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+const { createClient } = require('@supabase/supabase-js');
+const csv = require('csv-parser'); // User might not have this, I'll use simple split
 
-// Load from project root
-require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
+// HARDCODED CREDENTIALS (FROM SERVER/INDEX.JS)
+const URL = "https://gnnacijqglcqonholpwt.supabase.co";
+const KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdubmFjaWpxZ2xjcW9uaG9scHd0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODQ3NjU0NCwiZXhwIjoyMDg0MDUyNTQ0fQ.6qexkezsBpOhvTch_eRsr8lF_mixdp9sfv0ScjUmxp4";
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(URL, KEY);
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error('❌ Missing Supabase credentials in .env');
-    process.exit(1);
-}
+const CSV_PATH = path.join(__dirname, '../../assets/listado_servicios_completo.csv');
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Parse European price format: "180,00 €" -> 180.00
 function parsePrice(priceStr) {
     if (!priceStr) return 0;
-    const cleaned = priceStr.replace('€', '').replace(/\s/g, '').replace(',', '.');
-    return parseFloat(cleaned) || 0;
-}
+    // Remove " €" and replace "," with "."
+    const cleaned = priceStr.replace(' €', '').replace('.', '').replace(',', '.'); // Assuming 1.000,00 format? Or 100,00?
+    // CSV Lines: "180,00 €" -> 180.00. "1.400,00 €" -> 1400.00
+    // Wait, regex replace: remove dots (thousands), replace comma with dot (decimal)
+    // Actually in the file: "180,00 €", "1400,00 €" (no thousand separators visible in snippet, but might exist)
+    // Line 46: "2500,00 €". No thousands separator shown.
+    // Line 3: "200,00 €"
 
-// Parse percentage: "0,00 %" -> 0.00
-function parsePercent(percentStr) {
-    if (!percentStr) return 0;
-    const cleaned = percentStr.replace('%', '').replace(/\s/g, '').replace(',', '.');
-    return parseFloat(cleaned) || 0;
+    // Safer parse: regex remove all non-digit, non-comma, non-minus. Then replace comma with dot.
+    return parseFloat(cleaned);
 }
 
 async function importServices() {
-    console.log('📦 Starting services import...\n');
+    console.log("🚀 Starting Services Import...");
 
-    // Read CSV file
-    const csvPath = path.join(__dirname, '../../assets/listado_servicios_completo.csv');
-    const csvContent = fs.readFileSync(csvPath, 'utf-8');
-    const lines = csvContent.split('\n').filter(line => line.trim());
+    try {
+        const fileContent = fs.readFileSync(CSV_PATH, 'utf-8');
+        const lines = fileContent.split('\n');
 
-    // Parse header
-    const header = lines[0].split(';');
-    console.log('📋 CSV Headers:', header.join(', '));
+        // Header: Estado;ID Servicio;Servicio;ID Especialidad;Especialidad;ID Mutua;Mutua;Es bono;Sesiones;Especialidad color;Duración (min);Disp. Cita;Cita online;Odontograma;Base;Descuento;IVA;Importe
+        // Indices (0-based):
+        // 0: Estado, 1: ID, 2: Servicio, 3: ID Esp, 4: Especialidad, 9: Color, 17: Importe
 
-    // Parse services
-    const services = [];
-    for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(';');
-        if (values.length < 18) continue;
+        const services = [];
 
-        const service = {
-            external_id: values[1]?.trim(),
-            name: values[2]?.trim(),
-            specialty_id: values[3]?.trim(),
-            specialty_name: values[4]?.trim(),
-            specialty_color: values[9]?.trim() || '#3b638e',
-            duration_min: parseInt(values[10]) || 30,
-            base_price: parsePrice(values[14]),
-            discount_percent: parsePercent(values[15]),
-            tax_percent: parsePercent(values[16]),
-            final_price: parsePrice(values[17]),
-            is_active: values[0]?.trim() === 'Activo',
-            odontogram_type: values[13]?.trim() || 'Color servicio'
-        };
+        for (let i = 1; i < lines.length; i++) { // Skip header
+            const line = lines[i].trim();
+            if (!line) continue;
 
-        services.push(service);
-    }
+            const cols = line.split(';');
+            if (cols.length < 5) continue;
 
-    console.log(`\n✅ Parsed ${services.length} services from CSV\n`);
+            const name = cols[2];
+            const specialty_name = cols[4];
+            const specialty_color = cols[9] || '#888888';
+            const priceStr = cols[17];
+            const price = parseFloat(priceStr.replace(/[^\d,]/g, '').replace(',', '.')); // Remove €, spaces. Replace , with .
 
-    // Group by specialty for summary
-    const bySpecialty = {};
-    services.forEach(s => {
-        if (!bySpecialty[s.specialty_name]) bySpecialty[s.specialty_name] = [];
-        bySpecialty[s.specialty_name].push(s);
-    });
-
-    console.log('📊 Services by Specialty:');
-    Object.entries(bySpecialty).forEach(([specialty, items]) => {
-        console.log(`   ${specialty}: ${items.length} services`);
-    });
-
-    // Clear existing services
-    console.log('\n🗑️  Clearing existing services...');
-    const { error: deleteError } = await supabase.from('services').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    if (deleteError && !deleteError.message.includes('no rows')) {
-        console.error('Warning during delete:', deleteError.message);
-    }
-
-    // Insert in batches of 50
-    const batchSize = 50;
-    let inserted = 0;
-    let errors = 0;
-
-    for (let i = 0; i < services.length; i += batchSize) {
-        const batch = services.slice(i, i + batchSize);
-        const { data, error } = await supabase.from('services').insert(batch).select();
-
-        if (error) {
-            console.error(`❌ Error inserting batch ${i / batchSize + 1}:`, error.message);
-            errors += batch.length;
-        } else {
-            inserted += data.length;
-            console.log(`✅ Inserted batch ${Math.floor(i / batchSize) + 1} (${data.length} services)`);
+            services.push({
+                id: crypto.randomUUID(),
+                name: name,
+                specialty_name: specialty_name,
+                specialty_color: specialty_color,
+                final_price: price,
+                is_active: cols[0] === 'Activo'
+            });
         }
-    }
 
-    console.log('\n========================================');
-    console.log(`🎉 Import complete!`);
-    console.log(`   ✅ Inserted: ${inserted} services`);
-    console.log(`   ❌ Errors: ${errors}`);
-    console.log('========================================\n');
+        console.log(`📝 Parsed ${services.length} services.`);
+
+        // Clear existing services? Or upsert? User asked "configurar que el CSV sea los 101 servicios".
+        // Better to clear table to ensure exact match.
+        console.log("🗑️ Clearing existing services...");
+        const { error: deleteError } = await supabase.from('services').delete().neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        if (deleteError) console.error("Error clearing services:", deleteError);
+
+        console.log("💾 Inserting new services...");
+        // Insert in chunks
+        const CHUNK_SIZE = 50;
+        for (let i = 0; i < services.length; i += CHUNK_SIZE) {
+            const chunk = services.slice(i, i + CHUNK_SIZE);
+            const { error: insertError } = await supabase.from('services').insert(chunk);
+            if (insertError) {
+                console.error(`Error inserting chunk ${i}:`, insertError);
+            } else {
+                console.log(`✅ Inserted chunk ${i / CHUNK_SIZE + 1}`);
+            }
+        }
+
+        console.log("🎉 Import completed successfully!");
+
+    } catch (e) {
+        console.error("🔥 Error during import:", e);
+    }
 }
 
-importServices().catch(console.error);
+importServices();

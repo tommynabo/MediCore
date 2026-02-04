@@ -11,6 +11,7 @@ export interface Patient {
     prescriptions?: string[];
     allergies?: string;
     medications?: string;
+    medicalHistory?: string[];
 }
 
 export interface ClinicalRecord {
