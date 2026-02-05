@@ -810,9 +810,11 @@ app.post('/api/finance/invoice', async (req, res) => {
                 const totalAmount = items.reduce((sum, item) => sum + Number(item.price), 0);
 
                 // 1. Create Invoice
+                const invoiceId = crypto.randomUUID();
                 const { data: savedInvoice, error: invError } = await supabase
                     .from('Invoice')
                     .insert([{
+                        id: invoiceId,
                         invoiceNumber: result.invoiceNumber,
                         amount: totalAmount,
                         status: 'issued',
@@ -832,6 +834,7 @@ app.post('/api/finance/invoice', async (req, res) => {
                     // 2. Create Items (InvoiceItem or similar)
                     if (items && items.length > 0) {
                         const invoiceItems = items.map(i => ({
+                            id: crypto.randomUUID(),
                             invoiceId: savedInvoice.id,
                             name: i.name,
                             price: Number(i.price)

@@ -71,9 +71,15 @@ const Patients: React.FC = () => {
     const [payments, setPayments] = useState<any[]>([]);
     React.useEffect(() => {
         if (selectedPatient && patientTab === 'billing') {
+            // Refresh payments
             api.payments.getByPatient(selectedPatient.id)
                 .then(setPayments)
                 .catch(err => console.error("Failed to load payments", err));
+
+            // Refresh invoices (to fix display issue after reload)
+            api.invoices.getAll()
+                .then(setInvoices)
+                .catch(err => console.error("Failed to load invoices", err));
         }
     }, [selectedPatient, patientTab]);
 
