@@ -1482,12 +1482,64 @@ app.post('/api/payments/transfer', async (req, res) => {
         // 3. Recalcular saldo del monedero
         await calculateWalletBalance(supabase, patientId);
 
-        // 4. Si hay tratamiento, marcar como pagado
+        // 4. Si hay tratamiento, marcar como pagado y actualizar/crear Liquidación
         if (treatmentId) {
-            await supabase
+            // A. Marcar tratamiento como PAGADO en Supabase
+            const { data: treatmentData } = await supabase
                 .from('PatientTreatment')
                 .update({ status: 'PAGADO' })
-                .eq('id', treatmentId);
+                .eq('id', treatmentId)
+                .select()
+                .single();
+
+            // B. Sincronizar con Nóminas (Liquidación) usando Prisma
+            if (treatmentData && treatmentData.serviceId) {
+                try {
+                    // 1. Buscar si ya existe una liquidación pendiente asociada a este paciente y tratamiento (vía Cita)
+                    // Buscamos liquidaciones pendientes donde la cita sea del mismo paciente y tenga el mismo treatmentId
+                    const existingLiquidation = await prisma.liquidation.findFirst({
+                        where: {
+                            appointment: {
+                                patientId: patientId,
+                                treatmentId: treatmentData.serviceId
+                            },
+                            status: 'PENDING'
+                        },
+                        orderBy: { createdAt: 'desc' }
+                    });
+
+                    if (existingLiquidation) {
+                        // Caso 1: Existe cita previa. Actualizamos el doctor de la liquidación para que coincida con la transferencia
+                        console.log(`🔄 Updating Liquidation ${existingLiquidation.id} doctor to ${doctorId}`);
+                        await prisma.liquidation.update({
+                            where: { id: existingLiquidation.id },
+                            data: { doctorId: doctorId }
+                        });
+                    } else {
+                        // Caso 2: No existe cita (ej. tratamiento manual). Creamos Cita "Dummy" y Liquidación para que salga en nómina
+                        console.log(`➕ Creating Dummy Appointment & Liquidation for Transfer. Doctor: ${doctorId}`);
+
+                        // Crear cita técnica completada
+                        const dummyAppt = await prisma.appointment.create({
+                            data: {
+                                date: new Date(),
+                                time: "00:00",
+                                status: "COMPLETED",
+                                patientId: patientId,
+                                doctorId: doctorId,
+                                treatmentId: treatmentData.serviceId
+                            },
+                            include: { treatment: true, doctor: true }
+                        });
+
+                        // Generar liquidación
+                        await financeService.calculateLiquidation(prisma, dummyAppt);
+                    }
+                } catch (liqError) {
+                    console.error("⚠️ Error syncing liquidation on transfer:", liqError);
+                    // No fallamos el request principal, solo logueamos
+                }
+            }
         }
 
         // 5. Añadir al historial clínico
