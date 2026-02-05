@@ -725,10 +725,18 @@ const Patients: React.FC = () => {
                                     <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                                         <h4 className="text-lg font-black text-slate-900 mb-6">Historial de Facturas</h4>
                                         <div className="space-y-2">
-                                            {invoices.filter(i => i.patientId === selectedPatient.id).length === 0 ? (
+                                            {/* Filter out invoices from 'Advance Payments' (Saldo) as user requested to see them in Payments instead */}
+                                            {invoices.filter(i =>
+                                                i.patientId === selectedPatient.id &&
+                                                // Exclude Advance/Saldo invoices (case insensitive check)
+                                                !((i.concept || '').toLowerCase().includes('saldo') || (i.concept || '').toLowerCase().includes('anticipo / saldo'))
+                                            ).length === 0 ? (
                                                 <p className="text-xs text-slate-500 font-bold opacity-50">No hay facturas emitidas.</p>
                                             ) : (
-                                                invoices.filter(i => i.patientId === selectedPatient.id).map(inv => (
+                                                invoices.filter(i =>
+                                                    i.patientId === selectedPatient.id &&
+                                                    !((i.concept || '').toLowerCase().includes('saldo') || (i.concept || '').toLowerCase().includes('anticipo / saldo'))
+                                                ).map(inv => (
                                                     <div key={inv.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
                                                         <div>
                                                             <p className="text-sm font-black text-slate-900">{inv.invoiceNumber}</p>
@@ -780,7 +788,7 @@ const Patients: React.FC = () => {
                                     <div className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm">
                                         <h4 className="text-lg font-black text-slate-900 mb-6 flex items-center gap-2"><CreditCard size={20} /> Historial de Pagos</h4>
                                         <div className="space-y-2 h-[500px] overflow-y-auto">
-                                            <PaymentsList patientId={selectedPatient.id} />
+                                            <PaymentsList patientId={selectedPatient.id} invoices={invoices} />
                                         </div>
                                     </div>
                                 </div>

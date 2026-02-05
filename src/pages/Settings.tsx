@@ -1,8 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, UserPlus, Download, Plus, Minus, Package, AlertTriangle, CheckCircle2, FileText as FileTextIcon, MessageSquare, QrCode, History, Send, RefreshCw, Trash2, Smartphone, Stethoscope } from 'lucide-react';
+import { Search, UserPlus, Download, Plus, Minus, Package, AlertTriangle, CheckCircle2, FileText as FileTextIcon, MessageSquare, QrCode, History, Send, RefreshCw, Trash2, Smartphone, Stethoscope, Edit3, X, Filter, Check } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { DocumentTemplate } from '../../types';
 import { api } from '../services/api';
+
+interface Service {
+    id: string;
+    external_id?: string;
+    name: string;
+    specialty_id?: string;
+    specialty_name: string;
+    specialty_color: string;
+    duration_min: number;
+    base_price: number;
+    discount_percent: number;
+    tax_percent: number;
+    final_price: number;
+    is_active: boolean;
+    created_at?: string;
+}
 
 const Settings: React.FC = () => {
     const { stock, setStock, currentUserRole } = useAppContext();
@@ -11,9 +27,20 @@ const Settings: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Services State
-    const [services, setServices] = useState<any[]>([]);
+    const [services, setServices] = useState<Service[]>([]);
     const [serviceSearch, setServiceSearch] = useState('');
     const [isLoadingServices, setIsLoadingServices] = useState(false);
+    const [selectedSpecialty, setSelectedSpecialty] = useState<string>('');
+    const [isServiceModalOpen, setIsServiceModalOpen] = useState(false);
+    const [editingService, setEditingService] = useState<Service | null>(null);
+    const [serviceFormData, setServiceFormData] = useState({
+        name: '',
+        specialty_name: '',
+        specialty_color: '#3b638e',
+        duration_min: 30,
+        final_price: 0,
+        base_price: 0
+    });
 
     // WhatsApp State
     const [waStatus, setWaStatus] = useState<{ status: string; qrCode: string | null }>({ status: 'DISCONNECTED', qrCode: null });
@@ -63,6 +90,66 @@ const Settings: React.FC = () => {
             console.error("Error loading services:", e);
         } finally {
             setIsLoadingServices(false);
+        }
+    };
+
+    // Services Handlers
+    const handleEditService = (service: Service) => {
+        setEditingService(service);
+        setServiceFormData({
+            name: service.name,
+            specialty_name: service.specialty_name,
+            specialty_color: service.specialty_color,
+            duration_min: service.duration_min,
+            final_price: service.final_price,
+            base_price: service.base_price
+        });
+        setIsServiceModalOpen(true);
+    };
+
+    const handleAddService = () => {
+        setEditingService(null);
+        setServiceFormData({
+            name: '',
+            specialty_name: 'Odontología',
+            specialty_color: '#3b638e',
+            duration_min: 30,
+            final_price: 0,
+            base_price: 0
+        });
+        setIsServiceModalOpen(true);
+    };
+
+    const handleSaveService = async () => {
+        try {
+            if (editingService) {
+                await api.services.update(editingService.id, {
+                    ...serviceFormData,
+                    base_price: serviceFormData.final_price
+                });
+            } else {
+                await api.services.create({
+                    ...serviceFormData,
+                    base_price: serviceFormData.final_price,
+                    is_active: true
+                });
+            }
+            setIsServiceModalOpen(false);
+            loadServices();
+        } catch (error) {
+            console.error('Error saving service:', error);
+            alert('Error al guardar el servicio');
+        }
+    };
+
+    const handleDeleteService = async (id: string, name: string) => {
+        if (!confirm(`¿Eliminar el servicio "${name}"?`)) return;
+        try {
+            await api.services.delete(id);
+            loadServices();
+        } catch (error) {
+            console.error('Error deleting service:', error);
+            alert('Error al eliminar el servicio');
         }
     };
 
@@ -335,68 +422,234 @@ const Settings: React.FC = () => {
                     </div>
                 )}
 
-                {settingsTab === 'services' && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-                        <div className="flex justify-between items-end">
-                            <div>
-                                <h3 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-                                    <Stethoscope className="text-indigo-500" size={32} />
-                                    Tarifas y Servicios
-                                </h3>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2">{filteredServices.length} Servicios Activos</p>
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="relative">
-                                    <Search size={16} className="absolute left-4 top-3.5 text-slate-400" />
-                                    <input
-                                        value={serviceSearch}
-                                        onChange={(e) => setServiceSearch(e.target.value)}
-                                        className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-xs font-bold outline-none focus:ring-4 focus:ring-slate-100 transition-all min-w-[250px]"
-                                        placeholder="Buscar servicio..."
-                                    />
-                                </div>
-                                <button className="bg-slate-900 text-white px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:scale-105 transition-transform flex items-center gap-2">
-                                    <Plus size={16} /> Nuevo
-                                </button>
-                            </div>
-                        </div>
+                {settingsTab === 'services' && (() => {
+                    // Helper variables for filtering and grouping - calculated inside render to avoid state duplication issues or just use previous pattern
+                    const specialties = [...new Set(services.map(s => s.specialty_name).filter(Boolean))].sort();
 
-                        {isLoadingServices ? (
-                            <div className="text-center py-10 opacity-50">Cargando servicios...</div>
-                        ) : (
-                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                <table className="w-full text-left">
-                                    <thead className="bg-slate-50 text-[10px] font-bold uppercase text-slate-500 tracking-widest border-b border-slate-100">
-                                        <tr>
-                                            <th className="p-6">Servicio</th>
-                                            <th className="p-6">Especialidad</th>
-                                            <th className="p-6 text-right">Precio</th>
-                                            <th className="p-6 text-center">Estado</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-50">
-                                        {filteredServices.map(service => (
-                                            <tr key={service.id} className="text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                                                <td className="p-6 text-slate-900 font-bold">{service.name}</td>
-                                                <td className="p-6">
-                                                    <span className="px-3 py-1 rounded-full text-[10px] uppercase font-bold" style={{ backgroundColor: (service.specialty_color || '#e2e8f0') + '20', color: service.specialty_color || '#64748b' }}>
-                                                        {service.specialty_name || 'General'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-6 text-right font-black text-slate-900">{service.final_price?.toFixed(2)}€</td>
-                                                <td className="p-6 text-center">
-                                                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase flex items-center justify-center gap-1 mx-auto w-fit ${service.is_active ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                        {service.is_active ? 'Activo' : 'Inactivo'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                    const filtered = services.filter(service => {
+                        const matchesSearch = service.name.toLowerCase().includes(serviceSearch.toLowerCase());
+                        const matchesSpecialty = !selectedSpecialty || service.specialty_name === selectedSpecialty;
+                        return matchesSearch && matchesSpecialty;
+                    });
+
+                    const groupedServices = filtered.reduce((acc, service) => {
+                        const specialty = service.specialty_name || 'Otros';
+                        if (!acc[specialty]) acc[specialty] = [];
+                        acc[specialty].push(service);
+                        return acc;
+                    }, {} as Record<string, Service[]>);
+
+                    return (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                            {/* Header & Controls */}
+                            <div className="flex flex-col gap-6">
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <h3 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                                            <Stethoscope className="text-violet-500" size={32} />
+                                            Tarifas y Servicios
+                                        </h3>
+                                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-2">{services.length} Servicios Activos</p>
+                                    </div>
+                                    <button
+                                        onClick={handleAddService}
+                                        className="bg-gradient-to-r from-violet-600 to-purple-600 text-white px-6 py-3 rounded-xl text-sm font-bold uppercase tracking-widest hover:scale-105 transition-transform flex items-center gap-2 shadow-lg hover:shadow-violet-200"
+                                    >
+                                        <Plus size={16} /> Nuevo Servicio
+                                    </button>
+                                </div>
+
+                                {/* Filters */}
+                                <div className="flex gap-4">
+                                    <div className="flex-1 relative">
+                                        <Search size={16} className="absolute left-4 top-3.5 text-slate-400" />
+                                        <input
+                                            value={serviceSearch}
+                                            onChange={(e) => setServiceSearch(e.target.value)}
+                                            className="w-full bg-white border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-xs font-bold outline-none focus:ring-4 focus:ring-violet-50 transition-all min-w-[250px]"
+                                            placeholder="Buscar servicio..."
+                                        />
+                                    </div>
+                                    <div className="relative min-w-[200px]">
+                                        <Filter className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <select
+                                            value={selectedSpecialty}
+                                            onChange={(e) => setSelectedSpecialty(e.target.value)}
+                                            className="w-full bg-white border border-slate-200 rounded-xl pl-11 pr-8 py-3 text-xs font-bold outline-none focus:ring-4 focus:ring-violet-50 transition-all appearance-none cursor-pointer"
+                                        >
+                                            <option value="">Todas las especialidades</option>
+                                            {specialties.map(spec => (
+                                                <option key={spec} value={spec}>{spec}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                        )}
-                    </div>
-                )}
+
+                            {isLoadingServices ? (
+                                <div className="bg-white rounded-[2rem] p-12 border border-slate-200 shadow-lg text-center">
+                                    <div className="animate-spin w-12 h-12 border-4 border-violet-200 border-t-violet-600 rounded-full mx-auto mb-4"></div>
+                                    <p className="text-slate-500 font-bold">Cargando servicios...</p>
+                                </div>
+                            ) : filtered.length === 0 ? (
+                                <div className="bg-white rounded-[2rem] p-12 border border-slate-200 shadow-lg text-center">
+                                    <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                                    <p className="text-slate-500 font-bold">No se encontraron servicios</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-8 pb-20">
+                                    {Object.entries(groupedServices).sort().map(([specialty, items]) => (
+                                        <div key={specialty}>
+                                            <div className="flex items-center gap-3 mb-4 sticky top-0 bg-slate-50/95 backdrop-blur z-10 py-2">
+                                                <div
+                                                    className="w-3 h-3 rounded-full"
+                                                    style={{ backgroundColor: items[0]?.specialty_color || '#3b638e' }}
+                                                />
+                                                <h2 className="text-lg font-black text-slate-900">{specialty}</h2>
+                                                <span className="text-[10px] font-bold text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded-full">{items.length}</span>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                                {items.map(service => (
+                                                    <div
+                                                        key={service.id}
+                                                        className="bg-white rounded-2xl p-5 border border-slate-200 hover:border-violet-300 hover:shadow-lg transition-all group relative"
+                                                    >
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <h3 className="text-xs font-black text-slate-900 leading-tight pr-8 uppercase">{service.name}</h3>
+
+                                                            <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
+                                                                <button
+                                                                    onClick={() => handleEditService(service)}
+                                                                    className="p-1.5 hover:bg-violet-50 rounded-lg text-slate-400 hover:text-violet-600 transition-colors"
+                                                                >
+                                                                    <Edit3 size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteService(service.id, service.name)}
+                                                                    className="p-1.5 hover:bg-red-50 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-end justify-between mt-4">
+                                                            <p className="text-lg font-black text-violet-600">{service.final_price.toFixed(2)}€</p>
+                                                            <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">{service.duration_min} min</span>
+                                                        </div>
+                                                        {!service.is_active && (
+                                                            <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-100 text-slate-400 text-[9px] font-bold rounded-full">
+                                                                INACTIVO
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Service Modal (Nested here to access state, could be outside) */}
+                            {isServiceModalOpen && (
+                                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-6">
+                                    <div className="bg-white rounded-[2rem] p-8 w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-xl font-black text-slate-900">
+                                                {editingService ? '✏️ Editar Servicio' : '➕ Nuevo Servicio'}
+                                            </h3>
+                                            <button
+                                                onClick={() => setIsServiceModalOpen(false)}
+                                                className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-xl transition-colors"
+                                            >
+                                                <X size={20} />
+                                            </button>
+                                        </div>
+
+                                        <div className="space-y-4">
+                                            <div>
+                                                <label className="text-xs font-black uppercase text-slate-400 mb-2 block">Nombre del servicio</label>
+                                                <input
+                                                    type="text"
+                                                    value={serviceFormData.name}
+                                                    onChange={(e) => setServiceFormData({ ...serviceFormData, name: e.target.value })}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-200"
+                                                    placeholder="Ej: Limpieza Dental"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="text-xs font-black uppercase text-slate-400 mb-2 block">Especialidad</label>
+                                                    <select
+                                                        value={serviceFormData.specialty_name}
+                                                        onChange={(e) => setServiceFormData({ ...serviceFormData, specialty_name: e.target.value })}
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-200"
+                                                    >
+                                                        {specialties.map(spec => (
+                                                            <option key={spec} value={spec}>{spec}</option>
+                                                        ))}
+                                                        <option value="">Otra...</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-black uppercase text-slate-400 mb-2 block">Color</label>
+                                                    <input
+                                                        type="color"
+                                                        value={serviceFormData.specialty_color}
+                                                        onChange={(e) => setServiceFormData({ ...serviceFormData, specialty_color: e.target.value })}
+                                                        className="w-full h-12 rounded-xl cursor-pointer border border-slate-200"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="text-xs font-black uppercase text-slate-400 mb-2 block">Precio (€)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={serviceFormData.final_price}
+                                                        onChange={(e) => setServiceFormData({ ...serviceFormData, final_price: parseFloat(e.target.value) || 0 })}
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-200"
+                                                        min="0"
+                                                        step="0.01"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-black uppercase text-slate-400 mb-2 block">Duración (min)</label>
+                                                    <input
+                                                        type="number"
+                                                        value={serviceFormData.duration_min}
+                                                        onChange={(e) => setServiceFormData({ ...serviceFormData, duration_min: parseInt(e.target.value) || 30 })}
+                                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-2 focus:ring-violet-200"
+                                                        min="5"
+                                                        step="5"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex gap-4 mt-8">
+                                            <button
+                                                onClick={() => setIsServiceModalOpen(false)}
+                                                className="flex-1 py-3 font-bold text-slate-500 hover:bg-slate-50 rounded-xl transition-colors"
+                                            >
+                                                Cancelar
+                                            </button>
+                                            <button
+                                                onClick={handleSaveService}
+                                                disabled={!serviceFormData.name || !serviceFormData.final_price}
+                                                className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 text-white py-3 rounded-xl font-bold uppercase flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <Check size={18} />
+                                                {editingService ? 'Guardar' : 'Crear'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
 
                 {settingsTab === 'templates' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4">

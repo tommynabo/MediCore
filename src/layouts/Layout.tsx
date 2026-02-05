@@ -23,7 +23,6 @@ const Layout: React.FC = () => {
         { id: 'patients', label: 'Pacientes', icon: Users, path: '/pacientes' },
         { id: 'agenda', label: 'Agenda', icon: Calendar, path: '/agenda' },
         { id: 'billing', label: 'Facturación', icon: Activity, path: '/billing' },
-        { id: 'services', label: 'Servicios', icon: Stethoscope, path: '/servicios' },
         { id: 'ai', label: 'Asistente IA', icon: Brain, path: '/ai' },
         { id: 'payroll', label: 'Nóminas', icon: Users, path: '/payroll' },
         { id: 'settings', label: 'Configuración', icon: Settings, path: '/settings' },

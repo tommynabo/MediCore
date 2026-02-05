@@ -65,7 +65,8 @@ export const api = {
                 qrUrl: inv.qrUrl || inv.qr_url,
                 patientId: inv.patientId || inv.patient_id,
                 amount: Number(inv.amount),
-                paymentMethod: inv.paymentMethod || inv.payment_method
+                paymentMethod: inv.paymentMethod || inv.payment_method,
+                concept: inv.concept // Added for filtering
             }));
         },
         create: async (invoiceData: any): Promise<Invoice> => {

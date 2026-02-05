@@ -10,7 +10,6 @@ import Stock from './src/pages/Stock';
 import AI from './src/pages/AI';
 import Payroll from './src/pages/Payroll';
 import Settings from './src/pages/Settings';
-import Services from './src/pages/Services';
 import Login from './src/pages/Login';
 
 import { AppointmentDetails } from './src/pages/AppointmentDetails';
@@ -31,7 +30,6 @@ const App: React.FC = () => {
             <Route path="stock" element={<Stock />} />
             <Route path="ai" element={<AI />} />
             <Route path="payroll" element={<Payroll />} />
-            <Route path="servicios" element={<Services />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           {/* Fallback route */}

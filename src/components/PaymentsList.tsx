@@ -4,9 +4,10 @@ import { api } from '../services/api';
 
 interface PaymentsListProps {
     patientId: string;
+    invoices: any[]; // Passed from parent to avoid re-fetching
 }
 
-export const PaymentsList: React.FC<PaymentsListProps> = ({ patientId }) => {
+export const PaymentsList: React.FC<PaymentsListProps> = ({ patientId, invoices }) => {
     const [payments, setPayments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -25,23 +26,42 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ patientId }) => {
 
     return (
         <div className="space-y-2">
-            {payments.map(pay => (
-                <div key={pay.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
-                    <div>
-                        <p className="text-sm font-black text-slate-900">
-                            {pay.method === 'cash' ? 'Efectivo' : pay.method === 'card' ? 'Tarjeta' : 'Transferencia'}
-                        </p>
-                        <p className="text-[10px] font-bold text-slate-400">
-                            {new Date(pay.createdAt).toLocaleDateString()} - {pay.type === 'ADVANCE_PAYMENT' ? 'Anticipo' : 'Pago Factura'}
-                        </p>
+            {payments.map(pay => {
+                // Find related invoice
+                // Check both directions: Payment.invoiceId OR Invoice.relatedPaymentId
+                const relatedInvoice = invoices.find(inv =>
+                    inv.id === pay.invoiceId || inv.relatedPaymentId === pay.id
+                );
+
+                return (
+                    <div key={pay.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-xl">
+                        <div>
+                            <p className="text-sm font-black text-slate-900">
+                                {pay.method === 'cash' ? 'Efectivo' : pay.method === 'card' ? 'Tarjeta' : 'Transferencia'}
+                            </p>
+                            <p className="text-[10px] font-bold text-slate-400">
+                                {new Date(pay.createdAt).toLocaleDateString()} - {pay.type === 'ADVANCE_PAYMENT' ? 'Anticipo' : 'Pago Factura'}
+                            </p>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <p className={`text-sm font-black ${pay.type === 'ADVANCE_PAYMENT' ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                {pay.type === 'ADVANCE_PAYMENT' ? '+' : ''}{pay.amount}€
+                            </p>
+                            {relatedInvoice?.url && (
+                                <a
+                                    href={relatedInvoice.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                    title={`Descargar Factura ${relatedInvoice.invoiceNumber}`}
+                                >
+                                    <Download size={14} />
+                                </a>
+                            )}
+                        </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <p className={`text-sm font-black ${pay.type === 'ADVANCE_PAYMENT' ? 'text-emerald-600' : 'text-slate-900'}`}>
-                            {pay.type === 'ADVANCE_PAYMENT' ? '+' : ''}{pay.amount}€
-                        </p>
-                    </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 };
