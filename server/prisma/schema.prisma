@@ -170,6 +170,7 @@ model Invoice {
   status         String
   paymentMethod  String?       // "Credit Card", "Cash", "Transfer", "Balance", "Wallet"
   url            String?       // Direct PDF Link
+  externalId     String?       // External ID from Invoicing Provider (Quipu/FD)
   items          InvoiceItem[]
   concept        String?       // "Pago a Cuenta" | "Tratamiento: Endodoncia" etc
   relatedPaymentId String?     @unique
