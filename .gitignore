@@ -27,3 +27,4 @@ dist-ssr
 *.sln
 *.sw?
 backups/*.zip
+CRM_MEDICO_BACKUP_*

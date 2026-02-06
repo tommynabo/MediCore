@@ -288,11 +288,12 @@ const Billing: React.FC = () => {
                                                 <td className="p-8 pr-10 text-right">
                                                     <div className="flex justify-end gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
                                                         <a
-                                                            href={`https://facturadirecta2.s3.amazonaws.com/tmp/com_sandbox_1_9ed0e047-4306-4b22-be3d-9bc0564ddc20/ad5f4c02-0638-40f4-b95d-20941941f005/factura_2026_01_22_test00000010_print.html`}
+                                                            href={inv.url}
                                                             target="_blank"
                                                             rel="noopener noreferrer"
-                                                            className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all shadow-sm hover:shadow-md"
-                                                            title="Descargar Factura (S3)"
+                                                            className={`w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center transition-all shadow-sm hover:shadow-md ${!inv.url ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200'}`}
+                                                            title={inv.url ? "Descargar Factura Oficial" : "PDF No disponible"}
+                                                            onClick={(e) => { if (!inv.url) e.preventDefault(); }}
                                                         >
                                                             <Download size={18} />
                                                         </a>

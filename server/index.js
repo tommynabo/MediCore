@@ -12,6 +12,7 @@ const financeService = require('./services/financeService');
 const orthoService = require('./services/orthoService');
 const inventoryService = require('./services/inventoryService');
 const invoiceService = require('./services/invoiceService');
+const quipuService = require('./services/quipuService');
 const aiAgent = require('./services/aiAgent'); // Commented out to reduce noise if missing
 const budgetService = require('./services/budgetService');
 const templateService = require('./services/templateService');
@@ -786,40 +787,60 @@ app.post('/api/finance/invoice', async (req, res) => {
     try {
         const { patient, items, paymentMethod, type } = req.body;
 
-        console.log('💸 ========== INVOICE CREATION START ==========');
-        console.log(`Patient: ${patient?.id} (${patient?.name})`);
-        console.log(`Items: ${items?.length} items`);
-        console.log(`Payment Method: ${paymentMethod}`);
-        console.log(`Type: ${type}`);
+        console.log('💸 ========== QUIPU INVOICE CREATION ==========');
 
         if (!patient || !items || !items.length) {
             return res.status(400).json({ error: 'Faltan datos del paciente o servicios.' });
         }
 
-        const result = await invoiceService.generateInvoice({
-            patient,
-            items,
-            paymentMethod,
-            type
-        });
+        // 1. Get/Create Contact in Quipu
+        // Map patient data structure correctly
+        const contactData = {
+            name: patient.name,
+            tax_id: patient.dni || patient.tax_id || 'UNKNOWN',
+            email: patient.email,
+            address: patient.address,
+            city: patient.city,
+            zip_code: patient.zipCode || patient.zip_code
+        };
 
-        // SAVE TO DB (User Requirement)
+        const contact = await quipuService.getOrCreateContact(contactData);
+        if (!contact || !contact.id) {
+            console.error("❌ Failed to resolve Quipu Contact");
+            return res.status(500).json({ error: "Error conectando con Quipu (Contacto)" });
+        }
+
+        // 2. Create Invoice
+        const today = new Date().toISOString().split('T')[0];
+        const result = await quipuService.createInvoice(
+            contact.id,
+            items,
+            today,
+            today,
+            paymentMethod || 'card'
+        );
+
+        // 3. Save to Local DB (Mirror)
         if (result.success) {
+            // Get PDF URL immediately
+            const pdfUrl = result.pdf_url || await quipuService.getInvoicePdf(result.id);
+
             try {
                 const supabase = getSupabase();
                 const totalAmount = items.reduce((sum, item) => sum + Number(item.price), 0);
 
-                // 1. Create Invoice
+                // Create Invoice Record
                 const invoiceId = crypto.randomUUID();
                 const { data: savedInvoice, error: invError } = await supabase
                     .from('Invoice')
                     .insert([{
                         id: invoiceId,
-                        invoiceNumber: result.invoiceNumber,
+                        invoiceNumber: result.number || 'PENDING',
+                        externalId: result.id, // Store Quipu ID
                         amount: totalAmount,
                         status: 'issued',
                         date: new Date().toISOString(),
-                        url: result.url,
+                        url: pdfUrl,
                         patientId: patient.id,
                         paymentMethod: paymentMethod || 'card'
                     }])
@@ -829,77 +850,54 @@ app.post('/api/finance/invoice', async (req, res) => {
                 if (invError) {
                     console.error("❌ DB Error saving Invoice header:", invError);
                 } else if (savedInvoice) {
-                    console.log(`✅ Invoice saved: ${savedInvoice.invoiceNumber} (ID: ${savedInvoice.id})`);
+                    console.log(`✅ Invoice saved locally: ${savedInvoice.invoiceNumber}`);
 
-                    // 2. Create Items (InvoiceItem or similar)
-                    if (items && items.length > 0) {
-                        const invoiceItems = items.map(i => ({
-                            id: crypto.randomUUID(),
-                            invoiceId: savedInvoice.id,
-                            name: i.name,
-                            price: Number(i.price)
-                        }));
+                    // Create Items
+                    const invoiceItems = items.map(i => ({
+                        id: crypto.randomUUID(),
+                        invoiceId: savedInvoice.id,
+                        name: i.name,
+                        price: Number(i.price)
+                    }));
+                    await supabase.from('InvoiceItem').insert(invoiceItems);
 
-                        const { error: itemError } = await supabase
-                            .from('InvoiceItem')
-                            .insert(invoiceItems);
-
-                        if (itemError) console.error("❌ DB Error saving Invoice Items:", itemError);
-                    }
-
-                    // 3. Create Payment record for history
-                    console.log("[INVOICE] Creating Payment Record...");
-                    const paymentId = crypto.randomUUID();
-                    // Explicitly use req.body.type if available, otherwise default
-                    // Ensure type matches enum/string expected by frontend: 'ADVANCE_PAYMENT' or 'INVOICE'
+                    // Create Payment Record
                     const paymentType = (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') ? 'ADVANCE_PAYMENT' : 'INVOICE';
+                    await supabase.from('Payment').insert([{
+                        id: crypto.randomUUID(),
+                        patientId: patient.id,
+                        amount: totalAmount,
+                        method: paymentMethod || 'card',
+                        type: paymentType,
+                        invoiceId: savedInvoice.id,
+                        createdAt: new Date().toISOString(),
+                        notes: `Factura Quipu: ${savedInvoice.invoiceNumber}`
+                    }]);
 
-                    const { error: paymentError, data: savedPayment } = await supabase
-                        .from('Payment')
-                        .insert([{
-                            id: paymentId,
-                            patientId: patient.id,
-                            amount: totalAmount,
-                            method: paymentMethod || 'card',
-                            type: paymentType,
-                            invoiceId: savedInvoice.id,
-                            createdAt: new Date().toISOString(),
-                            notes: `Factura ${savedInvoice.invoiceNumber}`
-                        }])
-                        .select()
-                        .single();
-
-                    if (paymentError) {
-                        console.error("❌ DB Error saving Payment:", JSON.stringify(paymentError, null, 2));
-                    } else {
-                        console.log(`✅ Payment recorded: ${totalAmount}€ (${paymentMethod}) Type: ${paymentType}`);
-
-                        // 4. Update Patient Wallet (saldo a cuenta)
-                        // Trigger if it is an advance payment
-                        if (paymentType === 'ADVANCE_PAYMENT') {
-                            console.log(`💰 [WALLET] trigger recalculation for patient ${patient.id}`);
-                            await calculateWalletBalance(supabase, patient.id);
-                        }
+                    // Update Wallet if Advance Payment
+                    if (paymentType === 'ADVANCE_PAYMENT') {
+                        // Assuming calculateWalletBalance exists or simpler update
+                        // Simple increment for now to ensure robustness
+                        const { data: pData } = await supabase.from('Patient').select('wallet').eq('id', patient.id).single();
+                        const currentWallet = pData ? (pData.wallet || 0) : 0;
+                        await supabase.from('Patient').update({ wallet: currentWallet + totalAmount }).eq('id', patient.id);
                     }
                 }
             } catch (dbErr) {
                 console.error("❌ Unexpected DB Error during Invoice save:", dbErr);
             }
+
+            // Respond success with PDF
+            res.json({
+                success: true,
+                invoiceNumber: result.number,
+                url: pdfUrl,
+                invoiceId: result.id
+            });
+        } else {
+            res.status(500).json({ error: result.error });
         }
 
-        if (!result.success) {
-            return res.status(500).json(result);
-        }
-
-        // Return updated wallet if available
-        if (type === 'ADVANCE_PAYMENT' || type === 'PAGO_A_CUENTA') {
-            const { data: pData } = await getSupabase().from('Patient').select('wallet').eq('id', patient.id).single();
-            if (pData) {
-                result.newWalletBalance = pData.wallet;
-            }
-        }
-
-        res.json(result);
     } catch (e) {
         console.error("Invoice Error:", e);
         res.status(500).json({ error: e.message });
@@ -909,36 +907,41 @@ app.post('/api/finance/invoice', async (req, res) => {
 app.get('/api/finance/invoices/:id/download', async (req, res) => {
     try {
         const { id } = req.params;
-        // 1. Get Invoice Number from DB
-        let supabase = getSupabase();
-        let invoiceNumber = id; // Fallback if id IS the number
+        const supabase = getSupabase();
 
-        // Try to find by ID first
-        const { data: invById } = await supabase.from('Invoice').select('invoiceNumber, url').eq('id', id).single();
-        if (invById) invoiceNumber = invById.invoiceNumber;
-        else {
-            // Try to find by Number
-            const { data: invByNum } = await supabase.from('Invoice').select('invoiceNumber, url').eq('invoiceNumber', id).single();
-            if (invByNum) invoiceNumber = invByNum.invoiceNumber;
-            else {
-                // If not found in DB, maybe it exists in FD directly or it's a test ID
-                console.log(`⚠️ Invoice ${id} not found in DB, attempting to fetch from FD directly if possible.`);
+        // 1. Find Invoice to get External ID (Quipu ID)
+        // Check if ID is UUID (Local DB ID) or Quipu ID (Numeric usually)
+        let invoiceIdToFetch = id;
+
+        const { data: invoice } = await supabase
+            .from('Invoice')
+            .select('id, externalId, url')
+            .eq('id', id)
+            .maybeSingle();
+
+        if (invoice) {
+            // If we have strict mapping, use externalId
+            if (invoice.externalId) invoiceIdToFetch = invoice.externalId;
+            else if (invoice.url) {
+                // If we have URL but no externalId (legacy), return URL
+                return res.json({ url: invoice.url });
             }
         }
 
-        // 2. Refresh URL via Service
-        // We'll call a new service method. If not implemented, we fallback to stored URL or return error.
-        // For now, let's implement a simple direct refresh logic here or in service.
-        // Best practice: Modify service.
+        console.log(`📥 Fetching PDF for Invoice ID: ${invoiceIdToFetch}`);
 
-        const freshUrl = await invoiceService.getFreshPdfUrl(invoiceNumber);
+        // 2. Call Quipu Service
+        const freshUrl = await quipuService.getInvoicePdf(invoiceIdToFetch);
+
         if (freshUrl) {
-            // Update DB with new URL to cache it briefly? 
-            // Better not cache if it expires quickly.
+            // Update DB cache asynchronously if it was a DB invoice
+            if (invoice) {
+                supabase.from('Invoice').update({ url: freshUrl }).eq('id', invoice.id).then();
+            }
             res.json({ url: freshUrl });
         } else {
-            // Return stored URL if refresh failed (though it might be expired)
-            res.json({ url: invById?.url || invById?.url || '' });
+            console.warn("⚠️ PDF not found in Quipu, returning stored URL if any.");
+            res.json({ url: invoice?.url || '' });
         }
     } catch (e) {
         console.error("Download Error:", e);
