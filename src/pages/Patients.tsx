@@ -95,6 +95,17 @@ const Patients: React.FC = () => {
         }
     };
 
+    const handleDownloadInvoice = async (invoiceId: string) => {
+        try {
+            const { url } = await (api.invoices as any).getDownloadUrl(invoiceId);
+            if (url) window.open(url, '_blank');
+            else alert("No se pudo obtener el PDF. Intente más tarde.");
+        } catch (e) {
+            console.error(e);
+            alert("Error al descargar factura.");
+        }
+    };
+
     // Prescriptions
     const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
     const [prescriptionText, setPrescriptionText] = useState("");
@@ -749,8 +760,12 @@ const Patients: React.FC = () => {
                                                                     href={inv.url || '#'}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
-                                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                                                    title="Descargar Factura (S3 Link)"
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        handleDownloadInvoice(inv.id);
+                                                                    }}
+                                                                    className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors cursor-pointer"
+                                                                    title="Descargar Factura (PDF Fresco)"
                                                                 >
                                                                     <Download size={14} />
                                                                 </a >

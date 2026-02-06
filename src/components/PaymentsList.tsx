@@ -11,6 +11,17 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ patientId, invoices 
     const [payments, setPayments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const handleDownload = async (id: string) => {
+        try {
+            const { url } = await (api.invoices as any).getDownloadUrl(id);
+            if (url) window.open(url, '_blank');
+            else alert("Error obteniendo PDF");
+        } catch (e) {
+            console.error(e);
+            alert("Error al descargar");
+        }
+    };
+
     useEffect(() => {
         api.payments.getByPatient(patientId)
             .then(setPayments)
@@ -48,15 +59,13 @@ export const PaymentsList: React.FC<PaymentsListProps> = ({ patientId, invoices 
                                 {pay.type === 'ADVANCE_PAYMENT' ? '+' : ''}{pay.amount}€
                             </p>
                             {relatedInvoice?.url && (
-                                <a
-                                    href={relatedInvoice.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                <button
+                                    onClick={() => handleDownload(relatedInvoice.id)}
                                     className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
                                     title={`Descargar Factura ${relatedInvoice.invoiceNumber}`}
                                 >
                                     <Download size={14} />
-                                </a>
+                                </button>
                             )}
                         </div>
                     </div>

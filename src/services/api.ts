@@ -84,6 +84,14 @@ export const api = {
                 url: data.url || data.pdf_url,
                 qrUrl: data.qrUrl || data.qr_url,
             };
+        },
+        getDownloadUrl: async (id: string) => {
+            const res = await fetch(`${API_URL}/finance/invoices/${id}/download`, {
+                method: 'GET',
+                headers
+            });
+            if (!res.ok) throw new Error('Failed to get download URL');
+            return res.json();
         }
     },
 
