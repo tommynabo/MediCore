@@ -166,11 +166,14 @@ async function createInvoice(contactId, items, date, dueDate, paymentMethod = 'c
 
     // Payment method mapping (Quipu API values)
     const methodMap = {
-        'card': 'credit_card',
-        'credit_card': 'credit_card', // ensure passtrough
+        'card': 'bank_card',
+        'credit_card': 'bank_card', // Correct Quipu value is 'bank_card'
         'cash': 'cash',
         'transfer': 'bank_transfer',
-        'bank_transfer': 'bank_transfer'
+        'bank_transfer': 'bank_transfer',
+        'direct_debit': 'direct_debit',
+        'paypal': 'paypal',
+        'check': 'check'
     };
     const finalMethod = methodMap[paymentMethod] || 'cash'; // Fallback to cash if unknown to avoid 422
 
