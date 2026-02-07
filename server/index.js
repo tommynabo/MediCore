@@ -936,16 +936,20 @@ app.get('/api/finance/invoices/:id/download', async (req, res) => {
         const urls = await quipuService.getInvoiceUrls(invoiceIdToFetch);
 
         if (urls) {
-            // Update DB cache asynchronously if it was a DB invoice
+            // Update DB cache with persistent URL (for backend use)
             if (invoice) {
                 supabase.from('Invoice').update({ url: urls.download }).eq('id', invoice.id).then();
             }
+            // Send EPHEMERAL/PREVIEW URL to frontend so they can access it without Token
             res.json({
-                url: urls.download,
-                previewUrl: urls.preview
+                url: urls.preview, // Use preview/ephemeral as the main URL for frontend
+                previewUrl: urls.preview,
+                persistentUrl: urls.download
             });
         } else {
             console.warn("⚠️ PDF not found in Quipu, returning stored URL if any.");
+            // If stored URL is authenticated, it might fail for user, but better than nothing?
+            // Actually, if we have no fresh URL, the stored one (authenticated) effectively is dead for frontend.
             res.json({ url: invoice?.url || '' });
         }
     } catch (e) {
