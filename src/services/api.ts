@@ -103,6 +103,16 @@ export const api = {
         }
     },
 
+    // Liquidations / Payroll
+    getLiquidations: async (doctorId?: string, month?: string) => {
+        const params = new URLSearchParams();
+        if (doctorId) params.append('doctorId', doctorId);
+        if (month) params.append('month', month);
+        const res = await fetch(`${API_URL}/liquidations?${params.toString()}`, { headers });
+        if (!res.ok) throw new Error('Failed to fetch liquidations');
+        return res.json();
+    },
+
     // Payments (New)
     payments: {
         getByPatient: async (patientId: string) => {

@@ -37,17 +37,41 @@ async function getPayroll(prisma, doctorId, monthStr) {
     const where = {};
     if (doctorId) where.doctorId = doctorId;
 
-    // Date filtering logic could be added here
+    // Date filtering logic could be added here using monthStr
 
     const records = await prisma.liquidation.findMany({
         where,
-        include: { appointment: { include: { treatment: true, patient: true } } }
+        include: {
+            appointment: {
+                include: {
+                    treatment: true,
+                    patient: true
+                }
+            }
+        },
+        orderBy: { createdAt: 'desc' }
     });
 
-    const total = records.reduce((sum, r) => sum + r.finalAmount, 0);
+    // Format records for frontend display
+    const formattedRecords = records.map(r => ({
+        id: r.id,
+        doctorId: r.doctorId,
+        grossAmount: r.grossAmount,
+        labCost: r.labCost || 0,
+        commissionRate: r.commissionRate,
+        finalAmount: r.finalAmount,
+        status: r.status,
+        date: r.createdAt || r.appointment?.date,
+        treatmentName: r.appointment?.treatment?.name ||
+            r.appointment?.notes ||
+            'Pago con Saldo',
+        patientName: r.appointment?.patient?.name || 'Paciente'
+    }));
+
+    const total = formattedRecords.reduce((sum, r) => sum + r.finalAmount, 0);
 
     return {
-        records,
+        records: formattedRecords,
         totalToPay: total
     };
 }
