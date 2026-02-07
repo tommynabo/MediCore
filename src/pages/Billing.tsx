@@ -150,7 +150,13 @@ const Billing: React.FC = () => {
 
     const handleDownloadZip = async (date: string) => {
         // Logic from App.tsx
-        const dailyInvoices = invoices.filter(inv => inv.date === date);
+        // Fix: Compare only the YYYY-MM-DD part of the ISO string
+        const dailyInvoices = invoices.filter(inv => {
+            if (!inv.date) return false;
+            // Handle both ISO strings and plain dates
+            return inv.date.split('T')[0] === date;
+        });
+
         if (dailyInvoices.length === 0) {
             alert(`No hay facturas emitidas el día ${date}.`);
             return;
@@ -159,12 +165,12 @@ const Billing: React.FC = () => {
             if (api.downloadBatchZip) {
                 await api.downloadBatchZip(dailyInvoices, date);
                 localStorage.setItem('lastBatchDownloadDate', date);
-                alert(`✅ Descarga iniciada: ${dailyInvoices.length} facturas incluidas.`);
+                // Notification handled by browser download
             } else {
                 alert("Función de descarga no disponible.");
             }
         } catch (e) {
-            alert("Error al descargar el archivo ZIP.");
+            alert("Error al descargar el archivo ZIP. Revise la consola.");
             console.error(e);
         }
     };
