@@ -77,8 +77,8 @@ const Billing: React.FC = () => {
                 date: new Date().toISOString(),
                 status: 'issued',
                 paymentMethod: 'card',
-                // Prefer API URL, fallback to dynamic simulation
-                url: data.url || data.pdf_url || `https://facturadirecta2.s3.amazonaws.com/tmp/simulated_path/${data.invoiceNumber || 'draft'}/factura_${data.invoiceNumber || Date.now()}_print.html`,
+                // Prefer Preview URL for immediate viewing (ephemeral), fallback to authenticated URL
+                url: data.previewUrl || data.url || data.pdf_url || `https://facturadirecta2.s3.amazonaws.com/tmp/simulated_path/${data.invoiceNumber || 'draft'}/factura_${data.invoiceNumber || Date.now()}_print.html`,
                 qrUrl: data.qr_url || data.qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://verifactu.sede.gob.es/vn?td=FACTURA_DIRECTA_${data.invoiceNumber || 'DEMO'}`
             };
 
@@ -92,9 +92,10 @@ const Billing: React.FC = () => {
 
             alert(`✅ Factura ${data.invoiceNumber || data.invoice_number} emitida con éxito!`);
 
-            // Open PDF only if URL exists
-            if (data.url || data.pdf_url) {
-                window.open(data.url || data.pdf_url, '_blank');
+            // Open PDF immediately (Prefer Preview URL for browser)
+            const openUrl = data.previewUrl || data.url || data.pdf_url;
+            if (openUrl) {
+                window.open(openUrl, '_blank');
             }
 
             setIsInvoiceModalOpen(false);
@@ -126,6 +127,26 @@ const Billing: React.FC = () => {
         const byCash = invoices.filter(i => i.paymentMethod === 'cash').reduce((acc, curr) => acc + curr.amount, 0);
         return { total, byCard, byCash, count: invoices.length };
     }, [invoices]);
+
+    const handleDownloadInvoice = async (invoice: Invoice) => {
+        try {
+            // Attempt to get a fresh URL (ephemeral or proxy)
+            const data = await api.invoices.getDownloadUrl(invoice.id);
+            if (data.url || data.previewUrl) {
+                window.open(data.url || data.previewUrl, '_blank');
+            } else {
+                alert("No se pudo obtener la URL de descarga. Inténtelo de nuevo.");
+            }
+        } catch (e) {
+            console.error("Download error:", e);
+            // Fallback to stored URL if available (though likely authenticated/broken if that's the issue)
+            if (invoice.url) {
+                window.open(invoice.url, '_blank');
+            } else {
+                alert("Error al descargar la factura.");
+            }
+        }
+    };
 
     const handleDownloadZip = async (date: string) => {
         // Logic from App.tsx
@@ -287,16 +308,14 @@ const Billing: React.FC = () => {
                                                 </td>
                                                 <td className="p-8 pr-10 text-right">
                                                     <div className="flex justify-end gap-3 opacity-60 group-hover:opacity-100 transition-opacity">
-                                                        <a
-                                                            href={inv.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
+                                                        <button
+                                                            onClick={() => handleDownloadInvoice(inv)}
                                                             className={`w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center transition-all shadow-sm hover:shadow-md ${!inv.url ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : 'bg-white text-slate-400 hover:text-blue-600 hover:border-blue-200'}`}
                                                             title={inv.url ? "Descargar Factura Oficial" : "PDF No disponible"}
-                                                            onClick={(e) => { if (!inv.url) e.preventDefault(); }}
+                                                            disabled={!inv.url}
                                                         >
                                                             <Download size={18} />
-                                                        </a>
+                                                        </button>
                                                         <button
                                                             onClick={() => alert(`📧 Factura enviada a ${patients.find(p => p.id === inv.patientId)?.email || 'cliente'}.`)}
                                                             className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm hover:shadow-md"
