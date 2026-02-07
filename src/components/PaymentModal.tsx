@@ -54,7 +54,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             // 1. Create Invoice (Type ADVANCE_PAYMENT triggers wallet update in backend)
             const invoiceData = {
                 patientId: patient.id, // Ensure patientId is passed directly if backend expects it inside object
-                // patient: patient, // Legacy support if needed
+                patient: patient, // Required by backend validation
                 amount: amount,
                 items: [{ name: concept, price: amount }],
                 paymentMethod,

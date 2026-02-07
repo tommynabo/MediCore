@@ -30,7 +30,7 @@ const createBudget = async (supabase, patientId, items = [], title = "") => {
             quantity: Number(item.quantity) || 1,
             tooth: item.tooth ? String(item.tooth) : null,
             face: item.face || null,
-            treatmentId: item.treatmentId || null
+            treatmentId: null // Force null to avoid FK constraint error (PatientTreatment ID != Treatment ID)
         }));
 
         const { error: itemsError } = await supabase
