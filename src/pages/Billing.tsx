@@ -70,7 +70,7 @@ const Billing: React.FC = () => {
 
             // Add invoice to local state
             const newInvoice: any = {
-                id: data.invoiceNumber || data.invoice_number || `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                id: data.invoiceId || data.id || `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 invoiceNumber: data.invoiceNumber || data.invoice_number,
                 amount: invoiceItems.reduce((sum, i) => sum + i.price, 0),
                 patientId: patient.id,

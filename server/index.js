@@ -894,7 +894,9 @@ app.post('/api/finance/invoice', async (req, res) => {
                 invoiceNumber: result.number,
                 url: pdfUrl,
                 previewUrl: previewUrl,
-                invoiceId: result.id
+                invoiceId: savedInvoice.id, // Use Local UUID
+                id: savedInvoice.id,         // Use Local UUID for frontend compatibility
+                externalId: result.id        // Send Quipu ID for reference
             });
         } else {
             res.status(500).json({ error: result.error });
@@ -909,6 +911,7 @@ app.post('/api/finance/invoice', async (req, res) => {
 app.get('/api/finance/invoices/:id/download', async (req, res) => {
     try {
         const { id } = req.params;
+        console.log(`📥 Request to download Invoice ID: ${id}`);
         const supabase = getSupabase();
 
         // 1. Find Invoice to get External ID (Quipu ID)

@@ -100,6 +100,7 @@ model PatientTreatment {
   serviceId   String?   // Referencia al catálogo Treatment
   service     Treatment?  @relation(fields: [serviceId], references: [id])
   toothId     Int?     // Número del diente (ej: 21, 36)
+  price       Float    @default(0.0) // Base Price
   customPrice Float?   // Precio personalizado si difiere del base
   status      String   @default("PENDIENTE") // PENDIENTE, EN_PROCESO, COMPLETADO
   notes       String?
