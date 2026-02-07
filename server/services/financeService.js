@@ -72,7 +72,7 @@ async function createFinancingPlan(prisma, { patientId, name, totalAmount, downP
         data: {
             patientId,
             name,
-            totalAmount,
+            totalCost: totalAmount, // Schema uses totalCost, we receive totalAmount
             startDate,
             duration: installmentsCount,
             status: 'ACTIVE'

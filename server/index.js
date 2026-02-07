@@ -1016,6 +1016,36 @@ app.post('/api/finance/pay-with-wallet', async (req, res) => {
 
         // 5. Create Liquidation (Doctor Commission)
         if (doctorId) {
+            // Get doctor's commission rate
+            const { data: doctor } = await supabase.from('Doctor').select('commissionPercentage').eq('id', doctorId).single();
+            const commissionRate = doctor?.commissionPercentage || 0;
+
+            // Get treatment details to calculate labCost
+            let totalLabCost = 0;
+            if (treatmentIds && treatmentIds.length > 0) {
+                // Try to get treatments from PatientTreatment
+                const { data: treatmentData } = await supabase
+                    .from('PatientTreatment')
+                    .select('serviceId, price')
+                    .in('id', treatmentIds);
+
+                if (treatmentData && treatmentData.length > 0) {
+                    // Get lab costs from Treatment table if serviceId exists
+                    const serviceIds = treatmentData.map(t => t.serviceId).filter(id => id);
+                    if (serviceIds.length > 0) {
+                        const { data: services } = await supabase
+                            .from('Treatment')
+                            .select('id, labCost')
+                            .in('id', serviceIds);
+
+                        if (services) {
+                            totalLabCost = services.reduce((sum, s) => sum + (s.labCost || 0), 0);
+                        }
+                    }
+                }
+            }
+
+            // Create a shadow appointment for the liquidation (required by schema)
             const appointmentId = crypto.randomUUID();
             const { error: appError } = await supabase.from('Appointment').insert([{
                 id: appointmentId,
@@ -1023,23 +1053,30 @@ app.post('/api/finance/pay-with-wallet', async (req, res) => {
                 doctorId,
                 date: new Date().toISOString(),
                 time: new Date().toLocaleTimeString(),
-                status: 'COMPLETED'
+                status: 'Completed'  // Use proper status format
             }]);
 
             if (!appError) {
-                const { data: doctor } = await supabase.from('Doctor').select('commissionPercentage').eq('id', doctorId).single();
-                const commissionRate = doctor?.commissionPercentage || 0;
+                // Calculate net amount and commission
+                const netAmount = amount - totalLabCost;
+                const finalAmount = netAmount > 0 ? netAmount * commissionRate : 0;
+
+                console.log(`💰 Liquidation: Gross=${amount}, LabCost=${totalLabCost}, Net=${netAmount}, Rate=${commissionRate}, Final=${finalAmount}`);
 
                 await supabase.from('Liquidation').insert([{
                     id: crypto.randomUUID(),
                     doctorId,
                     appointmentId,
                     grossAmount: amount,
-                    labCost: 0,
+                    labCost: totalLabCost,
                     commissionRate,
-                    finalAmount: amount * commissionRate,
-                    status: 'PENDING'
+                    finalAmount,
+                    status: 'PENDING',
+                    createdAt: new Date().toISOString()
                 }]);
+                console.log(`✅ Liquidation created for Doctor ${doctorId}`);
+            } else {
+                console.error("❌ Error creating shadow appointment:", appError);
             }
         }
 
