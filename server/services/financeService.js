@@ -146,14 +146,8 @@ async function createFinancingPlan(prisma, { patientId, name, totalAmount, downP
             const patient = await prisma.patient.findUnique({ where: { id: patientId } });
             if (patient) {
                 const quipuService = require('./quipuService');
-                const { createClient } = require('@supabase/supabase-js');
+                // const { createClient } = require('@supabase/supabase-js'); // Unused
                 const crypto = require('crypto');
-
-                // Initialize Supabase
-                const supabase = createClient(
-                    process.env.SUPABASE_URL,
-                    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
-                );
 
                 // Create contact in Quipu
                 const contact = await quipuService.getOrCreateContact(patient);
@@ -170,45 +164,60 @@ async function createFinancingPlan(prisma, { patientId, name, totalAmount, downP
                     );
 
                     if (invoiceResult && invoiceResult.success) {
-                        // Update the installment with invoice info
-                        await prisma.installment.update({
-                            where: { id: downPaymentInst.id },
-                            data: {
-                                invoiceId: invoiceResult.id,
-                                invoicedAt: new Date(),
-                                status: 'PAID'
-                            }
-                        });
+                        try {
+                            // 1. Save to CRM Invoice Table (Using Prisma)
+                            const savedInvoice = await prisma.invoice.create({
+                                data: {
+                                    invoiceNumber: invoiceResult.number || 'PENDING',
+                                    externalId: invoiceResult.id.toString(),
+                                    amount: parseFloat(downPayment),
+                                    status: 'issued',
+                                    date: new Date(),
+                                    url: invoiceResult.pdf_url || null, // Might be null initially
+                                    patientId: patient.id,
+                                    paymentMethod: 'card',
+                                    concept: `${name} - Entrada Inicial`
+                                }
+                            });
+                            console.log(`✅ Invoice saved to CRM (Prisma): ${savedInvoice.invoiceNumber}`);
 
-                        // ALSO save to CRM Invoice table so it appears in Facturación section
-                        const invoiceId = crypto.randomUUID();
-                        const { data: savedInvoice, error: invError } = await supabase
-                            .from('Invoice')
-                            .insert([{
-                                id: invoiceId,
-                                invoiceNumber: invoiceResult.number || 'PENDING',
-                                externalId: invoiceResult.id,
-                                amount: downPayment,
-                                status: 'issued',
-                                date: new Date().toISOString(),
-                                url: invoiceResult.pdf_url || null,
-                                patientId: patient.id,
-                                paymentMethod: 'card'
-                            }])
-                            .select()
-                            .single();
+                            // 2. Create Payment Record (So it appears in Payment History)
+                            // Check if Payment model exists and has relation? Yes, based on schema.
+                            await prisma.payment.create({
+                                data: {
+                                    patientId: patient.id,
+                                    amount: parseFloat(downPayment),
+                                    method: 'card',
+                                    type: 'DIRECT_CHARGE',
+                                    invoiceId: savedInvoice.id,
+                                    notes: `Entrada Financiación: ${name}`
+                                }
+                            });
+                            console.log(`✅ Payment record created for invoice ${savedInvoice.invoiceNumber}`);
 
-                        if (invError) {
-                            console.error('⚠️ Failed to save invoice to CRM:', invError.message);
-                        } else {
-                            console.log(`✅ Invoice saved to CRM: ${savedInvoice.invoiceNumber}`);
+                            // 3. Update the installment
+                            await prisma.installment.update({
+                                where: { id: downPaymentInst.id },
+                                data: {
+                                    invoiceId: invoiceResult.id.toString(), // Keep Quipu ID for reference? Or use savedInvoice.id?
+                                    // Existing logic used Quipu ID. Let's keep consistency for now.
+                                    invoiceId: invoiceResult.id.toString(),
+                                    invoicedAt: new Date(),
+                                    status: 'PAID'
+                                }
+                            });
+
+                            downPaymentInvoice = {
+                                ...invoiceResult,
+                                crmInvoiceId: savedInvoice.id
+                            };
+                            console.log(`✅ Down payment invoice created: ${invoiceResult.number}`);
+
+                        } catch (dbError) {
+                            console.error('❌ Error saving invoice/payment to DB:', dbError);
+                            // Even if DB save fails, we return the Quipu result so flow continues
+                            downPaymentInvoice = invoiceResult;
                         }
-
-                        downPaymentInvoice = {
-                            ...invoiceResult,
-                            crmInvoiceId: savedInvoice?.id
-                        };
-                        console.log(`✅ Down payment invoice created: ${invoiceResult.number}`);
                     }
                 }
             }
