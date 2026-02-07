@@ -148,7 +148,7 @@ async function createFinancingPlan(prisma, { patientId, name, totalAmount, downP
                 const quipuService = require('./quipuService');
 
                 // Create contact in Quipu
-                const contact = await quipuService.findOrCreateContact(patient);
+                const contact = await quipuService.getOrCreateContact(patient);
 
                 if (contact && contact.id) {
                     // Create invoice
@@ -232,7 +232,7 @@ async function processDueInstallments(prisma) {
             if (!patient) continue;
 
             // Create contact in Quipu
-            const contact = await quipuService.findOrCreateContact(patient);
+            const contact = await quipuService.getOrCreateContact(patient);
             if (!contact || !contact.id) continue;
 
             // Create invoice
