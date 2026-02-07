@@ -62,6 +62,7 @@ const Patients: React.FC = () => {
             await api.budget.updateStatus(selectedBudgetForFinance.id, 'accepted');
             await api.budget.createFinancing({
                 patientId: selectedPatient!.id,
+                name: selectedBudgetForFinance.title || `Financiación Presupuesto #${selectedBudgetForFinance.id.slice(0, 6)}`,
                 budgetId: selectedBudgetForFinance.id,
                 totalAmount: selectedBudgetForFinance.totalAmount || selectedBudgetForFinance.items.reduce((acc: number, item: any) => acc + (Number(item.price) * (item.quantity || 1)), 0),
                 downPayment: planData.downPayment,
@@ -330,9 +331,16 @@ const Patients: React.FC = () => {
             // 3. Notify and Switch Tab
             alert("✅ Factura generada correctamente.");
 
-            // Open PDF if available
-            if (result.url || result.previewUrl) {
-                window.open(result.url || result.previewUrl, '_blank');
+            // Open PDF using download endpoint (ephemeral URLs expire quickly)
+            if (result.id) {
+                try {
+                    const downloadData = await api.invoices.getDownloadUrl(result.id);
+                    if (downloadData.url) {
+                        window.open(downloadData.url, '_blank');
+                    }
+                } catch (dlErr) {
+                    console.log("Could not open PDF:", dlErr);
+                }
             }
 
             // Refresh invoices
