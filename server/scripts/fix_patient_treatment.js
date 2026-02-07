@@ -2,20 +2,18 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log("🚀 Starting Schema Fix (Round 2)...");
+    console.log("🚀 Starting Schema Fix (Round 3 - FK Removal)...");
 
     try {
-        // Add Price Column (Re-run for safety)
-        await prisma.$executeRawUnsafe(`ALTER TABLE "PatientTreatment" ADD COLUMN IF NOT EXISTS "price" DOUBLE PRECISION DEFAULT 0;`);
-        console.log("✅ 'price' column confirmed.");
+        // Drop Foreign Key Constraint if it exists
+        try {
+            await prisma.$executeRawUnsafe(`ALTER TABLE "PatientTreatment" DROP CONSTRAINT IF EXISTS "PatientTreatment_serviceId_fkey";`);
+            console.log("✅ Dropped FK constraint 'PatientTreatment_serviceId_fkey'.");
+        } catch (e) {
+            console.warn("⚠️ Error dropping constraint (might not exist):", e.message);
+        }
 
-        // Add Custom Price Column (Re-run for safety)
-        await prisma.$executeRawUnsafe(`ALTER TABLE "PatientTreatment" ADD COLUMN IF NOT EXISTS "customPrice" DOUBLE PRECISION DEFAULT 0;`);
-        console.log("✅ 'customPrice' column confirmed.");
-
-        // Add Service Name Column (New Fix)
-        await prisma.$executeRawUnsafe(`ALTER TABLE "PatientTreatment" ADD COLUMN IF NOT EXISTS "serviceName" TEXT;`);
-        console.log("✅ 'serviceName' column confirmed.");
+        // Also insure the column is nullable just in case (it is defined as String? in prisma so it should be fine)
 
         // Attempt to reload Supabase Schema Cache
         try {

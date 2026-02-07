@@ -97,9 +97,9 @@ model Treatment {
 model PatientTreatment {
   id          String   @id @default(uuid())
   patientId   String
-  serviceId   String?   // Referencia al catálogo Treatment
+  serviceId   String?   // Referencia al catálogo (services table or Treatment)
   serviceName String    // Nombre del tratamiento (Snapshot)
-  service     Treatment?  @relation(fields: [serviceId], references: [id])
+  // service     Treatment?  @relation(fields: [serviceId], references: [id]) -- REMOVED to avoid FK issues with legacy 'services' table
   toothId     Int?     // Número del diente (ej: 21, 36)
   price       Float    @default(0.0) // Base Price
   customPrice Float?   // Precio personalizado si difiere del base
