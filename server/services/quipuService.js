@@ -222,7 +222,9 @@ async function createInvoice(contactId, items, date, dueDate, paymentMethod = 'c
         return {
             success: true,
             id: invoice.id,
-            number: invoice.attributes.number || 'PENDING', // Might be null until approved depending on workflow
+            number: invoice.attributes.number || 'PENDING',
+            pdf_url: invoice.attributes.download_pdf_url,
+            preview_url: invoice.attributes.ephemeral_open_download_pdf_url, // Added Preview URL
             raw: invoice
         };
 
@@ -232,23 +234,58 @@ async function createInvoice(contactId, items, date, dueDate, paymentMethod = 'c
 }
 
 /**
- * 📥 Get PDF URL
+ * 📥 Get PDF URL (Legacy - returns Download URL)
  */
 async function getInvoicePdf(invoiceId) {
     try {
         const res = await makeRequest('GET', `/invoices/${invoiceId}`);
-        // As per documentation search: attributes.download_pdf_url
-        const url = res.data.attributes.download_pdf_url;
-        if (!url) console.warn('⚠️ PDF URL not found in invoice attributes.');
-        return url;
+        return res.data.attributes.download_pdf_url;
     } catch (error) {
         console.error(`❌ [Quipu] Failed to get PDF for ${invoiceId}`);
         return null;
     }
 }
 
+/**
+ * 📥 Get Both URLs (Download & Preview)
+ */
+async function getInvoiceUrls(invoiceId) {
+    try {
+        const res = await makeRequest('GET', `/invoices/${invoiceId}`);
+        return {
+            download: res.data.attributes.download_pdf_url,
+            preview: res.data.attributes.ephemeral_open_download_pdf_url
+        };
+    } catch (error) {
+        console.error(`❌ [Quipu] Failed to get URLs for ${invoiceId}`);
+        return null;
+    }
+}
+
+/**
+ * 📥 Download PDF Stream (Authenticated)
+ * useful for ZIP generation or backend proxying
+ */
+async function downloadPdf(url) {
+    try {
+        const token = await getAuthToken();
+        const response = await axios.get(url, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            responseType: 'stream',
+            timeout: 30000
+        });
+        return response.data;
+    } catch (error) {
+        console.error(`❌ [Quipu] Failed to download PDF: ${url}`, error.message);
+        // Try public/ephemeral fallback if url looks like one? No, explicit is better.
+        throw error;
+    }
+}
+
 module.exports = {
     getOrCreateContact,
     createInvoice,
-    getInvoicePdf
+    getInvoicePdf,
+    getInvoiceUrls,
+    downloadPdf
 };

@@ -1,5 +1,6 @@
 const archiver = require('archiver');
 const axios = require('axios');
+const quipuService = require('./quipuService');
 
 const FACTURA_DIRECTA_KEY = process.env.FACTURA_DIRECTA_KEY;
 const FACTURA_DIRECTA_CID = process.env.FACTURA_DIRECTA_CID; // e.g. com_sandbox_...
@@ -166,8 +167,18 @@ const exportBatchInvoices = async (invoices, date, res) => {
             if (inv.url && inv.url.startsWith('http')) {
                 try {
                     console.log(`⬇️ Downloading PDF for ${inv.invoiceNumber}: ${inv.url}`);
-                    const pdfResponse = await axios.get(inv.url, { responseType: 'stream' });
-                    archive.append(pdfResponse.data, { name: fileName });
+
+                    let pdfStream;
+                    if (inv.url.includes('getquipu.com') && !inv.url.includes('token=')) {
+                        // Authenticated Quipu Download
+                        pdfStream = await quipuService.downloadPdf(inv.url);
+                    } else {
+                        // Standard Public Download (FD or Ephemeral)
+                        const pdfResponse = await axios.get(inv.url, { responseType: 'stream' });
+                        pdfStream = pdfResponse.data;
+                    }
+
+                    archive.append(pdfStream, { name: fileName });
                 } catch (downloadErr) {
                     console.error(`❌ Failed to download PDF for ${inv.invoiceNumber}:`, downloadErr.message);
                     // Fallback to text file if download fails

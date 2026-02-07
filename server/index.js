@@ -824,6 +824,7 @@ app.post('/api/finance/invoice', async (req, res) => {
         if (result.success) {
             // Get PDF URL immediately
             const pdfUrl = result.pdf_url || await quipuService.getInvoicePdf(result.id);
+            const previewUrl = result.preview_url || undefined; // Use what we got from creation
 
             try {
                 const supabase = getSupabase();
@@ -892,6 +893,7 @@ app.post('/api/finance/invoice', async (req, res) => {
                 success: true,
                 invoiceNumber: result.number,
                 url: pdfUrl,
+                previewUrl: previewUrl,
                 invoiceId: result.id
             });
         } else {
@@ -931,14 +933,17 @@ app.get('/api/finance/invoices/:id/download', async (req, res) => {
         console.log(`📥 Fetching PDF for Invoice ID: ${invoiceIdToFetch}`);
 
         // 2. Call Quipu Service
-        const freshUrl = await quipuService.getInvoicePdf(invoiceIdToFetch);
+        const urls = await quipuService.getInvoiceUrls(invoiceIdToFetch);
 
-        if (freshUrl) {
+        if (urls) {
             // Update DB cache asynchronously if it was a DB invoice
             if (invoice) {
-                supabase.from('Invoice').update({ url: freshUrl }).eq('id', invoice.id).then();
+                supabase.from('Invoice').update({ url: urls.download }).eq('id', invoice.id).then();
             }
-            res.json({ url: freshUrl });
+            res.json({
+                url: urls.download,
+                previewUrl: urls.preview
+            });
         } else {
             console.warn("⚠️ PDF not found in Quipu, returning stored URL if any.");
             res.json({ url: invoice?.url || '' });

@@ -1,6 +1,6 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
-const { getOrCreateContact, createInvoice, getInvoicePdf } = require('../services/quipuService');
+const { getOrCreateContact, createInvoice, getInvoicePdf, getInvoiceUrls } = require('../services/quipuService');
 
 async function testQuipu() {
     console.log("🚀 Testing Quipu Integration (OAuth Flow)...");
@@ -53,14 +53,14 @@ async function testQuipu() {
         if (invoiceRes.success) {
             console.log(`✅ Invoice Created! ID: ${invoiceRes.id}`);
 
-            console.log("3️⃣ Fetching PDF...");
-            const pdfUrl = await getInvoicePdf(invoiceRes.id);
-            if (pdfUrl) {
-                console.log(`📜 Official PDF URL: ${pdfUrl}`);
+            console.log("3️⃣ Fetching URLs (Download + Preview)...");
+            const urls = await getInvoiceUrls(invoiceRes.id);
+            if (urls) {
+                console.log(`📜 Download URL: ${urls.download}`);
+                console.log(`👁 Preview URL: ${urls.preview}`);
                 console.log("\n🎉 TEST COMPLETED SUCCESSFULLY!");
             } else {
-                console.warn("⚠️ PDF URL not available yet (check API or wait for processing).");
-                console.log("Raw Invoice Data for Debug:", JSON.stringify(invoiceRes.raw, null, 2));
+                console.warn("⚠️ URLs not available.");
             }
         } else {
             console.error("❌ Failed to create invoice:", invoiceRes.error);
