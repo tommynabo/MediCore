@@ -826,13 +826,14 @@ app.post('/api/finance/invoice', async (req, res) => {
             const pdfUrl = result.pdf_url || await quipuService.getInvoicePdf(result.id);
             const previewUrl = result.preview_url || undefined; // Use what we got from creation
 
+            let savedInvoice = null;
             try {
                 const supabase = getSupabase();
                 const totalAmount = items.reduce((sum, item) => sum + Number(item.price), 0);
 
                 // Create Invoice Record
                 const invoiceId = crypto.randomUUID();
-                const { data: savedInvoice, error: invError } = await supabase
+                const { data: dbInvoice, error: invError } = await supabase
                     .from('Invoice')
                     .insert([{
                         id: invoiceId,
@@ -847,6 +848,8 @@ app.post('/api/finance/invoice', async (req, res) => {
                     }])
                     .select()
                     .single();
+
+                savedInvoice = dbInvoice;
 
                 if (invError) {
                     console.error("❌ DB Error saving Invoice header:", invError);
@@ -894,9 +897,9 @@ app.post('/api/finance/invoice', async (req, res) => {
                 invoiceNumber: result.number,
                 url: pdfUrl,
                 previewUrl: previewUrl,
-                invoiceId: savedInvoice.id, // Use Local UUID
-                id: savedInvoice.id,         // Use Local UUID for frontend compatibility
-                externalId: result.id        // Send Quipu ID for reference
+                invoiceId: savedInvoice?.id || result.id, // Prefer Local UUID, fallback to Quipu
+                id: savedInvoice?.id || result.id,         // Use Local UUID for frontend compatibility
+                externalId: result.id                      // Send Quipu ID for reference
             });
         } else {
             res.status(500).json({ error: result.error });
