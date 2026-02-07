@@ -90,7 +90,7 @@ model Treatment {
   items          InvoiceItem[]
   budgetItems    BudgetLineItem[]
   consumables    String?  // JSON String: e.g. [{"itemId": "uuid", "qty": 1}]
-  patientTreatments PatientTreatment[] // Instancias asignadas a pacientes
+  // patientTreatments PatientTreatment[] // RELATION REMOVED to split tables
 }
 
 // Patient-specific treatment instances (tratamientos asignados)
