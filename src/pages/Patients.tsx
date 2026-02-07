@@ -304,41 +304,50 @@ const Patients: React.FC = () => {
 
     const handleConvertToInvoice = async (budget: any) => {
         if (!confirm("¿Convertir este presupuesto a factura?")) return;
+        if (!selectedPatient) {
+            alert("Error: No hay paciente seleccionado");
+            return;
+        }
         try {
-            // 1. Create Invoice from Budget Data
+            // 1. Create Invoice from Budget Data - Pass full patient object for Quipu
             const invoiceData = {
-                patientId: selectedPatient?.id,
-                amount: budget.items && budget.items.length > 0 ? budget.items.reduce((acc: number, item: any) => acc + (Number(item.price) || 0), 0) : 0,
-                status: 'pending', // Default status
-                date: new Date().toISOString(),
-                concept: budget.title || "Presupuesto Convertido",
-                items: budget.items || []
+                patient: selectedPatient, // Required by backend for Quipu contact creation
+                amount: budget.totalAmount || (budget.items && budget.items.length > 0 ? budget.items.reduce((acc: number, item: any) => acc + (Number(item.price) || 0), 0) : 0),
+                items: (budget.items || []).map((item: any) => ({
+                    name: item.name,
+                    price: Number(item.price) || 0
+                })),
+                paymentMethod: 'card',
+                type: 'BUDGET_INVOICE'
             };
 
             // Call API
-            await api.invoices.create(invoiceData);
+            const result = await api.invoices.create(invoiceData);
 
-            // 2. Optionally update budget status (if API supported it, skipping for now as 'convert' method was missing in API check)
+            // 2. Update budget status to CONVERTED
+            await api.budget.updateStatus(budget.id, 'CONVERTED');
 
             // 3. Notify and Switch Tab
             alert("✅ Factura generada correctamente.");
 
+            // Open PDF if available
+            if (result.url || result.previewUrl) {
+                window.open(result.url || result.previewUrl, '_blank');
+            }
+
             // Refresh invoices
             const updatedInvoices = await api.invoices.getAll();
+            setInvoices(updatedInvoices);
 
-            // Enrich with dynamic simulated URLs for demo
-            const enrichedInvoices = updatedInvoices.map((inv: any) => ({
-                ...inv,
-                url: inv.url || `https://facturadirecta2.s3.amazonaws.com/tmp/simulated_path/${inv.invoiceNumber || 'draft'}/factura_${inv.invoiceNumber || Date.now()}_print.html`,
-                qrUrl: inv.qrUrl || `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://verifactu.sede.gob.es/vn?td=FACTURA_DIRECTA_${inv.invoiceNumber || 'DEMO'}`
-            }));
+            // Refresh budgets
+            const updatedBudgets = await api.budget.getByPatient(selectedPatient.id);
+            setBudgets(updatedBudgets);
 
-            setInvoices(enrichedInvoices);
             setPatientTab('billing');
 
-        } catch (e) {
+        } catch (e: any) {
             console.error(e);
-            alert("Error al convertir a factura.");
+            alert("Error al convertir a factura: " + (e.message || e));
         }
     };
 

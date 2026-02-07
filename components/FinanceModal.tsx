@@ -11,13 +11,14 @@ export const FinanceModal: React.FC<FinanceModalProps> = ({ budget, onClose, onS
     const [downPayment, setDownPayment] = useState<number>(0);
     const [months, setMonths] = useState<number>(3);
 
-    const financedAmount = Math.max(0, budget.total - downPayment);
+    const totalAmount = budget.totalAmount || budget.total || 0;
+    const financedAmount = Math.max(0, totalAmount - downPayment);
     const monthlyFee = months > 0 ? financedAmount / months : 0;
 
     const handleConfirm = () => {
         // Here we would call the API to create the TreatmentPlan with installments
         onSave({
-            total: budget.total,
+            total: totalAmount,
             downPayment,
             months,
             monthlyFee
@@ -28,7 +29,7 @@ export const FinanceModal: React.FC<FinanceModalProps> = ({ budget, onClose, onS
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-white p-8 rounded-3xl w-full max-w-md shadow-2xl">
                 <h3 className="text-2xl font-bold mb-2">Configurar Financiación</h3>
-                <p className="text-slate-500 mb-6">Total a financiar: <span className="font-bold text-slate-900">{budget.total}€</span></p>
+                <p className="text-slate-500 mb-6">Total a financiar: <span className="font-bold text-slate-900">{totalAmount.toFixed(2)}€</span></p>
 
                 <div className="space-y-6">
                     <div>
