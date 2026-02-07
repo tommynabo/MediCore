@@ -211,6 +211,9 @@ model Installment {
   status          String        @default("PENDING") // PENDING, PAID, OVERDUE
   paidDate        DateTime?
   description     String        // e.g. "Cuota 1/18"
+  invoiceId       String?       // Link to generated Invoice
+  invoicedAt      DateTime?     // When invoice was generated
+  reminderSent    Boolean       @default(false)
 }
 
 // --- MODULE 4: BUDGETS ---

@@ -106,8 +106,48 @@ app.get('/api/liquidations', async (req, res) => {
 
 app.post('/api/finance/financing', async (req, res) => {
     try {
-        const plan = await financeService.createFinancingPlan(prisma, req.body);
-        res.json(plan);
+        const result = await financeService.createFinancingPlan(prisma, req.body);
+        res.json(result);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get installments for a treatment plan
+app.get('/api/finance/installments/:planId', async (req, res) => {
+    try {
+        const installments = await prisma.installment.findMany({
+            where: { planId: req.params.planId },
+            orderBy: { dueDate: 'asc' }
+        });
+        res.json(installments);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Mark installment as paid
+app.post('/api/finance/installments/:id/pay', async (req, res) => {
+    try {
+        const updated = await financeService.markInstallmentPaid(prisma, req.params.id);
+        res.json(updated);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Manual trigger for processing due installments (for testing)
+app.post('/api/finance/installments/process-due', async (req, res) => {
+    try {
+        console.log('🔧 Manual trigger: Processing due installments...');
+        const results = await financeService.processDueInstallments(prisma);
+        res.json({ processed: results.length, results });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get all treatment plans for a patient with installments
+app.get('/api/finance/plans/:patientId', async (req, res) => {
+    try {
+        const plans = await prisma.treatmentPlan.findMany({
+            where: { patientId: req.params.patientId },
+            include: { installments: { orderBy: { dueDate: 'asc' } } },
+            orderBy: { startDate: 'desc' }
+        });
+        res.json(plans);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

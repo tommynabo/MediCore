@@ -168,6 +168,121 @@ const startScheduler = (prisma) => {
             console.error('Error processing scheduled messages:', e);
         }
     });
+    // Job 4: Process Due Installments (Runs daily at 8 AM)
+    // Generates invoices for financing plan installments due today
+    cron.schedule('0 8 * * *', async () => {
+        console.log('⏳ Running Daily Installment Invoice Generation...');
+        try {
+            const financeService = require('./financeService');
+            const results = await financeService.processDueInstallments(prisma);
+            console.log(`📋 Processed ${results.length} installments`);
+
+            // Send WhatsApp notification for each successful invoice
+            for (const result of results) {
+                if (result.success && result.patientName) {
+                    // Find patient and send notification
+                    const patient = await prisma.patient.findFirst({
+                        where: { name: result.patientName }
+                    });
+
+                    if (patient && patient.phone) {
+                        const msg = `Hola ${patient.name},\n\nTe informamos que se ha generado tu factura por ${result.amount}€ correspondiente a ${result.installmentId}.\n\nPuedes realizar el pago en nuestra clínica o contactarnos para más información.\n\nGracias por confiar en nosotros.`;
+
+                        try {
+                            await whatsappService.sendMessage(patient.phone, msg);
+                            console.log(`✅ Payment notification sent to ${patient.name}`);
+                        } catch (waErr) {
+                            console.warn(`⚠️ Could not send WhatsApp to ${patient.name}:`, waErr.message);
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error in Installment Invoice Job:', error);
+        }
+    });
+
+    // Job 5: Installment Payment Reminders (Runs daily at 9 AM)
+    // Sends WhatsApp reminders for payments due in 3 days
+    cron.schedule('0 9 * * *', async () => {
+        console.log('⏳ Running Installment Payment Reminder Check...');
+        try {
+            const financeService = require('./financeService');
+            const upcomingInstallments = await financeService.getUpcomingInstallments(prisma, 3);
+
+            console.log(`🔎 Found ${upcomingInstallments.length} installments due in 3 days`);
+
+            // Get reminder template or use default
+            const template = await prisma.whatsAppTemplate.findFirst({
+                where: { triggerType: 'PAYMENT_REMINDER' }
+            });
+
+            const defaultMsg = `Hola {{PACIENTE}},\n\nTe recordamos que tu próximo pago de {{AMOUNT}}€ correspondiente a "{{DESCRIPTION}}" vence el {{DATE}}.\n\nPor favor, contacta con nosotros si tienes alguna duda.\n\nGracias.`;
+
+            for (const inst of upcomingInstallments) {
+                const patient = inst.plan?.patient;
+                if (!patient || !patient.phone) continue;
+
+                // Check if already sent today
+                const alreadySent = await prisma.whatsAppLog.findFirst({
+                    where: {
+                        patientId: patient.id,
+                        type: 'PAYMENT_REMINDER',
+                        sentAt: {
+                            gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24h
+                        }
+                    }
+                });
+
+                if (alreadySent) continue;
+
+                // Format message
+                let msg = (template?.content || defaultMsg)
+                    .replace('{{PACIENTE}}', patient.name)
+                    .replace('{{PATIENT_NAME}}', patient.name)
+                    .replace('{{AMOUNT}}', inst.amount.toString())
+                    .replace('{{DESCRIPTION}}', inst.description)
+                    .replace('{{DATE}}', new Date(inst.dueDate).toLocaleDateString('es-ES'));
+
+                try {
+                    await whatsappService.sendMessage(patient.phone, msg);
+
+                    // Log success
+                    await prisma.whatsAppLog.create({
+                        data: {
+                            patientId: patient.id,
+                            type: 'PAYMENT_REMINDER',
+                            status: 'SENT',
+                            content: msg
+                        }
+                    });
+
+                    // Mark reminder sent on installment
+                    await prisma.installment.update({
+                        where: { id: inst.id },
+                        data: { reminderSent: true }
+                    });
+
+                    console.log(`✅ Payment reminder sent to ${patient.name}`);
+                } catch (err) {
+                    console.error(`❌ Failed to send reminder to ${patient.name}:`, err.message);
+                    await prisma.whatsAppLog.create({
+                        data: {
+                            patientId: patient.id,
+                            type: 'PAYMENT_REMINDER',
+                            status: 'FAILED',
+                            content: msg,
+                            error: err.message
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error in Payment Reminder Job:', error);
+        }
+    });
+
+    console.log('✅ All scheduler jobs started successfully');
 };
 
 module.exports = { startScheduler };

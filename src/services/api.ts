@@ -349,6 +349,24 @@ export const api = {
             if (!res.ok) throw new Error('Failed to create financing plan');
             return res.json();
         },
+        getInstallments: async (planId: string) => {
+            const res = await fetch(`${API_URL}/finance/installments/${planId}`, { headers });
+            if (!res.ok) throw new Error('Failed to get installments');
+            return res.json();
+        },
+        markInstallmentPaid: async (installmentId: string) => {
+            const res = await fetch(`${API_URL}/finance/installments/${installmentId}/pay`, {
+                method: 'POST',
+                headers
+            });
+            if (!res.ok) throw new Error('Failed to mark installment paid');
+            return res.json();
+        },
+        getPatientPlans: async (patientId: string) => {
+            const res = await fetch(`${API_URL}/finance/plans/${patientId}`, { headers });
+            if (!res.ok) throw new Error('Failed to get financing plans');
+            return res.json();
+        },
         delete: async (id: string) => {
             const res = await fetch(`${API_URL}/budgets/${id}`, { method: 'DELETE', headers });
             if (!res.ok) throw new Error('Failed to delete budget');
