@@ -285,7 +285,10 @@ export const api = {
                 headers,
                 body: JSON.stringify({ items, title })
             });
-            if (!res.ok) throw new Error('Failed to create budget');
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'Failed to create budget');
+            }
             return res.json();
         },
         addItemToDraft: async (patientId: string, item: any) => {
