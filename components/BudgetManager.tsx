@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Budget, TreatmentPlan, Installment } from '../types';
-import { Plus, Check, X, CreditCard, FileText, Loader2 } from 'lucide-react';
+import { Plus, Check, X, CreditCard, FileText, Loader2, Trash2 } from 'lucide-react';
 import { FinanceModal } from './FinanceModal';
 import { api } from '../services/api';
 
@@ -104,7 +104,7 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ patientId }) => {
                                 alert("Error: No patient ID found.");
                                 return;
                             }
-                            const res = await api.budget.create(patientId, []);
+                            const res = await api.budget.create(patientId, [], "Presupuesto Manual");
                             console.log("Budget created response:", res);
                             alert("✅ Presupuesto Manual Creado (Borrador).");
                             loadBudgets();
@@ -132,7 +132,8 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ patientId }) => {
                             <div className="flex justify-between items-start mb-4">
                                 <div>
                                     <h4 className="font-bold text-lg">Presupuesto #{bg.id.slice(0, 8)}</h4>
-                                    <p className="text-sm text-slate-500">{new Date(bg.date).toLocaleDateString()}</p>
+                                    <p className="text-sm font-bold text-slate-800">{bg.title || "Sin título"}</p>
+                                    <p className="text-xs text-slate-500">{new Date(bg.date).toLocaleDateString()}</p>
                                 </div>
                                 <span className={`px-3 py-1 rounded-full text-xs font-bold 
                                     ${bg.status === 'accepted' ? 'bg-green-100 text-green-700' :
@@ -145,12 +146,22 @@ export const BudgetManager: React.FC<BudgetManagerProps> = ({ patientId }) => {
 
                             <div className="space-y-2 mb-6">
                                 {bg.items && bg.items.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between text-sm py-2 border-b border-slate-50 last:border-0">
-                                        <div className="flex gap-2">
+                                    <div key={idx} className="flex justify-between text-sm py-2 border-b border-slate-50 last:border-0 items-center">
+                                        <div className="flex gap-2 items-center">
                                             <span className="font-bold text-slate-400">#{item.tooth || '-'}</span>
                                             <span>{item.name}</span>
                                         </div>
-                                        <span className="font-mono font-bold">{item.price}€</span>
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-mono font-bold">{item.price}€</span>
+                                            {(bg.status === 'pending' || bg.status === 'draft') && (
+                                                <button onClick={async () => {
+                                                    if (confirm("¿Borrar item?")) {
+                                                        await api.budget.deleteItem(item.id);
+                                                        loadBudgets();
+                                                    }
+                                                }} className="text-slate-400 hover:text-red-500"><Trash2 size={14} /></button>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                                 <div className="flex justify-between pt-2 font-black text-lg border-t border-slate-200 mt-2">

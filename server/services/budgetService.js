@@ -1,6 +1,6 @@
 // server/services/budgetService.js
 
-const createBudget = async (supabase, patientId, items = []) => {
+const createBudget = async (supabase, patientId, items = [], title = "") => {
     const totalAmount = items.reduce((sum, item) => sum + (Number(item.price) * (Number(item.quantity) || 1)), 0);
 
     // 1. Create Budget
@@ -9,6 +9,7 @@ const createBudget = async (supabase, patientId, items = []) => {
         .insert([{
             id: crypto.randomUUID(),
             patientId,
+            title: title || "Presupuesto General",
             status: 'DRAFT',
             totalAmount,
             date: new Date().toISOString(),
@@ -160,6 +161,20 @@ const addItemToDraftBudget = async (supabase, patientId, item) => {
         .single();
 };
 
+const deleteItem = async (supabase, itemId) => {
+    const { data: item, error } = await supabase.from('BudgetLineItem').select('budgetId').eq('id', itemId).single();
+    if (error) throw new Error("Item not found");
+
+    await supabase.from('BudgetLineItem').delete().eq('id', itemId);
+
+    // Recalculate total
+    const { data: items } = await supabase.from('BudgetLineItem').select('price, quantity').eq('budgetId', item.budgetId);
+    const newTotal = items.reduce((acc, i) => acc + (Number(i.price) * (Number(i.quantity) || 1)), 0);
+
+    await supabase.from('Budget').update({ totalAmount: newTotal, updatedAt: new Date().toISOString() }).eq('id', item.budgetId);
+    return { success: true };
+};
+
 const convertBudgetToInvoice = async (supabase, budgetId) => {
     // 1. Get Budget
     const { data: budget, error: budgetError } = await supabase
@@ -209,5 +224,6 @@ module.exports = {
     getBudgetsByPatient,
     updateBudgetStatus,
     addItemToDraftBudget,
+    deleteItem,
     convertBudgetToInvoice
 };

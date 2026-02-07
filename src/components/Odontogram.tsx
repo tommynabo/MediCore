@@ -183,9 +183,12 @@ export const Odontogram: React.FC<OdontogramProps> = ({
                 const budgetItems = finalItems.map(t => ({
                     id: crypto.randomUUID(),
                     name: `${t.serviceName} - Diente ${t.toothId || 'General'}`,
-                    price: t.price, serviceId: t.serviceId, treatmentId: t.id
+                    price: t.price,
+                    serviceId: t.serviceId,
+                    treatmentId: t.id,
+                    tooth: t.toothId || null
                 }));
-                await api.budget.create(patientId, budgetItems);
+                await api.budget.create(patientId, budgetItems, "Presupuesto Odontograma - " + new Date().toLocaleDateString());
                 alert(`✅ Presupuesto creado.`);
                 setSelectedTreatmentsForBudget([]);
             } catch (error) { console.error(error); alert("Error: " + (error.message || error)); setIsSaving(false); }

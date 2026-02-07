@@ -12,6 +12,7 @@ import { PaymentModal } from '../components/PaymentModal';
 import { TransferBalanceModal } from '../components/TransferBalanceModal';
 import { TreatmentsList } from '../components/TreatmentsList';
 import { PaymentsList } from '../components/PaymentsList';
+import { FinanceModal } from '../../components/FinanceModal';
 import { DOCTORS, DENTAL_SERVICES } from '../constants';
 
 const Patients: React.FC = () => {
@@ -52,6 +53,31 @@ const Patients: React.FC = () => {
     const [docContent, setDocContent] = useState('');
 
     // Treatments
+    const [isFinanceModalOpen, setIsFinanceModalOpen] = useState(false);
+    const [selectedBudgetForFinance, setSelectedBudgetForFinance] = useState<any>(null);
+
+    const handleSaveFinancing = async (planData: any) => {
+        if (!selectedBudgetForFinance) return;
+        try {
+            await api.budget.updateStatus(selectedBudgetForFinance.id, 'accepted');
+            await api.budget.createFinancing({
+                patientId: selectedPatient!.id,
+                budgetId: selectedBudgetForFinance.id,
+                totalAmount: selectedBudgetForFinance.totalAmount || selectedBudgetForFinance.items.reduce((acc: number, item: any) => acc + (Number(item.price) * (item.quantity || 1)), 0),
+                downPayment: planData.downPayment,
+                installmentsCount: planData.months,
+                startDateStr: new Date().toISOString()
+            });
+
+            alert("✅ Financiación creada correctamente.");
+            setIsFinanceModalOpen(false);
+            const updatedBudgets = await api.budget.getByPatient(selectedPatient!.id);
+            setBudgets(updatedBudgets);
+            setSelectedBudgetForFinance(null);
+        } catch (e: any) {
+            alert("Error guardando financiación: " + e.message);
+        }
+    };
     const [isNewTreatmentModalOpen, setIsNewTreatmentModalOpen] = useState(false);
     const [treatmentSearch, setTreatmentSearch] = useState('');
     const [treatmentForm, setTreatmentForm] = useState({ name: '', price: '', status: 'Pendiente' });
@@ -894,6 +920,17 @@ const Patients: React.FC = () => {
                                                                     </div>
                                                                 </div>
                                                                 <span className="font-black text-slate-900">{item.price}€</span>
+                                                                {(!budget.status || budget.status === 'DRAFT') && (
+                                                                    <button onClick={async (e) => {
+                                                                        e.stopPropagation();
+                                                                        if (!confirm("¿Borrar item?")) return;
+                                                                        try {
+                                                                            await api.budget.deleteItem(item.id);
+                                                                            const updated = await api.budget.getByPatient(selectedPatient!.id);
+                                                                            setBudgets(updated);
+                                                                        } catch (e: any) { alert(e.message); }
+                                                                    }} className="ml-2 text-slate-400 hover:text-red-500 p-1"><Trash2 size={14} /></button>
+                                                                )}
                                                             </div>
                                                         ))}
                                                         {(!budget.items || budget.items.length === 0) && (
@@ -908,6 +945,15 @@ const Patients: React.FC = () => {
                                                             className="px-4 py-2 rounded-xl bg-red-50 text-red-500 text-xs font-bold uppercase hover:bg-red-100 transition-colors flex items-center gap-2"
                                                         >
                                                             <Trash2 size={14} /> Borrar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedBudgetForFinance(budget);
+                                                                setIsFinanceModalOpen(true);
+                                                            }}
+                                                            className="px-6 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-lg shadow-slate-200"
+                                                        >
+                                                            Financiar
                                                         </button>
                                                         <button
                                                             onClick={() => handleConvertToInvoice(budget)}
@@ -1421,7 +1467,6 @@ const Patients: React.FC = () => {
                 )
             }
 
-            {/* FULLSCREEN ODONTOGRAM MODAL */}
             {isOdontogramOpen && selectedPatient && (
                 <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-xl z-[150] flex flex-col animate-in fade-in duration-300">
                     {/* Header */}
@@ -1453,6 +1498,15 @@ const Patients: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Finance Modal */}
+            {isFinanceModalOpen && selectedBudgetForFinance && (
+                <FinanceModal
+                    budget={selectedBudgetForFinance}
+                    onClose={() => setIsFinanceModalOpen(false)}
+                    onSave={handleSaveFinancing}
+                />
             )}
         </div>
     );

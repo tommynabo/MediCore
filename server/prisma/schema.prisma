@@ -217,6 +217,7 @@ model Installment {
 model Budget {
   id             String           @id @default(uuid())
   patientId      String
+  title          String?          // Description/Concept of the budget
   patient        Patient          @relation(fields: [patientId], references: [id])
   date           DateTime         @default(now())
   status         String           @default("DRAFT") // DRAFT, ACCEPTED, REJECTED, CONVERTED

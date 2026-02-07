@@ -1093,8 +1093,17 @@ app.post('/api/patients/:patientId/budgets', async (req, res) => {
     try {
         let supabase;
         try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
-        const { items } = req.body;
-        const data = await budgetService.createBudget(supabase, req.params.patientId, items);
+        const { items, title } = req.body;
+        const data = await budgetService.createBudget(supabase, req.params.patientId, items, title);
+        res.json(data);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/budgets/items/:id', async (req, res) => {
+    try {
+        let supabase;
+        try { supabase = getSupabase(); } catch (e) { return res.status(500).json({ error: e.message }); }
+        const data = await budgetService.deleteItem(supabase, req.params.id);
         res.json(data);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });

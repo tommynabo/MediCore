@@ -279,11 +279,11 @@ export const api = {
             if (!res.ok) throw new Error('Failed to load budgets');
             return res.json();
         },
-        create: async (patientId: string, items: any[]) => {
+        create: async (patientId: string, items: any[], title?: string) => {
             const res = await fetch(`${API_URL}/patients/${patientId}/budgets`, {
                 method: 'POST',
                 headers,
-                body: JSON.stringify({ items })
+                body: JSON.stringify({ items, title })
             });
             if (!res.ok) throw new Error('Failed to create budget');
             return res.json();
@@ -295,6 +295,11 @@ export const api = {
                 body: JSON.stringify(item)
             });
             if (!res.ok) throw new Error('Failed to add item to draft');
+            return res.json();
+        },
+        deleteItem: async (itemId: string) => {
+            const res = await fetch(`${API_URL}/budgets/items/${itemId}`, { method: 'DELETE', headers });
+            if (!res.ok) throw new Error('Failed to delete item');
             return res.json();
         },
         updateStatus: async (id: string, status: string) => {

@@ -51,25 +51,27 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         try {
             const amount = parseFloat(advanceAmount);
 
-            // 1. Emitir Factura (Create Invoice First)
+            // 1. Create Invoice (Type ADVANCE_PAYMENT triggers wallet update in backend)
             const invoiceData = {
-                patient,
+                patientId: patient.id, // Ensure patientId is passed directly if backend expects it inside object
+                // patient: patient, // Legacy support if needed
+                amount: amount,
                 items: [{ name: concept, price: amount }],
                 paymentMethod,
-                type: 'ADVANCE_PAYMENT' // Flag for backend to update wallet
+                type: 'ADVANCE_PAYMENT'
             };
 
-            console.log('Generando factura para saldo...', invoiceData);
-            const invoice = await api.invoices.create(invoiceData);
+            const response = await api.invoices.create(invoiceData) as any;
 
-            if (!invoice) throw new Error('No se pudo generar la factura');
+            if (!response || (!response.url && !response.previewUrl)) {
+                // Determine if failure
+                if (response.error) throw new Error(response.error);
+                // If it succeeded but no URL (unlikely with Quipu)
+            }
 
-            // 2. Add to Payment History & Update Wallet (handled by backend usually, but if not we do it here mock-style or via separate call)
-            // For now, assume we call an endpoint to "add balance" which creates the payment record
-            // OR we just use the onPaymentComplete to update local state, assuming the Invoice creation implies payment?
-            // Actually, usually "Adding Balance" is a specific transaction.
-            // Let's create a payment record locally to pass back.
+            const invoiceUrl = response.previewUrl || response.url;
 
+            // 2. Create Payment Record (for local UI update)
             const payment: Payment = {
                 id: `pay_${Date.now()}`,
                 patientId: patient.id,
@@ -80,21 +82,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 createdAt: new Date().toISOString()
             };
 
-            // Call backend to update wallet if needed?
-            // Since we don't have a specific `api.subWallet` visible, we rely on `onPaymentComplete` from parent to refresh patient or we assume `api.invoices.create` doesn't auto-add to wallet unless specified.
-            // If the user requirement is "Una vez emitido, poner ese dinero en el saldo", we likely need to trigger that.
-            // I'll assume the parent `onPaymentComplete` handles the "refresh patient" part, but we should probably tell the backend.
-            // For now, I will assume successful Invoice creation allows us to proceed.
+            // 3. Complete
+            onPaymentComplete(payment, response);
 
-            // To be safe, let's call a balance update if we can, or just trust the parent.
-            // Since I don't see `api.patients.updateBalance`, I will trust `onPaymentComplete` passes the info.
+            alert(`✅ Saldo añadido y factura generada.`);
 
-            onPaymentComplete(payment, invoice);
-
-            alert(`✅ Factura emitida y saldo añadido.\n\nFactura: ${invoice.invoiceNumber}`);
-
-            if (invoice.url) {
-                window.open(invoice.url, '_blank');
+            if (invoiceUrl) {
+                window.open(invoiceUrl, '_blank');
             }
 
             onClose();
