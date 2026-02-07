@@ -146,12 +146,20 @@ async function createFinancingPlan(prisma, { patientId, name, totalAmount, downP
             const patient = await prisma.patient.findUnique({ where: { id: patientId } });
             if (patient) {
                 const quipuService = require('./quipuService');
+                const { createClient } = require('@supabase/supabase-js');
+                const crypto = require('crypto');
+
+                // Initialize Supabase
+                const supabase = createClient(
+                    process.env.SUPABASE_URL,
+                    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY
+                );
 
                 // Create contact in Quipu
                 const contact = await quipuService.getOrCreateContact(patient);
 
                 if (contact && contact.id) {
-                    // Create invoice
+                    // Create invoice in Quipu
                     const today = new Date().toISOString().split('T')[0];
                     const invoiceResult = await quipuService.createInvoice(
                         contact.id,
@@ -168,10 +176,38 @@ async function createFinancingPlan(prisma, { patientId, name, totalAmount, downP
                             data: {
                                 invoiceId: invoiceResult.id,
                                 invoicedAt: new Date(),
-                                status: 'PAID' // Mark as paid since invoice generated at creation
+                                status: 'PAID'
                             }
                         });
-                        downPaymentInvoice = invoiceResult;
+
+                        // ALSO save to CRM Invoice table so it appears in Facturación section
+                        const invoiceId = crypto.randomUUID();
+                        const { data: savedInvoice, error: invError } = await supabase
+                            .from('Invoice')
+                            .insert([{
+                                id: invoiceId,
+                                invoiceNumber: invoiceResult.number || 'PENDING',
+                                externalId: invoiceResult.id,
+                                amount: downPayment,
+                                status: 'issued',
+                                date: new Date().toISOString(),
+                                url: invoiceResult.pdf_url || null,
+                                patientId: patient.id,
+                                paymentMethod: 'card'
+                            }])
+                            .select()
+                            .single();
+
+                        if (invError) {
+                            console.error('⚠️ Failed to save invoice to CRM:', invError.message);
+                        } else {
+                            console.log(`✅ Invoice saved to CRM: ${savedInvoice.invoiceNumber}`);
+                        }
+
+                        downPaymentInvoice = {
+                            ...invoiceResult,
+                            crmInvoiceId: savedInvoice?.id
+                        };
                         console.log(`✅ Down payment invoice created: ${invoiceResult.number}`);
                     }
                 }
