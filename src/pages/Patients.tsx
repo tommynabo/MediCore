@@ -60,7 +60,7 @@ const Patients: React.FC = () => {
         if (!selectedBudgetForFinance) return;
         try {
             await api.budget.updateStatus(selectedBudgetForFinance.id, 'accepted');
-            await api.budget.createFinancing({
+            const result = await api.budget.createFinancing({
                 patientId: selectedPatient!.id,
                 name: selectedBudgetForFinance.title || `Financiación Presupuesto #${selectedBudgetForFinance.id.slice(0, 6)}`,
                 budgetId: selectedBudgetForFinance.id,
@@ -70,7 +70,15 @@ const Patients: React.FC = () => {
                 startDateStr: new Date().toISOString()
             });
 
-            alert("✅ Financiación creada correctamente.");
+            // Show success with invoice info
+            let msg = "✅ Financiación creada correctamente.";
+            if (result.downPaymentInvoice) {
+                msg += `\n\n📄 Factura de entrada generada: ${result.downPaymentInvoice.number || 'En proceso'}\nImporte: ${planData.downPayment}€`;
+            }
+            msg += `\n\n📅 Cuotas mensuales: ${planData.months} x ${((selectedBudgetForFinance.totalAmount - planData.downPayment) / planData.months).toFixed(2)}€`;
+            msg += "\n\nLas facturas de las cuotas se generarán automáticamente en la fecha de vencimiento.";
+
+            alert(msg);
             setIsFinanceModalOpen(false);
             const updatedBudgets = await api.budget.getByPatient(selectedPatient!.id);
             setBudgets(updatedBudgets);
@@ -956,28 +964,53 @@ const Patients: React.FC = () => {
                                                     </div>
 
                                                     {/* Footer Actions */}
-                                                    <div className="flex justify-end gap-3 pt-2 border-t border-slate-50">
-                                                        <button
-                                                            onClick={() => handleDeleteBudget(budget.id)}
-                                                            className="px-4 py-2 rounded-xl bg-red-50 text-red-500 text-xs font-bold uppercase hover:bg-red-100 transition-colors flex items-center gap-2"
-                                                        >
-                                                            <Trash2 size={14} /> Borrar
-                                                        </button>
-                                                        <button
-                                                            onClick={() => {
-                                                                setSelectedBudgetForFinance(budget);
-                                                                setIsFinanceModalOpen(true);
-                                                            }}
-                                                            className="px-6 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-lg shadow-slate-200"
-                                                        >
-                                                            Financiar
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleConvertToInvoice(budget)}
-                                                            className="px-6 py-2 rounded-xl bg-purple-50 text-purple-600 text-xs font-black uppercase hover:bg-purple-100 transition-colors flex items-center gap-2"
-                                                        >
-                                                            Convertir a Factura
-                                                        </button>
+                                                    <div className="flex justify-between items-center gap-3 pt-2 border-t border-slate-50">
+                                                        {/* Status Badge */}
+                                                        <div className="flex-shrink-0">
+                                                            {budget.status === 'accepted' && (
+                                                                <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase">
+                                                                    ✅ Financiado
+                                                                </span>
+                                                            )}
+                                                            {budget.status === 'CONVERTED' && (
+                                                                <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-600 text-[10px] font-bold uppercase">
+                                                                    📄 Facturado
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Actions - Only show for DRAFT/pending budgets */}
+                                                        <div className="flex gap-3">
+                                                            <button
+                                                                onClick={() => handleDeleteBudget(budget.id)}
+                                                                className="px-4 py-2 rounded-xl bg-red-50 text-red-500 text-xs font-bold uppercase hover:bg-red-100 transition-colors flex items-center gap-2"
+                                                            >
+                                                                <Trash2 size={14} /> Borrar
+                                                            </button>
+
+                                                            {/* Only show Financiar if not already financed or converted */}
+                                                            {budget.status !== 'accepted' && budget.status !== 'CONVERTED' && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setSelectedBudgetForFinance(budget);
+                                                                        setIsFinanceModalOpen(true);
+                                                                    }}
+                                                                    className="px-6 py-2 rounded-xl bg-slate-900 text-white text-xs font-black uppercase hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-lg shadow-slate-200"
+                                                                >
+                                                                    Financiar
+                                                                </button>
+                                                            )}
+
+                                                            {/* Only show Convert to Invoice if NOT financed and NOT already converted */}
+                                                            {budget.status !== 'accepted' && budget.status !== 'CONVERTED' && (
+                                                                <button
+                                                                    onClick={() => handleConvertToInvoice(budget)}
+                                                                    className="px-6 py-2 rounded-xl bg-purple-50 text-purple-600 text-xs font-black uppercase hover:bg-purple-100 transition-colors flex items-center gap-2"
+                                                                >
+                                                                    Convertir a Factura
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             ))
